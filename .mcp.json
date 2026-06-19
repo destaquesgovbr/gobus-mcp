@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "gobus": {
+      "command": "python",
+      "args": ["-m", "gobus_mcp"],
+      "env": {
+        "GOBUS_GRAPHQL_URL": "http://localhost:8000/graphql",
+        "GOBUS_LOG_LEVEL": "WARNING"
+      }
+    }
+  }
+}

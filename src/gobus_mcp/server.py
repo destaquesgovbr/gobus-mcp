@@ -148,10 +148,25 @@ def prompt_weekly_digest() -> list[dict]:
 
 
 def main():
+    import os
+
     logger.info("Iniciando Gobus MCP Server...")
     logger.info("GraphQL endpoint: %s", settings.graphql_url)
+
+    # Cloud Run injeta PORT; presença indica modo HTTP (SSE).
+    # Localmente (stdio para Claude Desktop/Code) PORT não está setado.
+    port = int(os.environ.get("PORT", 0))
+    transport = os.environ.get("MCP_TRANSPORT", "sse" if port else "stdio")
+
     try:
-        mcp.run()
+        if transport == "stdio":
+            logger.info("Transport: stdio (modo local)")
+            mcp.run()
+        else:
+            host = "0.0.0.0"
+            port = port or 8080
+            logger.info("Transport: %s em %s:%d", transport, host, port)
+            mcp.run(transport=transport, host=host, port=port)
     except KeyboardInterrupt:
         logger.info("Servidor interrompido pelo usuário")
     except Exception as e:
