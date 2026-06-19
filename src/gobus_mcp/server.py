@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.config import settings
@@ -165,9 +165,7 @@ def main():
         else:
             effective_port = port or 8080
             logger.info("Transport: %s em 0.0.0.0:%d", transport, effective_port)
-            # FASTMCP_HOST/PORT foram definidos em __main__.py antes da
-            # inicializacao do Settings; mcp.run() le essas configuracoes.
-            mcp.run(transport=transport)
+            mcp.run(transport=transport, host="0.0.0.0", port=effective_port)
     except KeyboardInterrupt:
         logger.info("Servidor interrompido pelo usuário")
     except Exception as e:
