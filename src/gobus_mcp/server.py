@@ -148,6 +148,7 @@ def prompt_weekly_digest() -> list[dict]:
 
 
 def main():
+    import asyncio
     import os
 
     logger.info("Iniciando Gobus MCP Server...")
@@ -166,7 +167,7 @@ def main():
             host = "0.0.0.0"
             port = port or 8080
             logger.info("Transport: %s em %s:%d", transport, host, port)
-            mcp.run(transport=transport, host=host, port=port)
+            asyncio.run(mcp.run_http_async(transport=transport, host=host, port=port))
     except KeyboardInterrupt:
         logger.info("Servidor interrompido pelo usuário")
     except Exception as e:
