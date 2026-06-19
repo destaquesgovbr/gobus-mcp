@@ -163,15 +163,12 @@ def main():
             logger.info("Transport: stdio (modo local)")
             mcp.run()
         else:
-            # Configura host/port via env vars lidas pelo FastMCP Settings.
-            # Evita depender de assinaturas específicas de métodos que variam
-            # entre versões (run_http_async vs run_sse_async vs http_app).
             host = "0.0.0.0"
             effective_port = port or 8080
-            os.environ.setdefault("FASTMCP_HOST", host)
-            os.environ.setdefault("FASTMCP_PORT", str(effective_port))
             logger.info("Transport: %s em %s:%d", transport, host, effective_port)
-            mcp.run(transport=transport)
+            # FastMCP 3.x: run() aceita **transport_kwargs que sao passados a
+            # run_http_async(host, port, ...). Requer fastmcp ^3.0.
+            mcp.run(transport=transport, host=host, port=effective_port)
     except KeyboardInterrupt:
         logger.info("Servidor interrompido pelo usuário")
     except Exception as e:
