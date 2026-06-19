@@ -1,8 +1,8 @@
 from gobus_mcp.client import GobusGraphQLClient
 
 _SEARCH_QUERY = """
-query SearchNews($query: String!, $agencyKey: String, $page: Int, $limit: Int) {
-  search(query: $query, agencyKey: $agencyKey, page: $page, limit: $limit) {
+query SearchNews($query: String!, $filter: ArticleFilter, $page: Int) {
+  search(query: $query, filter: $filter, page: $page) {
     articles {
       uniqueId
       title
@@ -10,8 +10,10 @@ query SearchNews($query: String!, $agencyKey: String, $page: Int, $limit: Int) {
       publishedAt
       summary
       url
-      trendingScore
-      viewCount
+      features {
+        trendingScore
+        viewCount
+      }
     }
     found
     page
@@ -38,9 +40,9 @@ async def search_news(
     Returns:
         Markdown com artigos encontrados e metadados de paginação.
     """
-    variables: dict = {"query": query, "page": page, "limit": min(limit, 50)}
+    variables: dict = {"query": query, "page": page}
     if agency_key:
-        variables["agencyKey"] = agency_key
+        variables["filter"] = {"agencies": [agency_key]}
 
     data = await client.execute(_SEARCH_QUERY, variables)
     result = data.get("search") or {}
@@ -54,7 +56,8 @@ async def search_news(
     for art in articles:
         pub_at = art.get("publishedAt", "")[:10] if art.get("publishedAt") else ""
         agency = art.get("agencyName", "")
-        trending = art.get("trendingScore")
+        features = art.get("features") or {}
+        trending = features.get("trendingScore")
         trending_str = f" 🔥 trending={trending:.1f}" if trending and trending > 1.0 else ""
         lines.append(
             f"## {art['title']}\n"
