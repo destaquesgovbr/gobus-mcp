@@ -163,12 +163,11 @@ def main():
             logger.info("Transport: stdio (modo local)")
             mcp.run()
         else:
-            host = "0.0.0.0"
             effective_port = port or 8080
-            logger.info("Transport: %s em %s:%d", transport, host, effective_port)
-            # FastMCP 3.x: run() aceita **transport_kwargs que sao passados a
-            # run_http_async(host, port, ...). Requer fastmcp ^3.0.
-            mcp.run(transport=transport, host=host, port=effective_port)
+            logger.info("Transport: %s em 0.0.0.0:%d", transport, effective_port)
+            # FASTMCP_HOST/PORT foram definidos em __main__.py antes da
+            # inicializacao do Settings; mcp.run() le essas configuracoes.
+            mcp.run(transport=transport)
     except KeyboardInterrupt:
         logger.info("Servidor interrompido pelo usuário")
     except Exception as e:
