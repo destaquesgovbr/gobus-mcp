@@ -163,12 +163,15 @@ def main():
             logger.info("Transport: stdio (modo local)")
             mcp.run()
         else:
-            import uvicorn
+            # Configura host/port via env vars lidas pelo FastMCP Settings.
+            # Evita depender de assinaturas específicas de métodos que variam
+            # entre versões (run_http_async vs run_sse_async vs http_app).
             host = "0.0.0.0"
-            port = port or 8080
-            logger.info("Transport: %s em %s:%d", transport, host, port)
-            app = mcp.http_app(transport=transport)
-            uvicorn.run(app, host=host, port=port, log_level="info")
+            effective_port = port or 8080
+            os.environ.setdefault("FASTMCP_HOST", host)
+            os.environ.setdefault("FASTMCP_PORT", str(effective_port))
+            logger.info("Transport: %s em %s:%d", transport, host, effective_port)
+            mcp.run(transport=transport)
     except KeyboardInterrupt:
         logger.info("Servidor interrompido pelo usuário")
     except Exception as e:
