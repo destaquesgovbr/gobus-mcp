@@ -3,7 +3,6 @@ name = "gobus-mcp"
 version = "0.1.0"
 description = "MCP Server Gobus — interface de leitura unificada do Destaques Gov.BR via GraphQL"
 authors = ["Nitai Bezerra da Silva <nitaibezerra@protonmail.com>"]
-readme = "README.md"
 license = "AGPL-3.0-or-later"
 
 [tool.poetry.dependencies]
