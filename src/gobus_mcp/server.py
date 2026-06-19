@@ -148,7 +148,6 @@ def prompt_weekly_digest() -> list[dict]:
 
 
 def main():
-    import asyncio
     import os
 
     logger.info("Iniciando Gobus MCP Server...")
@@ -164,10 +163,12 @@ def main():
             logger.info("Transport: stdio (modo local)")
             mcp.run()
         else:
+            import uvicorn
             host = "0.0.0.0"
             port = port or 8080
             logger.info("Transport: %s em %s:%d", transport, host, port)
-            asyncio.run(mcp.run_http_async(transport=transport, host=host, port=port))
+            app = mcp.http_app(transport=transport)
+            uvicorn.run(app, host=host, port=port, log_level="info")
     except KeyboardInterrupt:
         logger.info("Servidor interrompido pelo usuário")
     except Exception as e:
