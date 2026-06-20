@@ -1,7 +1,7 @@
 from gobus_mcp.client import GobusGraphQLClient
 
 _ENTITY_SEARCH_QUERY = """
-query EntitySearch($query: String!, $entityType: EntityType, $limit: Int) {
+query EntitySearch($query: String!, $entityType: EntityKind, $limit: Int) {
   entitySearch(query: $query, entityType: $entityType, limit: $limit) {
     entityId
     canonicalName

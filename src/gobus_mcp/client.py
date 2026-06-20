@@ -4,7 +4,7 @@ import httpx
 class GobusGraphQLError(Exception):
     def __init__(self, errors: list[dict]):
         self.errors = errors
-        msgs = "; ".join(e.get("message", str(e)) for e in errors)
+        msgs = "; ".join(str(e.get("message") or e) for e in errors)
         super().__init__(f"GraphQL errors: {msgs}")
 
 

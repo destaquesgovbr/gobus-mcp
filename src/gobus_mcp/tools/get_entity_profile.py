@@ -1,7 +1,7 @@
 from gobus_mcp.client import GobusGraphQLClient
 
 _ENTITY_SEARCH_QUERY = """
-query EntitySearch($query: String!, $entityType: EntityType) {
+query EntitySearch($query: String!, $entityType: EntityKind) {
   entitySearch(query: $query, entityType: $entityType, limit: 1) {
     entityId canonicalName type description wikidataUrl agencyKey
     aliases articleCount confidence matchType
