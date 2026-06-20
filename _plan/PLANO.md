@@ -1,5 +1,10 @@
 # Gobus MCP — Plano de Implementação
 
+> **Status:** ✅ Concluído e em produção — 2026-06-20
+> Cloud Run: `https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app`
+> Todos os 7 tools, 3 resources e 4 prompts validados end-to-end contra dados reais.
+> Ver seção **[Bugs encontrados em produção](#bugs-encontrados-em-produção)** no final.
+
 ## Contexto
 
 O Destaques Gov.BR tem ~300k artigos, grafo de entidades (Neo4j + Postgres), busca híbrida (Typesense) e features por notícia (sentimento, trending, legibilidade, entidades NER canonicalizadas). A POC (`LAB/govbrnews-mcp/`) validou a arquitetura FastMCP + Typesense, mas não tinha NER, grafo nem analytics.
@@ -347,18 +352,18 @@ gobus-mcp/
 
 ### Fases e PRs
 
-| Fase | Repo | Entrega | TDD |
-|------|------|---------|-----|
-| **0a** — Q1 agencyAnalytics | graphql-api | Tipos + resolver Postgres + testes | Red→Green |
-| **0b** — Q2 entityCoverage | graphql-api | Tipo + resolver Postgres + testes | Red→Green |
-| **0c** — Q3 entitySearch | graphql-api | Tipo + resolver Postgres trgm + testes | Red→Green |
-| **0d** — Q4 trendingThemes | graphql-api | Tipo + resolver Typesense 2-janelas + testes | Red→Green |
-| **1** — Scaffold gobus-mcp | gobus-mcp | pyproject, config, GobusGraphQLClient, conftest | Conexão health |
-| **2** — Resources + resolve_entity | gobus-mcp | 3 resources + resolve_entity (usa Q3) | Unit mocks |
-| **3** — search_news + get_article | gobus-mcp | 2 tools + prompts monitor_agency + draft_press_release | Unit mocks |
-| **4** — Entity tools | gobus-mcp | get_entity_profile + get_entity_network + prompt trace_entity | Unit mocks |
-| **5** — Analytics + Trends | gobus-mcp | get_agency_analytics + detect_trends + prompt weekly_digest | Unit mocks |
-| **6** — Deploy | infra | Cloud Run + `.mcp.json` + Secret Manager vars | E2E smoke |
+| Fase | Repo | Entrega | Status |
+|------|------|---------|--------|
+| **0a** — Q1 agencyAnalytics | graphql-api | Tipos + resolver Postgres + testes | ✅ PR #20 |
+| **0b** — Q2 entityCoverage | graphql-api | Tipo + resolver Postgres + testes | ✅ PR #20 |
+| **0c** — Q3 entitySearch | graphql-api | Tipo + resolver Postgres trgm + testes | ✅ PR #20 |
+| **0d** — Q4 trendingThemes | graphql-api | Tipo + resolver Typesense 2-janelas + testes | ✅ PR #20 |
+| **1** — Scaffold gobus-mcp | gobus-mcp | pyproject, config, GobusGraphQLClient, conftest | ✅ |
+| **2** — Resources + resolve_entity | gobus-mcp | 3 resources + resolve_entity (usa Q3) | ✅ |
+| **3** — search_news + get_article | gobus-mcp | 2 tools + prompts monitor_agency + draft_press_release | ✅ |
+| **4** — Entity tools | gobus-mcp | get_entity_profile + get_entity_network + prompt trace_entity | ✅ |
+| **5** — Analytics + Trends | gobus-mcp | get_agency_analytics + detect_trends + prompt weekly_digest | ✅ |
+| **6** — Deploy | infra | Cloud Run (HTTP transport) + WIF + CI/CD | ✅ |
 
 ### GobusGraphQLClient (client.py)
 
@@ -408,9 +413,44 @@ cd /Users/nitai/dev/destaquesgovbr/gobus-mcp
 ```
 Indicadores: 100% mock-based (zero calls reais); cada tool retorna Markdown com estrutura esperada.
 
-**E2E (Fase 6)**:
-- Conectar Claude Desktop/Code ao servidor local
-- Executar prompts dos 10 use cases contra produção
-- Latência < 3s por tool; nenhuma exceção não tratada
-- `resolve_entity("MEC")` → `Q4294522` como primeiro resultado
-- `detect_trends(window=7d)` → ≥3 temas com growth_score > 1.0
+**E2E (Fase 6)** — ✅ validado em 2026-06-20:
+- `detect_trends(window=7d)` → 3 temas (Esportes 1.8×, Rel. Internacionais 1.6×, Agricultura 1.5×)
+- `search_news("Neymar Copa")` → artigos com trendingScore, features corretas
+- `get_article(uniqueId)` → conteúdo completo com entidades NER
+- `resolve_entity("Neymar", PER)` → `Q142794`, confidence 1.00, alias_exact
+- `get_entity_profile("Neymar", PER)` → 39 artigos, 114 menções, co-entidades (Ancelotti, Copa 2026, EUA)
+- `get_entity_network("Q142794")` → 40 nós, Santos FC, CBF, PSG, Barcelona, Seleção, Ancelotti
+- `get_agency_analytics(["saude","esporte"], "2026-06-01", "2026-06-19")` → Saúde 46 artigos, Esporte 34 artigos
+
+---
+
+## Bugs encontrados em produção
+
+Divergências entre o design do plano e o schema real, descobertas durante a validação E2E em 2026-06-20.
+
+### gobus-mcp
+
+| Bug | Arquivo | Fix |
+|-----|---------|-----|
+| Enum `EntityType` não existe no schema — é `EntityKind` | `tools/resolve_entity.py`, `tools/get_entity_profile.py` | Renomear nas declarações de variável GraphQL |
+| `relatedEntities` usa argumento `id:`, não `entityId:` | `tools/get_entity_profile.py` | Renomear variável e argumento |
+| `RelatedEntity` retorna `canonicalId`, não `entityId` | `tools/get_entity_profile.py` | Corrigir nome do campo no resultado |
+| `entityNetwork` usa argumento `id:`, não `entityId:` | `tools/get_entity_network.py` | Renomear variável e argumento |
+| `agencies { key name }` não existe — são `code` e `label` | `resources/agencies.py` | Corrigir campos da query |
+| SSE em Cloud Run causa race condition de inicialização (`-32602`) com múltiplas instâncias | `server.py` | Forçar HTTP transport quando `PORT` está definido; ignorar `MCP_TRANSPORT` |
+| `mcp.server.fastmcp.FastMCP` não tem `run_http_async` | `server.py` | Usar `from fastmcp import FastMCP` (pacote standalone, não o bundled do SDK) |
+| `fastmcp.Settings` inicializa no import com `host=127.0.0.1` — não serve em Cloud Run | `server.py` | Passar `host="0.0.0.0"` explicitamente em `mcp.run()` |
+| Mensagem de erro "None" quando `GraphQLError.message` é null | `client.py` | `str(e.get("message") or e)` em vez de `e.get("message", str(e))` |
+
+### graphql-api
+
+| Bug | Arquivo | Fix |
+|-----|---------|-----|
+| `unaccent()` não está instalada no Cloud SQL de prod (extensão ausente) | `datasources/postgres.py` | Remover `unaccent()` do SQL — `alias_norm` já armazena ASCII lowercase normalizado (NFKD via Python) |
+| asyncpg rejeita `str` para parâmetros inferidos como `timestamptz` | `datasources/postgres.py` | Converter `date_from`/`date_to` para `datetime.date` antes de passar ao asyncpg em `agency_analytics` e `entity_coverage` |
+
+### Notas de infraestrutura
+
+- **`pg_trgm`** está instalada (migration 015). **`unaccent`** não — não foi incluída em nenhuma migration.
+- **WIF (Workload Identity Federation):** o repo `gobus-mcp` não estava no binding IAM do pool WIF → CI falhava com 403 ao tentar fazer deploy. Corrigido via infra PR #207 adicionando `google_service_account_iam_member` para o repo.
+- **Granularity enum:** valores internos são lowercase (`"day"`, `"week"`, `"month"`) mas os nomes GraphQL são uppercase (`DAY`, `WEEK`, `MONTH`). O MCP passa a string uppercase como variável — Strawberry converte corretamente.

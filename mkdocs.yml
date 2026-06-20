@@ -1,0 +1,64 @@
+site_name: Destaques Gov.BR — Gobus MCP
+site_description: Servidor MCP que expõe o acervo Gov.BR para LLMs via GraphQL
+repo_url: https://github.com/destaquesgovbr/gobus-mcp
+repo_name: destaquesgovbr/gobus-mcp
+docs_dir: docs
+
+theme:
+  name: material
+  language: pt-BR
+  palette:
+    - scheme: default
+      primary: green
+      accent: green
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search:
+      lang: pt
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Início: index.md
+  - Início Rápido: quickstart.md
+  - Tools:
+    - Visão Geral: tools/index.md
+    - search_news: tools/search-news.md
+    - get_article: tools/get-article.md
+    - resolve_entity: tools/resolve-entity.md
+    - get_entity_profile: tools/get-entity-profile.md
+    - get_entity_network: tools/get-entity-network.md
+    - get_agency_analytics: tools/get-agency-analytics.md
+    - detect_trends: tools/detect-trends.md
+  - Resources:
+    - agencies: resources/agencies.md
+    - themes: resources/themes.md
+    - platform_stats: resources/platform-stats.md
+  - Prompts:
+    - monitor_agency: prompts/monitor-agency.md
+    - trace_entity: prompts/trace-entity.md
+    - weekly_digest: prompts/weekly-digest.md
+    - draft_press_release: prompts/draft-press-release.md
+  - Casos de Uso: casos-de-uso.md
+  - Arquitetura: arquitetura.md
+  - Deploy & Config: deploy.md
