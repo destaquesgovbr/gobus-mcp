@@ -18,9 +18,9 @@ query EntityCoverage($entityId: String!, $granularity: Granularity, $dateFrom: S
 """
 
 _RELATED_ENTITIES_QUERY = """
-query RelatedEntities($entityId: String!, $limit: Int) {
-  relatedEntities(entityId: $entityId, limit: $limit) {
-    entityId
+query RelatedEntities($id: String!, $limit: Int) {
+  relatedEntities(id: $id, limit: $limit) {
+    canonicalId
     canonicalName
     type
     weight
@@ -67,7 +67,7 @@ async def get_entity_profile(
     coverage_data = await client.execute(_ENTITY_COVERAGE_QUERY, coverage_vars)
     coverage = coverage_data.get("entityCoverage") or []
 
-    related_data = await client.execute(_RELATED_ENTITIES_QUERY, {"entityId": entity_id, "limit": 10})
+    related_data = await client.execute(_RELATED_ENTITIES_QUERY, {"id": entity_id, "limit": 10})
     related = related_data.get("relatedEntities") or []
 
     wikidata = f"[Wikidata]({entity['wikidataUrl']})" if entity.get("wikidataUrl") else "—"
@@ -96,6 +96,6 @@ async def get_entity_profile(
     if related:
         lines.append("\n## Entidades relacionadas (co-menção)")
         for r in related[:8]:
-            lines.append(f"- **{r.get('canonicalName', r.get('entityId'))}** ({r.get('type', '')}) · {r.get('weight', 0)} artigos")
+            lines.append(f"- **{r.get('canonicalName', r.get('canonicalId'))}** ({r.get('type', '')}) · {r.get('weight', 0)} artigos")
 
     return "\n".join(lines)

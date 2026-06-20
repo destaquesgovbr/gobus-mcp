@@ -1,8 +1,8 @@
 from gobus_mcp.client import GobusGraphQLClient
 
 _NETWORK_QUERY = """
-query EntityNetwork($entityId: String!, $depth: Int, $limit: Int) {
-  entityNetwork(entityId: $entityId, depth: $depth, limit: $limit) {
+query EntityNetwork($id: String!, $depth: Int, $limit: Int) {
+  entityNetwork(id: $id, depth: $depth, limit: $limit) {
     nodes {
       entityId canonicalName type wikidataId
     }
@@ -30,7 +30,7 @@ async def get_entity_network(
     Returns:
         Markdown com nós e arestas da rede de entidades.
     """
-    data = await client.execute(_NETWORK_QUERY, {"entityId": entity_id, "depth": min(depth, 2), "limit": min(limit, 200)})
+    data = await client.execute(_NETWORK_QUERY, {"id": entity_id, "depth": min(depth, 2), "limit": min(limit, 200)})
     network = data.get("entityNetwork") or {}
     nodes = network.get("nodes") or []
     edges = network.get("edges") or []
