@@ -153,10 +153,11 @@ def main():
     logger.info("Iniciando Gobus MCP Server...")
     logger.info("GraphQL endpoint: %s", settings.graphql_url)
 
-    # Cloud Run injeta PORT; presença indica modo HTTP (SSE).
-    # Localmente (stdio para Claude Desktop/Code) PORT não está setado.
+    # Cloud Run injeta PORT; usamos HTTP transport (streamable-http) que é
+    # stateless e não sofre da race condition de inicialização SSE em Cloud Run.
+    # Localmente (sem PORT) usa stdio para Claude Desktop/Code.
     port = int(os.environ.get("PORT", 0))
-    transport = os.environ.get("MCP_TRANSPORT", "sse" if port else "stdio")
+    transport = os.environ.get("MCP_TRANSPORT", "http" if port else "stdio")
 
     try:
         if transport == "stdio":
