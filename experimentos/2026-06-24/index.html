@@ -1,0 +1,1943 @@
+
+<!doctype html>
+<html lang="pt" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Servidor MCP que expõe o acervo Gov.BR para LLMs via GraphQL">
+      
+      
+      
+      
+        <link rel="prev" href="../../deploy/">
+      
+      
+        <link rel="next" href="uc-01/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>2026-06-24 — 10 Use Cases - Destaques Gov.BR — Gobus MCP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#experimento-gobus-mcp-10-use-cases" class="md-skip">
+          Pular para conteúdo
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabeçalho">
+    <a href="../.." title="Destaques Gov.BR — Gobus MCP" class="md-header__button md-logo" aria-label="Destaques Gov.BR — Gobus MCP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Destaques Gov.BR — Gobus MCP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              2026-06-24 — 10 Use Cases
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="green"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Buscar" placeholder="Buscar" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Pesquisar">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpar" aria-label="Limpar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando busca
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/destaquesgovbr/gobus-mcp" title="Ir para repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    destaquesgovbr/gobus-mcp
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navegação" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Destaques Gov.BR — Gobus MCP" class="md-nav__button md-logo" aria-label="Destaques Gov.BR — Gobus MCP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Destaques Gov.BR — Gobus MCP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/destaquesgovbr/gobus-mcp" title="Ir para repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    destaquesgovbr/gobus-mcp
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Início
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Início Rápido
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visão Geral
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tools/search-news/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    search_news
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tools/get-article/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    get_article
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tools/resolve-entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    resolve_entity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tools/get-entity-profile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    get_entity_profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tools/get-entity-network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    get_entity_network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tools/get-agency-analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    get_agency_analytics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tools/detect-trends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    detect_trends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resources
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Resources
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../resources/agencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    agencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../resources/themes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    themes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../resources/platform-stats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    platform_stats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Prompts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../prompts/monitor-agency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    monitor_agency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../prompts/trace-entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    trace_entity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../prompts/weekly-digest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weekly_digest
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../prompts/draft-press-release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    draft_press_release
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../casos-de-uso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Casos de Uso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arquitetura/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Arquitetura
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deploy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy & Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Experimentos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Experimentos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2026-06-24 — 10 Use Cases
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2026-06-24 — 10 Use Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#status-dos-use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status dos Use Cases
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#achados-recorrentes-aparecem-em-2-ucs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Achados Recorrentes (aparecem em 2+ UCs)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dimensoes-de-melhoria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dimensões de Melhoria
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dimensões de Melhoria">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-dados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Dados
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-design-das-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Design das Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-qualidade-dos-prompts-use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Qualidade dos Prompts / Use Cases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-schema-infraestrutura" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Schema / Infraestrutura
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proximos-passos-recomendados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Próximos Passos Recomendados
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Próximos Passos Recomendados">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#p1-alta-prioridade-bloqueiam-ucs-inteiros" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P1 — Alta prioridade (bloqueiam UCs inteiros)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#p2-media-prioridade-degradam-qualidade-tem-workarounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P2 — Média prioridade (degradam qualidade, têm workarounds)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#p3-baixo-impacto-imediato-melhorias-incrementais" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P3 — Baixo impacto imediato (melhorias incrementais)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="uc-01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UC-01 Briefing Diário (Saúde)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="uc-02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UC-02 Comparativo Fazenda × Planejamento
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="uc-03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UC-03 Trajetória Mais Médicos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="uc-04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UC-04 Radar de Tendências
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="uc-05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UC-05 Release Emprego Formal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="uc-06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UC-06 Rede Institucional (Comunicações)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="uc-07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UC-07 Sentimento em Saúde
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="uc-08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UC-08 Coordenação Cross-Agency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="uc-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UC-09 Benchmark de Legibilidade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="uc-10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UC-10 Boletim Semanal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#status-dos-use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status dos Use Cases
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#achados-recorrentes-aparecem-em-2-ucs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Achados Recorrentes (aparecem em 2+ UCs)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dimensoes-de-melhoria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dimensões de Melhoria
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dimensões de Melhoria">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-dados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Dados
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-design-das-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Design das Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-qualidade-dos-prompts-use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Qualidade dos Prompts / Use Cases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-schema-infraestrutura" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Schema / Infraestrutura
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proximos-passos-recomendados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Próximos Passos Recomendados
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Próximos Passos Recomendados">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#p1-alta-prioridade-bloqueiam-ucs-inteiros" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P1 — Alta prioridade (bloqueiam UCs inteiros)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#p2-media-prioridade-degradam-qualidade-tem-workarounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P2 — Média prioridade (degradam qualidade, têm workarounds)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#p3-baixo-impacto-imediato-melhorias-incrementais" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P3 — Baixo impacto imediato (melhorias incrementais)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="experimento-gobus-mcp-10-use-cases">Experimento Gobus MCP — 10 Use Cases<a class="headerlink" href="#experimento-gobus-mcp-10-use-cases" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Data:</strong> 2026-06-24 | <strong>Servidor:</strong> destaquesgovbr-gobus-mcp (Cloud Run, streamable-http stateless)</p>
+</blockquote>
+<h2 id="status-dos-use-cases">Status dos Use Cases<a class="headerlink" href="#status-dos-use-cases" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>UC</th>
+<th>Nome</th>
+<th>Status</th>
+<th>Tools usadas</th>
+<th>Chamadas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UC-01</td>
+<td>Briefing Diário (Min. Saúde)</td>
+<td>✅ Completo</td>
+<td><code>gobus_search_news</code>, <code>gobus_get_agency_analytics</code>, <code>gobus_get_article</code></td>
+<td>5</td>
+</tr>
+<tr>
+<td>UC-02</td>
+<td>Comparativo Fazenda × Planejamento (Reforma Tributária)</td>
+<td>✅ Completo</td>
+<td><code>gobus_search_news</code>, <code>gobus_get_agency_analytics</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td>UC-03</td>
+<td>Trajetória "Mais Médicos"</td>
+<td>✅ Completo (dados parciais por limitação histórica)</td>
+<td><code>gobus_resolve_entity</code>, <code>gobus_get_entity_profile</code>, <code>gobus_search_news</code>, <code>gobus_get_article</code></td>
+<td>7</td>
+</tr>
+<tr>
+<td>UC-04</td>
+<td>Radar de Tendências</td>
+<td>✅ Completo</td>
+<td><code>gobus_detect_trends</code>, <code>gobus_search_news</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>UC-05</td>
+<td>Release sobre Emprego Formal (Min. Trabalho)</td>
+<td>✅ Completo</td>
+<td><code>gobus_search_news</code>, <code>gobus_get_article</code></td>
+<td>5</td>
+</tr>
+<tr>
+<td>UC-06</td>
+<td>Rede Institucional (Min. Comunicações)</td>
+<td>✅ Completo</td>
+<td><code>gobus_resolve_entity</code>, <code>gobus_get_entity_network</code>, <code>gobus_search_news</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td>UC-07</td>
+<td>Evolução do Sentimento em Saúde</td>
+<td>⚠️ Parcial</td>
+<td><code>gobus_get_agency_analytics</code>, <code>gobus_search_news</code></td>
+<td>2</td>
+</tr>
+<tr>
+<td>UC-08</td>
+<td>Coordenação Cross-Agency</td>
+<td>✅ Completo</td>
+<td><code>gobus_detect_trends</code>, <code>gobus_search_news</code></td>
+<td>10</td>
+</tr>
+<tr>
+<td>UC-09</td>
+<td>Benchmark de Legibilidade</td>
+<td>⚠️ Parcial</td>
+<td><code>gobus_get_agency_analytics</code>, <code>gobus_search_news</code>, <code>gobus_get_article</code></td>
+<td>17</td>
+</tr>
+<tr>
+<td>UC-10</td>
+<td>Boletim Semanal para o Cidadão</td>
+<td>✅ Completo</td>
+<td><code>gobus_detect_trends</code>, <code>gobus_search_news</code>, <code>gobus_get_article</code></td>
+<td>12</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="achados-recorrentes-aparecem-em-2-ucs">Achados Recorrentes (aparecem em 2+ UCs)<a class="headerlink" href="#achados-recorrentes-aparecem-em-2-ucs" title="Permanent link">&para;</a></h2>
+<p><strong>Sentimento sempre 0% positivos</strong> — O campo <code>positivos</code> de <code>gobus_get_agency_analytics</code> retornou 0% em 100% dos registros testados, para todas as agências e períodos. Não é possível distinguir se é ausência de classificador, threshold mal calibrado para linguagem governamental, ou bug de indexação. Impede qualquer análise diferencial de tom entre agências. UCs afetados: UC-01, UC-02, UC-07, UC-09. Impacto: <strong>alto</strong>.</p>
+<p><strong>Campo <code>agency_key</code> / <code>agency</code> sempre <code>None</code> nos artigos</strong> — <code>gobus_search_news</code> e <code>gobus_get_article</code> retornam o campo de agência como <code>None</code> em todos os artigos recuperados. Para identificar a agência de origem, os agentes foram forçados a fazer parsing manual do path da URL (<code>gov.br/&lt;agency-key&gt;/...</code>). Isso não é escalável e quebra filtragens automáticas. UCs afetados: UC-01, UC-03, UC-04, UC-06, UC-08. Impacto: <strong>alto</strong>.</p>
+<p><strong><code>limit</code> não respeitado em <code>gobus_search_news</code></strong> — O parâmetro <code>limit</code> é ignorado ou sobreposto por um mínimo interno: <code>limit=10</code> retornou 19 artigos (UC-01); <code>limit=5</code> retornou 20 artigos (UC-07). O comportamento real não está documentado e induz a erros de paginação. UCs afetados: UC-01, UC-07. Impacto: <strong>médio</strong>.</p>
+<p><strong>Ausência de <code>date_from</code>/<code>date_to</code> em <code>gobus_search_news</code></strong> — Não há filtro temporal na busca. Artigos de datas muito variadas (2024–2026) aparecem misturados nos resultados, dificultando análises com janela temporal definida (ex.: "últimos 7 dias", "últimos 30 dias"). Os agentes contornaram o problema priorizando artigos pelo topo da lista retornada, mas sem garantia de recência. UCs afetados: UC-02, UC-04, UC-08, UC-10. Impacto: <strong>alto</strong>.</p>
+<p><strong>Cobertura histórica limitada (corpus começa em 2025/2026)</strong> — O banco não cobre publicações anteriores a fins de 2025 de forma confiável. Use cases que pediram análise de longa trajetória (2013–2026 para Mais Médicos; 2020–2022 para pandemia) foram respondidos apenas de forma parcial, com inferências a partir de snippets recentes. O índice NER canônico começa apenas em 2026-03. UCs afetados: UC-03, UC-07. Impacto: <strong>alto</strong> para análises históricas.</p>
+<p><strong>Query literal de categoria taxonômica não funciona em <code>gobus_search_news</code></strong> — Buscas com o rótulo exato de categoria do <code>gobus_detect_trends</code> (ex.: "Esportes e Lazer", "Minorias e Grupos Especiais") retornam resultados pobres ou fora do período, porque os artigos usam termos específicos, não o rótulo. A taxonomia interna do <code>detect_trends</code> não é exposta para consultas. UCs afetados: UC-04, UC-08, UC-10. Impacto: <strong>médio</strong>.</p>
+<p><strong>Campo <code>author</code> ausente</strong> — O campo de autoria retorna <code>None</code> em todos os artigos da busca, mesmo quando o artigo completo (via <code>gobus_get_article</code>) contém autores no rodapé. Impede análise de comunicação intra-ministerial (ex.: qual unidade da Fazenda lidera). UCs afetados: UC-01, UC-02. Impacto: <strong>baixo</strong>.</p>
+<p><strong>Legibilidade categórica sem score numérico</strong> — <code>gobus_get_agency_analytics</code> retorna apenas o label <code>"legibilidade difícil"</code> (sem score Flesch ou equivalente). Todas as agências testadas caem na mesma categoria, tornando benchmarks inter-agências impossíveis via API. Adicionalmente, o campo fica ausente no mês corrente (mês parcial), gerando artefato de comparação. UCs afetados: UC-02, UC-09. Impacto: <strong>médio</strong>.</p>
+<p><strong><code>agency_key</code> inválida retorna 0 resultados sem mensagem clara</strong> — Chaves tentadas como <code>"trabalho"</code> (UC-05), <code>"ciencia"</code>, <code>"comunicacoes"</code>, <code>"justica"</code>, <code>"meio-ambiente"</code>, <code>"mre"</code>, <code>"infraestrutura"</code>, <code>"esportes"</code> (UC-09) não retornaram resultados. Não há endpoint documentado que liste as chaves válidas; o resource <code>gobus://agencies</code> não estava acessível nesta sessão. UCs afetados: UC-05, UC-09. Impacto: <strong>médio</strong>.</p>
+<p><strong><code>gobus_get_entity_network</code> com <code>depth=2</code> excede limite de tokens MCP</strong> — A resposta com 252.335 caracteres (~2.768 nós) não cabe no contexto do protocolo MCP e precisou ser salva em arquivo e lida em blocos via script Python. Em ambiente de produção sem acesso a sistema de arquivos, a chamada falharia silenciosamente ou truncaria. UCs afetados: UC-06. Impacto: <strong>médio</strong> (uso específico de depth=2).</p>
+<p><strong>Artigos com prefixo <code>[MOCK]</code> no corpus de produção</strong> — Dois artigos do Ministério do Esporte apresentaram o prefixo <code>[MOCK] Resumo gerado para teste local</code> nos snippets, indicando que o pipeline de geração de resumos não processou esses artigos reais e substituiu por mock de teste. UCs afetados: UC-04. Impacto: <strong>médio</strong> (qualidade do dado).</p>
+<hr />
+<h2 id="dimensoes-de-melhoria">Dimensões de Melhoria<a class="headerlink" href="#dimensoes-de-melhoria" title="Permanent link">&para;</a></h2>
+<h3 id="1-dados">1. Dados<a class="headerlink" href="#1-dados" title="Permanent link">&para;</a></h3>
+<p><strong>Sentimento não populado:</strong> O campo <code>positivos</code> retorna 0% sistematicamente para todas as agências testadas (Saúde, Fazenda, Planejamento, e outras). Não está claro se é ausência de modelo treinado para linguagem governamental, threshold errado ou bug de indexação. Sem esse dado, UCs de análise de tom e comparação editorial ficam inviáveis.</p>
+<p><strong>Campo <code>agency_key</code> ausente nos artigos:</strong> Os artigos indexados não trazem o campo de agência preenchido. O dado existe implicitamente no path da URL gov.br, mas não é extraído no pipeline de ingestão. Isso força parsing manual de URL em todo UC que precise identificar a origem do artigo.</p>
+<p><strong>Artigos MOCK em produção:</strong> Artigos do corpus de produção contêm o prefixo <code>[MOCK] Resumo gerado para teste local</code>, indicando que resumos de teste vazaram para o índice. Requer limpeza do corpus e ajuste no pipeline de ingestão.</p>
+<p><strong>Corpus com cobertura histórica parcial:</strong> O banco cobre de forma confiável apenas publicações de 2025/2026 e o índice NER canônico começa em 2026-03. Para análises de programas com histórico de mais de 2 anos (ex.: Mais Médicos desde 2013, pandemia 2020-2022), a ferramenta entrega resultados parciais.</p>
+<p><strong>Legibilidade categórica:</strong> A classificação de legibilidade entrega apenas "difícil" / ausente — sem score numérico, sem distinção "fácil" / "moderado" / "difícil" robusta, e sem cálculo no mês corrente (artefato de pipeline).</p>
+<p><strong><code>author</code> não extraído:</strong> Autores identificados no rodapé dos artigos não são trazidos para o campo <code>author</code> do índice. Impede análises editoriais por unidade autora dentro de um ministério.</p>
+<p><strong>Fins de semana ausentes na analytics:</strong> <code>gobus_get_agency_analytics</code> com granularidade <code>DAY</code> não retorna entradas para sábado e domingo — sem distinguir "nenhuma publicação" de "dado não coletado".</p>
+<h3 id="2-design-das-tools">2. Design das Tools<a class="headerlink" href="#2-design-das-tools" title="Permanent link">&para;</a></h3>
+<p><strong><code>gobus_search_news</code> sem filtro temporal:</strong> A ausência de <code>date_from</code>/<code>date_to</code> é o gap de design mais recorrente. Afetou 4 UCs. Todos os UCs com janela temporal definida precisaram de workarounds manuais.</p>
+<p><strong><code>limit</code> não respeitado:</strong> O parâmetro é ignorado abaixo de um mínimo interno (~20). Não está documentado o comportamento real, causando confusão sobre paginação.</p>
+<p><strong><code>agency_key</code> não validada:</strong> A tool aceita qualquer string e retorna 0 resultados quando a chave é inválida, sem mensagem de erro ou sugestão de chave correta. Um endpoint de listagem (<code>gobus_list_agencies</code>) ou validação na própria tool eliminaria esse ponto de atrito.</p>
+<p><strong><code>gobus_get_entity_network</code> sem paginação/truncamento para <code>depth=2</code>:</strong> A resposta explode em tamanho com profundidade 2 (252k chars), excedendo o limite de contexto MCP. Deveria haver um limite automático de nós retornados ou uma tool auxiliar para explorar o subgrafo filtrado por tipo de nó (<code>gobus_get_entity_subgraph(entity_id, node_type, limit)</code>).</p>
+<p><strong><code>gobus_detect_trends</code> não retorna agências por tema:</strong> O resultado identifica o tema e o volume, mas não lista quais agências contribuíram. Para UC-08 (cross-agency), isso exigiu 9 chamadas adicionais de <code>gobus_search_news</code>. Incluir um campo <code>top_agencies: [{code, count}]</code> no retorno de cada tema reduziria o caso de uso de 10 chamadas para 1.</p>
+<p><strong>Taxonomia interna não exposta:</strong> As categorias do <code>gobus_detect_trends</code> (ex.: "Esportes e Lazer", "Minorias e Grupos Especiais") não têm correspondência documentada com termos de busca. Queries literais com esses rótulos retornam resultados ruins.</p>
+<p><strong><code>gobus_get_entity_profile</code> limitado a 2026-03+:</strong> O parâmetro <code>date_from</code> funciona, mas a cobertura de entidades NER é estruturalmente limitada ao período pós-lançamento. Deveria ser documentado como limitação explícita na descrição da tool.</p>
+<h3 id="3-qualidade-dos-prompts-use-cases">3. Qualidade dos Prompts / Use Cases<a class="headerlink" href="#3-qualidade-dos-prompts-use-cases" title="Permanent link">&para;</a></h3>
+<p><strong>UC-07 (sentimento histórico 2020-2022)</strong> ficou parcial por impossibilidade estrutural: o corpus não cobre esse período. O UC pressupôs cobertura histórica que não existe. Para casos de uso de análise histórica, a harness deveria verificar cobertura antes de executar ou fornecer contexto sobre as datas disponíveis.</p>
+<p><strong>UC-09 (benchmark de legibilidade)</strong> pressupôs a existência de score numérico Flesch. Como a API retorna apenas categoria, o agente adaptou para análise qualitativa editorial — válida, mas metodologicamente diferente do proposto. O UC deveria ou ter sido descartado ou redefinido antes da execução.</p>
+<p><strong>UC-04 e UC-10:</strong> A estratégia de buscar por rótulo de categoria (<code>"Esportes e Lazer"</code>) após <code>gobus_detect_trends</code> é um anti-padrão recorrente. Os prompts futuros deveriam orientar os agentes a construir queries semânticas a partir do tema detectado, não usar o rótulo literalmente.</p>
+<p><strong>UC-05:</strong> A <code>agency_key="trabalho"</code> não existe; a chave correta seria <code>"trabalho-e-emprego"</code> ou similar. O UC poderia ser melhorado incluindo uma etapa inicial de <code>gobus_detect_trends</code> ou listagem de agências para confirmar a chave antes da busca.</p>
+<p><strong>UC-06:</strong> A análise de rede com <code>depth=2</code> gerou volume excessivo de dados para o que o UC precisava. <code>depth=1</code> seria suficiente para mapear o ecossistema imediato do MCom e evitar a sobrecarga de tokens.</p>
+<h3 id="4-schema-infraestrutura">4. Schema / Infraestrutura<a class="headerlink" href="#4-schema-infraestrutura" title="Permanent link">&para;</a></h3>
+<p><strong>Transporte:</strong> O servidor usa <code>streamable-http stateless</code> (não SSE), conforme a nota de UC-04 que registrou um erro MCP <code>-32602</code> transitório numa execução anterior, supostamente por reinicialização do Cloud Run ou expiração de sessão. O problema foi transitório e não se repetiu na execução documentada.</p>
+<p><strong><code>ReadMcpResourceTool</code> indisponível na sessão:</strong> UC-09 identificou que o resource <code>gobus://agencies</code> — que listaria as chaves válidas de agência — não estava acessível como deferred tool na harness. Isso agravou o problema de chaves inválidas sem feedback.</p>
+<p><strong><code>gobus_get_entity_network</code> excede contexto MCP:</strong> Resposta de 252k chars para <code>depth=2</code> precisa de paginação no lado do servidor ou truncamento automático por tamanho de resposta. Em ambientes sem sistema de arquivos local, a tool ficaria inutilizável com esses parâmetros.</p>
+<hr />
+<h2 id="proximos-passos-recomendados">Próximos Passos Recomendados<a class="headerlink" href="#proximos-passos-recomendados" title="Permanent link">&para;</a></h2>
+<h3 id="p1-alta-prioridade-bloqueiam-ucs-inteiros">P1 — Alta prioridade (bloqueiam UCs inteiros)<a class="headerlink" href="#p1-alta-prioridade-bloqueiam-ucs-inteiros" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>Implementar <code>date_from</code>/<code>date_to</code> em <code>gobus_search_news</code></strong> — Gap mais recorrente (4 UCs afetados). Permite filtrar por janela temporal definida sem consumir múltiplas páginas.</p>
+</li>
+<li>
+<p><strong>Popular campo <code>agency_key</code> nos artigos indexados</strong> — Extrair do path da URL no pipeline de ingestão. Afeta 5 UCs e elimina a dependência de parsing manual.</p>
+</li>
+<li>
+<p><strong>Investigar e corrigir sentimento zerado</strong> — Verificar se o classificador está calibrado para linguagem governamental, se o campo está sendo computado, e documentar claramente a disponibilidade do dado. Afeta 4 UCs de análise editorial.</p>
+</li>
+<li>
+<p><strong>Documentar e validar chaves de agência</strong> — Expor um endpoint ou resource listando as chaves válidas (<code>code</code> + <code>label</code>) e retornar mensagem de erro útil quando uma chave inválida é usada. Alternativamente, garantir que <code>ReadMcpResourceTool</code> acesse <code>gobus://agencies</code> na harness.</p>
+</li>
+</ol>
+<h3 id="p2-media-prioridade-degradam-qualidade-tem-workarounds">P2 — Média prioridade (degradam qualidade, têm workarounds)<a class="headerlink" href="#p2-media-prioridade-degradam-qualidade-tem-workarounds" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>Corrigir comportamento do parâmetro <code>limit</code> em <code>gobus_search_news</code></strong> — Documentar o mínimo real ou corrigir para respeitar o valor solicitado.</p>
+</li>
+<li>
+<p><strong>Adicionar <code>top_agencies</code> ao retorno de <code>gobus_detect_trends</code></strong> — Campo <code>[{code, label, count}]</code> por tema eliminaria 5–9 chamadas extras em UCs cross-agency (como UC-08).</p>
+</li>
+<li>
+<p><strong>Limitar ou paginar <code>gobus_get_entity_network</code> com <code>depth=2</code></strong> — Implementar limite automático de nós retornados ou criar <code>gobus_get_entity_subgraph(entity_id, node_types, limit)</code> para consultas filtradas.</p>
+</li>
+<li>
+<p><strong>Expor score numérico de legibilidade</strong> — Incluir <code>avg_readability_score</code> (Flesch ou equivalente) no retorno de <code>gobus_get_agency_analytics</code> além do label categórico. Habilita UC-09 como originalmente proposto.</p>
+</li>
+<li>
+<p><strong>Limpar artigos MOCK do corpus de produção</strong> — Identificar e remover artigos com prefixo <code>[MOCK]</code> e ajustar o pipeline para não vazar mocks de teste no índice.</p>
+</li>
+</ol>
+<h3 id="p3-baixo-impacto-imediato-melhorias-incrementais">P3 — Baixo impacto imediato (melhorias incrementais)<a class="headerlink" href="#p3-baixo-impacto-imediato-melhorias-incrementais" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>Expor campo <code>author</code> nos artigos indexados</strong> — Extrair autores do rodapé dos artigos no pipeline de ingestão.</p>
+</li>
+<li>
+<p><strong>Incluir dias sem publicação explicitamente na analytics diária</strong> — Retornar <code>{date, articles: 0}</code> para sábado/domingo em vez de omitir a entrada, para distinguir "sem publicação" de "sem dado".</p>
+</li>
+<li>
+<p><strong>Publicar dicionário de termos por categoria taxonômica</strong> — Mapear cada categoria do <code>detect_trends</code> para queries semânticas equivalentes no <code>search_news</code>, orientando a composição de prompts.</p>
+</li>
+<li>
+<p><strong>Tool <code>gobus_get_agency_summary(agency, date_from, date_to)</code></strong> — Combina volume + temas dominantes + artigos de maior engajamento em uma chamada. Reduziria UC-01 (briefing) de 5 chamadas para 2.</p>
+</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Voltar para o topo
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copiado para \u00e1rea de transfer\u00eancia", "clipboard.copy": "Copiar para \u00e1rea de transfer\u00eancia", "search.result.more.one": "mais 1 nesta p\u00e1gina", "search.result.more.other": "# mais nesta p\u00e1gina", "search.result.none": "Nenhum documento encontrado", "search.result.one": "1 documento encontrado", "search.result.other": "# documentos encontrados", "search.result.placeholder": "Digite para iniciar a busca", "search.result.term.missing": "Ausente", "select.version": "Selecione a vers\u00e3o"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
