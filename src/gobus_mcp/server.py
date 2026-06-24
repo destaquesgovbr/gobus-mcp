@@ -153,12 +153,11 @@ def main():
     logger.info("Iniciando Gobus MCP Server...")
     logger.info("GraphQL endpoint: %s", settings.graphql_url)
 
-    # Cloud Run injeta PORT. Quando PORT está setado, usamos SEMPRE HTTP
-    # (streamable-http stateless) — ignora MCP_TRANSPORT para evitar a race
-    # condition de inicialização SSE em Cloud Run com múltiplas instâncias.
+    # Cloud Run injeta PORT. Quando PORT está setado, usamos SSE (FastMCP 2.x).
+    # max_instance_count=1 no Terraform previne race condition de sessão SSE.
     # Localmente (sem PORT) usa stdio para Claude Desktop/Code.
     port = int(os.environ.get("PORT", 0))
-    transport = "http" if port else "stdio"
+    transport = "sse" if port else "stdio"
 
     try:
         if transport == "stdio":
