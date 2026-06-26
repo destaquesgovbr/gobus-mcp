@@ -14,6 +14,9 @@ def monitor_agency_prompt(agency_key: str, agency_name: str = "", days: int = 1)
 Siga este roteiro:
 
 ## 1. Busca de publicações recentes
+> **Dica de paralelismo:** As chamadas `search_news` (step 1) e `get_agency_analytics`
+> (step 2) são independentes entre si — execute-as em paralelo para reduzir latência.
+
 Use `search_news` com agency_key="{agency_key}" para buscar as últimas publicações.
 
 ## 2. Análise de volume e performance

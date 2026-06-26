@@ -35,6 +35,7 @@ async def get_entity_profile(
     entity_type: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    summary_only: bool = False,
 ) -> str:
     """Perfil completo de uma entidade: cobertura temporal + entidades relacionadas.
 
@@ -82,6 +83,16 @@ async def get_entity_profile(
         lines.append(f"**Aliases:** {aliases}")
     if entity.get("description"):
         lines.append(f"\n{entity['description']}")
+
+    if summary_only:
+        total_articles = sum(p["articleCount"] for p in coverage)
+        lines.append(f"\n**Cobertura total:** {total_articles} artigos")
+        if related:
+            top3_str = ", ".join(
+                f"{r.get('canonicalName')} ({r.get('type')})" for r in related[:3]
+            )
+            lines.append(f"**Top relacionadas:** {top3_str}")
+        return "\n".join(lines)
 
     if coverage:
         total_articles = sum(p["articleCount"] for p in coverage)

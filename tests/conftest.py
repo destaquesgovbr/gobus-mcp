@@ -12,6 +12,9 @@ class FakeGraphQLClient:
     def set_response(self, data: dict):
         self.execute = AsyncMock(return_value=data)
 
+    def set_responses(self, responses: list[dict]) -> None:
+        self.execute = AsyncMock(side_effect=list(responses))
+
 
 @pytest.fixture
 def fake_client():

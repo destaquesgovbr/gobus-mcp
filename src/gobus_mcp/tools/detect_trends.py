@@ -1,3 +1,5 @@
+from collections import Counter
+
 from gobus_mcp.client import GobusGraphQLClient
 
 _TRENDING_QUERY = """
@@ -85,5 +87,14 @@ async def detect_trends(
             f"Growth: **{growth:.1f}×** · "
             f"{window} artigos (janela) vs {baseline_avg:.1f}/dia (baseline)"
         )
+        top_arts = theme.get("topArticles") or []
+        if top_arts:
+            agency_counts = Counter(
+                a.get("agencyName") for a in top_arts if a.get("agencyName")
+            )
+            agency_str = " · ".join(
+                f"{name} ({cnt})" for name, cnt in agency_counts.most_common(3)
+            )
+            lines.append(f"   Agências: {agency_str}")
 
     return "\n".join(lines)

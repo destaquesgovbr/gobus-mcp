@@ -15,6 +15,10 @@ Use `search_news` com query="*" (ou vazio, se aceitar) ordenado por view_count p
 ### 3. Notícias representativas
 Para os 3 temas em maior crescimento, use `search_news` com o nome do tema para encontrar exemplos concretos. Use `get_article` nos 2 mais relevantes de cada tema.
 
+> **Dica de paralelismo:** Para os temas retornados por `detect_trends` (step 1),
+> as chamadas `search_news` de cada tema (step 3) são independentes entre si
+> e podem ser executadas em paralelo.
+
 ### 4. Boletim em linguagem cidadã
 Escreva um boletim de 400-500 palavras com:
 

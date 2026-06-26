@@ -38,3 +38,19 @@ class TestGetArticle:
         client.set_response({"article": None})
         result = await get_article("inexistente", client)
         assert "não encontrado" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_exibe_agency_code():
+    """O código de agência (ex: 'saude') deve aparecer no artigo."""
+    client = FakeGraphQLClient()
+    client.set_response({"article": {
+        "uniqueId": "x1", "title": "Artigo Teste",
+        "content": "Conteúdo do artigo.",
+        "summary": "Resumo.", "agencyName": "Ministério da Saúde",
+        "agency": "saude", "publishedAt": "2026-01-01T00:00:00Z",
+        "url": "https://gov.br/saude/artigo",
+        "tags": [], "features": {},
+    }})
+    result = await get_article("x1", client)
+    assert "[saude]" in result

@@ -22,6 +22,10 @@ Use `resolve_entity` com query="{entity_name}"{f' e entity_type="{entity_type}"'
 ### 2. Perfil e cobertura temporal
 Use `get_entity_profile` com o entity_name encontrado{f', date_from="{date_from}"' if date_from else ''}{f', date_to="{date_to}"' if date_to else ''} para ver a série temporal de menções.
 
+> **Dica de paralelismo:** Após obter o entityId de `resolve_entity` (step 1),
+> `get_entity_profile` (step 2) e `get_entity_network` (step 3) são independentes
+> e podem ser executadas em paralelo.
+
 ### 3. Rede de relacionamentos
 Use `get_entity_network` com o entityId canônico e depth=2 para mapear as entidades conectadas.
 

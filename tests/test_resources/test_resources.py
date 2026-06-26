@@ -10,8 +10,8 @@ class TestAgenciesResource:
     async def test_formata_lista_de_agencias(self):
         client = FakeGraphQLClient()
         client.set_response({"agencies": [
-            {"key": "mec", "name": "Ministério da Educação"},
-            {"key": "ms", "name": "Ministério da Saúde"},
+            {"code": "mec", "label": "Ministério da Educação"},
+            {"code": "ms", "label": "Ministério da Saúde"},
         ]})
         result = await fetch_agencies(client)
         assert "Ministério da Educação" in result

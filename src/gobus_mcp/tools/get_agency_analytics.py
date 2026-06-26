@@ -60,24 +60,30 @@ async def get_agency_analytics(
 
     current_period = None
     for row in rows:
-        if row["period"] != current_period:
-            current_period = row["period"]
+        raw_period = (row["period"] or "")[:10]
+        if raw_period != current_period:
+            current_period = raw_period
             lines.append(f"\n## {current_period}")
 
         agency = row.get("agencyName") or row.get("agencyKey", "")
         count = row.get("articleCount", 0)
         sent = row.get("avgSentimentScore")
         pct_pos = row.get("pctPositive")
+        pct_neg = row.get("pctNegative")
         flesch = row.get("avgReadabilityFlesch")
+        avg_wc = row.get("avgWordCount")
 
         metrics = [f"**{count}** artigos"]
         if pct_pos is not None:
-            metrics.append(f"😊 {pct_pos*100:.0f}% positivos")
+            neg_part = f" / {pct_neg*100:.0f}% neg" if pct_neg is not None else ""
+            metrics.append(f"😊 {pct_pos*100:.0f}% pos{neg_part}")
         if sent is not None:
             metrics.append(f"sentimento {sent:.2f}")
         if flesch is not None:
             nivel = "fácil" if flesch > 70 else ("médio" if flesch > 50 else "difícil")
-            metrics.append(f"legibilidade {nivel}")
+            metrics.append(f"legibilidade {flesch:.1f} ({nivel})")
+        if avg_wc is not None:
+            metrics.append(f"📝 {avg_wc:.0f} palavras/artigo")
 
         lines.append(f"- **{agency}**: {' · '.join(metrics)}")
 

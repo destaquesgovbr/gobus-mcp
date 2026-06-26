@@ -8,6 +8,7 @@ query GetArticle($uniqueId: String!) {
     content
     summary
     agencyName
+    agency
     publishedAt
     url
     tags
@@ -45,9 +46,17 @@ async def get_article(unique_id: str, client: GobusGraphQLClient) -> str:
 
     pub_at = (art.get("publishedAt") or "")[:10]
     tags = ", ".join(art.get("tags") or [])
+    agency_code = art.get("agency") or ""
+    agency_name = art.get("agencyName") or ""
+    if agency_code and agency_name:
+        agency_str = f"[{agency_code}] {agency_name}"
+    elif agency_code:
+        agency_str = f"[{agency_code}]"
+    else:
+        agency_str = agency_name
     lines = [
         f"# {art['title']}\n",
-        f"**{art.get('agencyName', '')}** · {pub_at}",
+        f"**{agency_str}** · {pub_at}",
         f"🔗 {art.get('url', '')}",
     ]
     if tags:
