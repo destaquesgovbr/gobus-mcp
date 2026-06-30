@@ -33,7 +33,7 @@ mcp = FastMCP(name="Gobus")
 # ── Backward-compat SSE (spec 2024-11-05) ────────────────────────────────────
 # O endpoint primário é /mcp (stateless, spec 2025-03-26) sem expiração de sessão.
 # /sse + /messages ficam disponíveis para clientes que ainda usam o protocolo antigo.
-_sse = SseServerTransport("/messages")
+_sse = SseServerTransport("/messages/")
 
 
 @mcp.custom_route("/sse", methods=["GET"])
@@ -46,7 +46,7 @@ async def _sse_compat(request: Request) -> Response:
     return Response()
 
 
-mcp._additional_http_routes.append(Mount("/messages", app=_sse.handle_post_message))
+mcp._additional_http_routes.append(Mount("/messages", app=_sse.handle_post_message))  # Starlette redireciona /messages → /messages/ sem trailing slash
 
 # ─────────────────────────────────────────────────────────────────────────────
 
