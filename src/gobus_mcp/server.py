@@ -1,7 +1,7 @@
-import asyncio
 import logging
 
 from fastmcp import FastMCP
+from fastmcp.server.http import Mount, Request, Response, SseServerTransport
 
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.config import settings
@@ -29,6 +29,26 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP(name="Gobus")
+
+# ── Backward-compat SSE (spec 2024-11-05) ────────────────────────────────────
+# O endpoint primário é /mcp (stateless, spec 2025-03-26) sem expiração de sessão.
+# /sse + /messages ficam disponíveis para clientes que ainda usam o protocolo antigo.
+_sse = SseServerTransport("/messages")
+
+
+@mcp.custom_route("/sse", methods=["GET"])
+async def _sse_compat(request: Request) -> Response:
+    async with _sse.connect_sse(request.scope, request.receive, request._send) as streams:
+        await mcp._mcp_server.run(
+            streams[0], streams[1],
+            mcp._mcp_server.create_initialization_options(),
+        )
+    return Response()
+
+
+mcp._additional_http_routes.append(Mount("/messages", app=_sse.handle_post_message))
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 _client = GobusGraphQLClient(
     url=settings.graphql_url,
@@ -281,19 +301,21 @@ def main():
     logger.info("Iniciando Gobus MCP Server...")
     logger.info("GraphQL endpoint: %s", settings.graphql_url)
 
-    # Cloud Run injeta PORT=8080 → SSE em /sse. max_instance_count=1 no Terraform
-    # é obrigatório para SSE (sessão com estado). Sem PORT → stdio (Claude Desktop).
+    # Cloud Run injeta PORT=8080 → HTTP stateless em /mcp (spec 2025-03-26).
+    # /sse + /messages ficam disponíveis para backwards-compat (spec 2024-11-05).
+    # Sem PORT → stdio (Claude Desktop / desenvolvimento local).
     port = int(os.environ.get("PORT", 0))
-    transport = "sse" if port else "stdio"
 
     try:
-        if transport == "stdio":
+        if not port:
             logger.info("Transport: stdio (modo local)")
             mcp.run()
         else:
-            effective_port = port or 8080
-            logger.info("Transport: %s em 0.0.0.0:%d", transport, effective_port)
-            mcp.run(transport=transport, host="0.0.0.0", port=effective_port)
+            logger.info(
+                "Transport: http stateless em 0.0.0.0:%d — /mcp (2025-03-26) + /sse (2024-11-05)",
+                port,
+            )
+            mcp.run(transport="http", host="0.0.0.0", port=port, stateless_http=True)
     except KeyboardInterrupt:
         logger.info("Servidor interrompido pelo usuário")
     except Exception as e:
