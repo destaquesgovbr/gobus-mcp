@@ -137,3 +137,6 @@ class TestDetectTrends:
         result = await detect_trends(client)
         assert "Ministério da Saúde" in result
         assert "SECOM" in result
+        assert "T1" in result
+        assert "T2" in result
+        assert "a1" in result

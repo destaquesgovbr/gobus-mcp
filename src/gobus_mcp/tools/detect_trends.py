@@ -96,5 +96,9 @@ async def detect_trends(
                 f"{name} ({cnt})" for name, cnt in agency_counts.most_common(3)
             )
             lines.append(f"   Agências: {agency_str}")
+            for art in top_arts[:3]:
+                title = (art.get("title") or "")[:80]
+                uid = art.get("uniqueId") or ""
+                lines.append(f"   - {title}  `{uid}`")
 
     return "\n".join(lines)

@@ -62,7 +62,7 @@ async def gobus_search_news(
 
     Dica: Execute em paralelo com gobus_get_agency_analytics para a mesma agência.
     """
-    return await search_news(query, _client, agency_key or None, page, limit)
+    return await search_news(query, _client, agency_key or None, page, limit, date_from or None, date_to or None)
 
 
 @mcp.tool()
@@ -281,9 +281,8 @@ def main():
     logger.info("Iniciando Gobus MCP Server...")
     logger.info("GraphQL endpoint: %s", settings.graphql_url)
 
-    # Cloud Run injeta PORT. Quando PORT está setado, usamos SSE (FastMCP 2.x).
-    # max_instance_count=1 no Terraform previne race condition de sessão SSE.
-    # Localmente (sem PORT) usa stdio para Claude Desktop/Code.
+    # Cloud Run injeta PORT=8080 → SSE em /sse. max_instance_count=1 no Terraform
+    # é obrigatório para SSE (sessão com estado). Sem PORT → stdio (Claude Desktop).
     port = int(os.environ.get("PORT", 0))
     transport = "sse" if port else "stdio"
 
