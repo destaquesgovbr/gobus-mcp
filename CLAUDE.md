@@ -10,6 +10,28 @@ Servidor MCP (Model Context Protocol) que expõe o acervo do Destaques Gov.BR �
 
 **Produção:** `https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app`
 
+## MCP no Claude Code
+
+O `.mcp.json` na raiz deste repo já configura o servidor de produção (endpoint `/mcp`, spec 2025-03-26 stateless). Ao abrir este diretório no Claude Code, os tools `gobus_*` ficam disponíveis automaticamente.
+
+```json
+{
+  "mcpServers": {
+    "gobus": {
+      "url": "https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app/mcp"
+    }
+  }
+}
+```
+
+O servidor expõe dois endpoints HTTP:
+- `/mcp` — **primário**, Streamable HTTP stateless (spec 2025-03-26). Sem sessão em memória; cada chamada é independente. Resolve o problema de 404 em subagentes com múltiplas chamadas MCP.
+- `/sse` + `/messages` — **backward-compat**, SSE (spec 2024-11-05). Para clientes que não suportam a spec atual. Se `/mcp` não funcionar no seu cliente, aponte para `/sse`.
+
+> **Importante:** os tools só funcionam via essa configuração HTTP. O modo stdio (Claude Desktop) usa um processo local e **não** é compartilhado com sessões Claude Code — o que causa erro `-32602` em todas as chamadas quando `.mcp.json` está vazio.
+
+Para desenvolvimento local contra a API de produção, rode o servidor em stdio e configure o `.mcp.json` local apontando para ele (veja seção "Comandos" abaixo). Prefira usar o servidor remoto para trabalho normal.
+
 ## Comandos
 
 ```bash
@@ -26,8 +48,11 @@ pytest -k test_retorna_artigos   # um teste por nome
 ruff check src/ tests/
 ruff format src/ tests/
 
-# Rodar localmente (stdio — para uso com Claude Desktop/Code)
+# Rodar localmente (stdio — para uso com Claude Desktop)
 python -m gobus_mcp
+
+# Rodar localmente apontando para a graphql-api de produção
+GOBUS_GRAPHQL_URL=https://destaquesgovbr-graphql-api-klvx64dufq-rj.a.run.app/graphql python -m gobus_mcp
 ```
 
 ## Configuração
@@ -57,10 +82,10 @@ prompts/           # 4 prompts compostos: monitor_agency, trace_entity, weekly_d
 **Padrão de separação:** cada tool é uma função async pura em `tools/<nome>.py` que recebe `GobusGraphQLClient` como argumento. O `server.py` cria um `_client` singleton e o passa nas chamadas. Isso permite testar as funções isoladamente com `FakeGraphQLClient`.
 
 **Transport:** determinado em runtime pelo env var `PORT`:
-- `PORT` ausente → `stdio` (Claude Desktop/Code local)
-- `PORT` presente (Cloud Run injeta 8080) → `http` (streamable-http stateless em `0.0.0.0:PORT`)
+- `PORT` ausente → `stdio` (Claude Desktop local)
+- `PORT` presente (Cloud Run injeta 8080) → HTTP stateless em `0.0.0.0:PORT`; endpoints `/mcp` (primário) e `/sse` + `/messages` (backward-compat)
 
-SSE **não** é usado em Cloud Run — causa race condition de inicialização com múltiplas instâncias.
+Com `/mcp` stateless, o `max_instance_count=1` no Terraform pode ser relaxado — não há mais sessão em memória para perder entre instâncias.
 
 ## Queries GraphQL
 

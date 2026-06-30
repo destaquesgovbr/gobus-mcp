@@ -1,3 +1,7 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "gobus": {
+      "url": "https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app/mcp"
+    }
+  }
 }
