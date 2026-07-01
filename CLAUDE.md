@@ -12,25 +12,55 @@ Servidor MCP (Model Context Protocol) que expõe o acervo do Destaques Gov.BR �
 
 ## MCP no Claude Code
 
-O `.mcp.json` na raiz deste repo já configura o servidor de produção (endpoint `/mcp`, spec 2025-03-26 stateless). Ao abrir este diretório no Claude Code, os tools `gobus_*` ficam disponíveis automaticamente.
+> **Atenção: Claude Code CLI não consegue usar os endpoints HTTP do servidor remoto em chamadas de subagente.**
+>
+> Dois bugs conhecidos impedem o uso HTTP:
+> - `/sse` (spec 2024-11-05): sessão SSE expira entre chamadas independentes de subagente → erro `-32602 Invalid request parameters` em 100% das chamadas.
+> - `/mcp` (spec 2025-03-26 Streamable HTTP): o Claude Code CLI envia GET em vez de POST → falha de conexão.
+>
+> **Solução: executar o servidor localmente (stdio transport).** O stdio não tem estado de sessão e funciona perfeitamente.
+
+### Configuração para Claude Code (stdio local)
+
+Crie ou edite o `.mcp.json` na raiz do **workspace** (não do repositório gobus-mcp):
 
 ```json
 {
   "mcpServers": {
     "gobus": {
-      "url": "https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app/mcp"
+      "command": "python",
+      "args": ["-m", "gobus_mcp"],
+      "cwd": "/caminho/absoluto/para/gobus-mcp",
+      "env": {
+        "GOBUS_GRAPHQL_URL": "https://destaquesgovbr-graphql-api-klvx64dufq-rj.a.run.app/graphql"
+      }
     }
   }
 }
 ```
 
-O servidor expõe dois endpoints HTTP:
-- `/mcp` — **primário**, Streamable HTTP stateless (spec 2025-03-26). Sem sessão em memória; cada chamada é independente. Resolve o problema de 404 em subagentes com múltiplas chamadas MCP.
-- `/sse` + `/messages` — **backward-compat**, SSE (spec 2024-11-05). Para clientes que não suportam a spec atual. Se `/mcp` não funcionar no seu cliente, aponte para `/sse`.
+Substitua `cwd` pelo path absoluto do clone local deste repositório. Pré-requisitos: Python 3.12+ com `pip install -e ".[dev]"` dentro do venv.
 
-> **Importante:** os tools só funcionam via essa configuração HTTP. O modo stdio (Claude Desktop) usa um processo local e **não** é compartilhado com sessões Claude Code — o que causa erro `-32602` em todas as chamadas quando `.mcp.json` está vazio.
+Para o workspace `/Users/nitai/dev/destaquesgovbr`, o arquivo correto é `/Users/nitai/dev/destaquesgovbr/.mcp.json` (já configurado).
 
-Para desenvolvimento local contra a API de produção, rode o servidor em stdio e configure o `.mcp.json` local apontando para ele (veja seção "Comandos" abaixo). Prefira usar o servidor remoto para trabalho normal.
+### Configuração para Claude Desktop / uso web
+
+O endpoint remoto `/sse` funciona bem para clientes que mantêm sessão persistente (Claude Desktop, claude.ai):
+
+```json
+{
+  "mcpServers": {
+    "gobus": {
+      "url": "https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app/sse"
+    }
+  }
+}
+```
+
+### Endpoints disponíveis no servidor remoto
+
+- `/sse` + `/messages` — SSE (spec 2024-11-05). Para Claude Desktop e clientes com sessão persistente.
+- `/mcp` — Streamable HTTP stateless (spec 2025-03-26). Para clientes que suportam a spec atual (Claude Code CLI tem bug: envia GET em vez de POST — não usar).
 
 ## Comandos
 
