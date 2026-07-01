@@ -128,6 +128,8 @@ Gotchas conhecidos do schema atual:
 - Agências: `agencies { code label }` (não `key name`)
 - `agencyAnalytics`: datas devem ser `datetime.date` no lado da graphql-api (strings ISO são rejeitadas pelo asyncpg)
 - `search()`: filtro de agência via `filter: {agencies: [...]}` (não argumento direto); `trendingScore` fica em `features { trendingScore }`, não no root do Article
+- `trendingThemes`: retorna `TrendingThemeResult { themeLabel themeCode growthScore windowCount baseDailyAvg topArticles }` — **não** `label` nem `baselineCount` (blueprint desatualizado); usar `themeLabel` e `baseDailyAvg`
+- `trendingEntities`: retorna `{ entityId canonicalName type trendingScore volumeRatio windowCount windowAgencies computedAt }` — bate 100% com o blueprint
 
 ## Testes
 
