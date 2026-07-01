@@ -13,7 +13,9 @@ from gobus_mcp.tools.get_entity_network import get_entity_network
 from gobus_mcp.tools.get_agency_analytics import get_agency_analytics
 from gobus_mcp.tools.detect_trends import detect_trends
 from gobus_mcp.tools.get_agency_summary import get_agency_summary
+from gobus_mcp.tools.get_readability_recommendations import get_readability_recommendations
 from gobus_mcp.resources.agencies import fetch_agencies
+from gobus_mcp.resources.readability_dashboard import fetch_readability_dashboard
 from gobus_mcp.resources.themes import fetch_themes
 from gobus_mcp.resources.platform_stats import fetch_platform_stats
 from gobus_mcp.resources.taxonomy_queries import fetch_taxonomy_queries
@@ -243,6 +245,26 @@ async def gobus_get_agency_summary(agency_key: str, days: int = 30) -> str:
     return await get_agency_summary(agency_key, _client, days)
 
 
+@mcp.tool()
+async def gobus_get_readability_recommendations(
+    agency_key: str = "",
+    days: int = 90,
+    limit: int = 10,
+) -> str:
+    """Diagnóstico de legibilidade por agência com recomendações de estilo.
+
+    Parâmetros:
+    - agency_key: Chave da agência (ex: "cgu", "defesa") — se vazio, retorna ranking geral
+    - days: Janela de análise em dias (default 90)
+    - limit: Máximo de agências no ranking geral (default 10)
+
+    Retorna: Ranking de agências por Flesch × volume com gap vs meta (≥50 para serviço,
+    ≥30 para institucional) e 3 recomendações de estilo priorizadas. A Agência Brasil
+    (Flesch ~33) é o benchmark interno — nenhuma outra agência a supera hoje.
+    """
+    return await get_readability_recommendations(agency_key or None, _client, days, limit)
+
+
 # ── Resources ────────────────────────────────────────────────────────────────
 
 @mcp.resource("gobus://agencies")
@@ -267,6 +289,12 @@ async def platform_stats_resource() -> str:
 async def taxonomy_queries_resource() -> str:
     """Mapeamento de categorias do detect_trends para termos de busca efetivos."""
     return await fetch_taxonomy_queries()
+
+
+@mcp.resource("ui://readability-dashboard")
+async def readability_dashboard_resource() -> str:
+    """Dashboard interativo de legibilidade por agência (HTML/JS auto-contido)."""
+    return await fetch_readability_dashboard(_client)
 
 
 # ── Prompts ──────────────────────────────────────────────────────────────────
