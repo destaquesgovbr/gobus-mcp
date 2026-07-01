@@ -15,8 +15,13 @@ from gobus_mcp.tools.detect_trends import detect_trends
 from gobus_mcp.tools.get_agency_summary import get_agency_summary
 from gobus_mcp.tools.get_readability_recommendations import get_readability_recommendations
 from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
+from gobus_mcp.tools.detect_anomalies import detect_anomalies
+from gobus_mcp.tools.forecast_trends import forecast_trends
+from gobus_mcp.tools.score_article import score_article
 from gobus_mcp.resources.agencies import fetch_agencies
 from gobus_mcp.resources.readability_dashboard import fetch_readability_dashboard
+from gobus_mcp.resources.readability_report import fetch_readability_report
+from gobus_mcp.resources.health_pipelines import fetch_health_pipelines
 from gobus_mcp.resources.themes import fetch_themes
 from gobus_mcp.resources.platform_stats import fetch_platform_stats
 from gobus_mcp.resources.taxonomy_queries import fetch_taxonomy_queries
@@ -291,6 +296,56 @@ async def gobus_get_policy_lifecycle(
     return await get_policy_lifecycle(policy_name, _client, date_from)
 
 
+@mcp.tool()
+async def gobus_detect_anomalies(sensitivity: str = "medium") -> str:
+    """Detecta anomalias comunicacionais: picos sustentados e cobertura concentrada.
+
+    Cruza duas janelas de detecção de temas (3d/21d e 7d/28d) para achar picos
+    sustentados e inspeciona entidades em alta para achar "silêncio concentrado" —
+    assuntos com alto volume relativo cobertos por poucas agências.
+
+    Parâmetros:
+    - sensitivity: "high" | "medium" | "low" — quão sensível é o detector de
+      concentração (high = mais alertas, low = só os casos mais extremos)
+
+    Retorna: Markdown com picos sustentados, cobertura concentrada e tendências normais.
+    """
+    return await detect_anomalies(_client, sensitivity)
+
+
+@mcp.tool()
+async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> str:
+    """Projeta tendências combinando três janelas de detecção de temas (3d, 7d, 21d).
+
+    Cada tema recebe um score composto (média ponderada por janela), leitura de
+    momentum (acelerando/desacelerando/estável) e confiança conforme o número de
+    janelas em que aparece.
+
+    Parâmetros:
+    - horizon_days: Horizonte da projeção em dias (informativo — default 21)
+    - limit: Máximo de temas retornados, ordenados por score composto (default 5)
+
+    Retorna: Markdown com tabela Tema | Score Composto | Momentum | Confiança.
+    Atenção: a janela de 3 dias sofre viés de borda de fim de semana.
+    """
+    return await forecast_trends(_client, horizon_days, limit)
+
+
+@mcp.tool()
+async def gobus_score_article(unique_id: str) -> str:
+    """Atribui uma nota editorial (0-10) a um artigo comparando-o ao benchmark da agência.
+
+    Combina legibilidade (Flesch), concisão (tamanho vs. média da agência) e
+    densidade de entidades numa nota ponderada (50/30/20).
+
+    Parâmetros:
+    - unique_id: ID único do artigo (obtido via gobus_search_news)
+
+    Retorna: Markdown com nota geral, notas por dimensão e benchmark da agência.
+    """
+    return await score_article(unique_id, _client)
+
+
 # ── Resources ────────────────────────────────────────────────────────────────
 
 @mcp.resource("gobus://agencies")
@@ -321,6 +376,18 @@ async def taxonomy_queries_resource() -> str:
 async def readability_dashboard_resource() -> str:
     """Dashboard interativo de legibilidade por agência (HTML/JS auto-contido)."""
     return await fetch_readability_dashboard(_client)
+
+
+@mcp.resource("gobus://readability-report")
+async def readability_report_resource() -> str:
+    """Relatório JSON de legibilidade por agência com gap até a meta (Flesch 50)."""
+    return await fetch_readability_report(_client)
+
+
+@mcp.resource("gobus://health/pipelines")
+async def health_pipelines_resource() -> str:
+    """Health-check dos pipelines de dados (trendingScore, sentimento, legibilidade)."""
+    return await fetch_health_pipelines(_client)
 
 
 # ── Prompts ──────────────────────────────────────────────────────────────────
