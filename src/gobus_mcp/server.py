@@ -14,6 +14,7 @@ from gobus_mcp.tools.get_agency_analytics import get_agency_analytics
 from gobus_mcp.tools.detect_trends import detect_trends
 from gobus_mcp.tools.get_agency_summary import get_agency_summary
 from gobus_mcp.tools.get_readability_recommendations import get_readability_recommendations
+from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
 from gobus_mcp.resources.agencies import fetch_agencies
 from gobus_mcp.resources.readability_dashboard import fetch_readability_dashboard
 from gobus_mcp.resources.themes import fetch_themes
@@ -263,6 +264,31 @@ async def gobus_get_readability_recommendations(
     (Flesch ~33) é o benchmark interno — nenhuma outra agência a supera hoje.
     """
     return await get_readability_recommendations(agency_key or None, _client, days, limit)
+
+
+@mcp.tool()
+async def gobus_get_policy_lifecycle(
+    policy_name: str,
+    date_from: str = "2024-01-01",
+) -> str:
+    """Ciclo de vida comunicacional de uma política pública no portal Gov.BR.
+
+    Analisa a série temporal de cobertura mensal para identificar fases:
+    ANNOUNCED (pico de lançamento), IMPLEMENTATION (sustentação), ROUTINE (queda).
+    Identifica as agências dominantes por fase (âncoras narrativos) e apresenta
+    artigos representativos do período de maior cobertura.
+
+    Parâmetros:
+    - policy_name: Nome ou alias da política (ex: "Pé-de-Meia", "Bolsa Família")
+    - date_from: Data de início da série temporal ISO (ex: "2023-01-01") — default "2024-01-01"
+
+    Retorna: Markdown com fases identificadas, âncoras narrativos por fase,
+    perspectiva da fase atual e artigos representativos do pico de cobertura.
+
+    Dica: Use gobus_resolve_entity com entity_type="POLICY" para descobrir o
+    nome canônico antes de chamar este tool.
+    """
+    return await get_policy_lifecycle(policy_name, _client, date_from)
 
 
 # ── Resources ────────────────────────────────────────────────────────────────
