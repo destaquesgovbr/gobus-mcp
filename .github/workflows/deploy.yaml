@@ -8,14 +8,20 @@ on:
       - "src/gobus_mcp/**"
       - "Dockerfile"
       - "pyproject.toml"
+      - "poetry.lock"
       - ".github/workflows/deploy.yaml"
+      - ".github/workflows/test.yaml"
 
 permissions:
   contents: read
   id-token: write
 
 jobs:
+  ci:
+    uses: ./.github/workflows/test.yaml
+
   deploy:
+    needs: ci
     uses: destaquesgovbr/reusable-workflows/.github/workflows/cloud-run-deploy.yml@v2
     with:
       dockerfile: Dockerfile
