@@ -71,7 +71,7 @@ async def detect_trends(
         return f"Nenhum tema em crescimento detectado (últimos {window_days}d vs {baseline_days}d baseline, threshold {growth_threshold}×)"
 
     lines = [
-        f"# Radar de Tendências\n",
+        "# Radar de Tendências\n",
         f"**Janela:** últimos {window_days} dias · **Baseline:** {baseline_days} dias · **Threshold:** {growth_threshold}×\n",
         f"## {len(themes)} temas em crescimento\n",
     ]
@@ -89,12 +89,8 @@ async def detect_trends(
         )
         top_arts = theme.get("topArticles") or []
         if top_arts:
-            agency_counts = Counter(
-                a.get("agencyName") for a in top_arts if a.get("agencyName")
-            )
-            agency_str = " · ".join(
-                f"{name} ({cnt})" for name, cnt in agency_counts.most_common(3)
-            )
+            agency_counts = Counter(a.get("agencyName") for a in top_arts if a.get("agencyName"))
+            agency_str = " · ".join(f"{name} ({cnt})" for name, cnt in agency_counts.most_common(3))
             lines.append(f"   Agências: {agency_str}")
             for art in top_arts[:3]:
                 title = (art.get("title") or "")[:80]

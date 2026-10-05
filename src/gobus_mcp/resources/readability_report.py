@@ -5,9 +5,26 @@ from gobus_mcp.client import GobusGraphQLClient
 
 # Top ~20 agências por volume esperado.
 _AGENCIES = [
-    "agencia_brasil", "secom", "saude", "mec", "trabalho", "fazenda", "mre",
-    "defesa", "mj", "planejamento", "cgu", "agu", "ipea", "fnde", "inss",
-    "sus", "anvisa", "ibge", "senado", "camara",
+    "agencia_brasil",
+    "secom",
+    "saude",
+    "mec",
+    "trabalho",
+    "fazenda",
+    "mre",
+    "defesa",
+    "mj",
+    "planejamento",
+    "cgu",
+    "agu",
+    "ipea",
+    "fnde",
+    "inss",
+    "sus",
+    "anvisa",
+    "ibge",
+    "senado",
+    "camara",
 ]
 
 _TARGET_FLESCH = 50
@@ -42,23 +59,29 @@ async def fetch_readability_report(client: GobusGraphQLClient) -> str:
     date_from = (today - datetime.timedelta(days=90)).isoformat()
     date_to = today.isoformat()
 
-    data = await client.execute(_ANALYTICS_QUERY, {
-        "agencies": _AGENCIES,
-        "dateFrom": date_from,
-        "dateTo": date_to,
-        "granularity": "MONTH",
-    })
+    data = await client.execute(
+        _ANALYTICS_QUERY,
+        {
+            "agencies": _AGENCIES,
+            "dateFrom": date_from,
+            "dateTo": date_to,
+            "granularity": "MONTH",
+        },
+    )
     rows = data.get("agencyAnalytics") or []
 
     by_agency: dict[str, dict] = {}
     for row in rows:
         key = row.get("agencyKey") or ""
-        agg = by_agency.setdefault(key, {
-            "agencyKey": key,
-            "agencyName": row.get("agencyName") or key,
-            "articleCount": 0,
-            "_fleschWeighted": 0.0,
-        })
+        agg = by_agency.setdefault(
+            key,
+            {
+                "agencyKey": key,
+                "agencyName": row.get("agencyName") or key,
+                "articleCount": 0,
+                "_fleschWeighted": 0.0,
+            },
+        )
         count = row.get("articleCount") or 0
         flesch = row.get("avgReadabilityFlesch") or 0.0
         agg["articleCount"] += count
@@ -68,13 +91,15 @@ async def fetch_readability_report(client: GobusGraphQLClient) -> str:
     for agg in by_agency.values():
         total = agg["articleCount"]
         avg_flesch = round(agg["_fleschWeighted"] / total, 2) if total > 0 else 0.0
-        agencies.append({
-            "agencyKey": agg["agencyKey"],
-            "agencyName": agg["agencyName"],
-            "articleCount": total,
-            "avgReadabilityFlesch": avg_flesch,
-            "gapToTarget": round(avg_flesch - _TARGET_FLESCH, 2),
-        })
+        agencies.append(
+            {
+                "agencyKey": agg["agencyKey"],
+                "agencyName": agg["agencyName"],
+                "articleCount": total,
+                "avgReadabilityFlesch": avg_flesch,
+                "gapToTarget": round(avg_flesch - _TARGET_FLESCH, 2),
+            }
+        )
 
     agencies.sort(key=lambda a: a["avgReadabilityFlesch"], reverse=True)
 

@@ -2,15 +2,34 @@ import json
 
 from gobus_mcp.resources.readability_report import fetch_readability_report
 
-
-MOCK_ANALYTICS = {"agencyAnalytics": [
-    {"period": "2026-05-01", "agencyKey": "agencia_brasil", "agencyName": "Agência Brasil",
-     "articleCount": 300, "avgReadabilityFlesch": 33.5, "avgWordCount": 470.0},
-    {"period": "2026-05-01", "agencyKey": "secom", "agencyName": "Secom",
-     "articleCount": 150, "avgReadabilityFlesch": 17.0, "avgWordCount": 450.0},
-    {"period": "2026-05-01", "agencyKey": "defesa", "agencyName": "Min. Defesa",
-     "articleCount": 200, "avgReadabilityFlesch": -22.9, "avgWordCount": 800.0},
-]}
+MOCK_ANALYTICS = {
+    "agencyAnalytics": [
+        {
+            "period": "2026-05-01",
+            "agencyKey": "agencia_brasil",
+            "agencyName": "Agência Brasil",
+            "articleCount": 300,
+            "avgReadabilityFlesch": 33.5,
+            "avgWordCount": 470.0,
+        },
+        {
+            "period": "2026-05-01",
+            "agencyKey": "secom",
+            "agencyName": "Secom",
+            "articleCount": 150,
+            "avgReadabilityFlesch": 17.0,
+            "avgWordCount": 450.0,
+        },
+        {
+            "period": "2026-05-01",
+            "agencyKey": "defesa",
+            "agencyName": "Min. Defesa",
+            "articleCount": 200,
+            "avgReadabilityFlesch": -22.9,
+            "avgWordCount": 800.0,
+        },
+    ]
+}
 
 
 async def test_retorna_json_valido(fake_client):

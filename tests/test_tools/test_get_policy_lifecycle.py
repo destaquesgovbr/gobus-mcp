@@ -1,31 +1,65 @@
-import pytest
-from tests.conftest import FakeGraphQLClient
 from gobus_mcp.client import GobusGraphQLError
 from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
 
-
 MOCK_ENTITY_SEARCH = {
-    "entitySearch": [{
-        "entityId": "dgb_pe-de-meia",
-        "canonicalName": "Pé-de-Meia",
-        "type": "POLICY",
-        "description": "Programa de poupança para estudantes",
-        "wikidataUrl": None,
-        "agencyKey": "mec",
-        "aliases": ["Pe-de-Meia", "Poupança do Jovem"],
-        "articleCount": 247,
-        "confidence": 0.95,
-        "matchType": "exact",
-    }]
+    "entitySearch": [
+        {
+            "entityId": "dgb_pe-de-meia",
+            "canonicalName": "Pé-de-Meia",
+            "type": "POLICY",
+            "description": "Programa de poupança para estudantes",
+            "wikidataUrl": None,
+            "agencyKey": "mec",
+            "aliases": ["Pe-de-Meia", "Poupança do Jovem"],
+            "articleCount": 247,
+            "confidence": 0.95,
+            "matchType": "exact",
+        }
+    ]
 }
 
 MOCK_COVERAGE = {
     "entityCoverage": [
-        {"period": "2023-08-01", "agencyKey": "mec", "agencyName": "MEC", "articleCount": 45, "totalMentions": 89, "avgSentimentScore": 0.0},
-        {"period": "2023-09-01", "agencyKey": "mec", "agencyName": "MEC", "articleCount": 32, "totalMentions": 60, "avgSentimentScore": 0.0},
-        {"period": "2024-01-01", "agencyKey": "caixa", "agencyName": "CAIXA", "articleCount": 28, "totalMentions": 55, "avgSentimentScore": 0.0},
-        {"period": "2024-06-01", "agencyKey": "mec", "agencyName": "MEC", "articleCount": 15, "totalMentions": 30, "avgSentimentScore": 0.0},
-        {"period": "2026-01-01", "agencyKey": "mec", "agencyName": "MEC", "articleCount": 8, "totalMentions": 16, "avgSentimentScore": 0.0},
+        {
+            "period": "2023-08-01",
+            "agencyKey": "mec",
+            "agencyName": "MEC",
+            "articleCount": 45,
+            "totalMentions": 89,
+            "avgSentimentScore": 0.0,
+        },
+        {
+            "period": "2023-09-01",
+            "agencyKey": "mec",
+            "agencyName": "MEC",
+            "articleCount": 32,
+            "totalMentions": 60,
+            "avgSentimentScore": 0.0,
+        },
+        {
+            "period": "2024-01-01",
+            "agencyKey": "caixa",
+            "agencyName": "CAIXA",
+            "articleCount": 28,
+            "totalMentions": 55,
+            "avgSentimentScore": 0.0,
+        },
+        {
+            "period": "2024-06-01",
+            "agencyKey": "mec",
+            "agencyName": "MEC",
+            "articleCount": 15,
+            "totalMentions": 30,
+            "avgSentimentScore": 0.0,
+        },
+        {
+            "period": "2026-01-01",
+            "agencyKey": "mec",
+            "agencyName": "MEC",
+            "articleCount": 8,
+            "totalMentions": 16,
+            "avgSentimentScore": 0.0,
+        },
     ]
 }
 
@@ -61,10 +95,11 @@ MOCK_POLICY_DETAILS = {
 
 
 class TestGetPolicyLifecycle:
-
     async def test_retorna_fases_com_volumes(self, fake_client):
         """Deve retornar fases identificadas com seus volumes de artigos."""
-        fake_client.set_responses([MOCK_ENTITY_SEARCH, MOCK_COVERAGE, MOCK_POLICY_DETAILS, MOCK_SEARCH_RESULT])
+        fake_client.set_responses(
+            [MOCK_ENTITY_SEARCH, MOCK_COVERAGE, MOCK_POLICY_DETAILS, MOCK_SEARCH_RESULT]
+        )
         result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
         # Deve mencionar a fase de anúncio/lançamento (pico em 45 artigos)
         assert "ANNOUNCED" in result or "LANÇAMENTO" in result or "Lançamento" in result
@@ -75,7 +110,9 @@ class TestGetPolicyLifecycle:
 
     async def test_fase_atual_identificada_por_volume_recente(self, fake_client):
         """O período mais recente (8 artigos em 2026) deve ser identificado como fase de declínio/rotina."""
-        fake_client.set_responses([MOCK_ENTITY_SEARCH, MOCK_COVERAGE, MOCK_POLICY_DETAILS, MOCK_SEARCH_RESULT])
+        fake_client.set_responses(
+            [MOCK_ENTITY_SEARCH, MOCK_COVERAGE, MOCK_POLICY_DETAILS, MOCK_SEARCH_RESULT]
+        )
         result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
         # Fase atual = ROUTINE (volume 8 << 45 de pico)
         assert "ROUTINE" in result or "ROTINA" in result or "Rotina" in result
@@ -100,7 +137,9 @@ class TestGetPolicyLifecycle:
 
     async def test_retorna_markdown_com_secoes(self, fake_client):
         """O retorno deve ser Markdown com ao menos um cabeçalho e seções de fases e perspectiva."""
-        fake_client.set_responses([MOCK_ENTITY_SEARCH, MOCK_COVERAGE, MOCK_POLICY_DETAILS, MOCK_SEARCH_RESULT])
+        fake_client.set_responses(
+            [MOCK_ENTITY_SEARCH, MOCK_COVERAGE, MOCK_POLICY_DETAILS, MOCK_SEARCH_RESULT]
+        )
         result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
         assert isinstance(result, str)
         assert len(result.strip()) > 50
@@ -113,12 +152,14 @@ class TestGetPolicyLifecycle:
 
     async def test_policy_details_opcional_quando_ausente(self, fake_client):
         """Quando policyDetails falha (query inexistente na API), o tool deve continuar sem ela."""
-        fake_client.set_responses([
-            MOCK_ENTITY_SEARCH,
-            MOCK_COVERAGE,
-            GobusGraphQLError([{"message": "policyDetails query not found"}]),
-            MOCK_SEARCH_RESULT,
-        ])
+        fake_client.set_responses(
+            [
+                MOCK_ENTITY_SEARCH,
+                MOCK_COVERAGE,
+                GobusGraphQLError([{"message": "policyDetails query not found"}]),
+                MOCK_SEARCH_RESULT,
+            ]
+        )
         result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
         # Deve retornar markdown válido mesmo sem policyDetails
         assert "Pé-de-Meia" in result
@@ -128,7 +169,9 @@ class TestGetPolicyLifecycle:
 
     async def test_ancoras_narrativos_identificados(self, fake_client):
         """Deve identificar e exibir as agências dominantes por fase (âncoras narrativos)."""
-        fake_client.set_responses([MOCK_ENTITY_SEARCH, MOCK_COVERAGE, MOCK_POLICY_DETAILS, MOCK_SEARCH_RESULT])
+        fake_client.set_responses(
+            [MOCK_ENTITY_SEARCH, MOCK_COVERAGE, MOCK_POLICY_DETAILS, MOCK_SEARCH_RESULT]
+        )
         result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
         # MEC é dominante em ANNOUNCED e ROUTINE
         assert "MEC" in result

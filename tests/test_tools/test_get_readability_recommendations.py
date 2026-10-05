@@ -1,31 +1,73 @@
-import pytest
-from tests.conftest import FakeGraphQLClient
 from gobus_mcp.tools.get_readability_recommendations import get_readability_recommendations
-
 
 MOCK_ANALYTICS = {
     "agencyAnalytics": [
-        {"period": "2026-04-01", "agencyKey": "secom", "agencyName": "Secom", "articleCount": 150, "avgReadabilityFlesch": 17.2, "avgWordCount": 450.0},
-        {"period": "2026-04-01", "agencyKey": "cgu", "agencyName": "CGU", "articleCount": 80, "avgReadabilityFlesch": -1.2, "avgWordCount": 620.0},
-        {"period": "2026-04-01", "agencyKey": "defesa", "agencyName": "Min. Defesa", "articleCount": 200, "avgReadabilityFlesch": -22.9, "avgWordCount": 800.0},
-        {"period": "2026-04-01", "agencyKey": "agencia_brasil", "agencyName": "Agência Brasil", "articleCount": 300, "avgReadabilityFlesch": 33.5, "avgWordCount": 473.0},
+        {
+            "period": "2026-04-01",
+            "agencyKey": "secom",
+            "agencyName": "Secom",
+            "articleCount": 150,
+            "avgReadabilityFlesch": 17.2,
+            "avgWordCount": 450.0,
+        },
+        {
+            "period": "2026-04-01",
+            "agencyKey": "cgu",
+            "agencyName": "CGU",
+            "articleCount": 80,
+            "avgReadabilityFlesch": -1.2,
+            "avgWordCount": 620.0,
+        },
+        {
+            "period": "2026-04-01",
+            "agencyKey": "defesa",
+            "agencyName": "Min. Defesa",
+            "articleCount": 200,
+            "avgReadabilityFlesch": -22.9,
+            "avgWordCount": 800.0,
+        },
+        {
+            "period": "2026-04-01",
+            "agencyKey": "agencia_brasil",
+            "agencyName": "Agência Brasil",
+            "articleCount": 300,
+            "avgReadabilityFlesch": 33.5,
+            "avgWordCount": 473.0,
+        },
     ]
 }
 
 MOCK_ARTICLES = {
     "search": {
         "articles": [
-            {"uniqueId": "art-1", "title": "Artigo Legível", "agencyName": "Secom", "agency": "secom", "publishedAt": "2026-06-01", "summary": "...", "url": "https://example.com/1", "features": {"trendingScore": None, "viewCount": None}},
-            {"uniqueId": "art-2", "title": "Artigo Técnico Complexo", "agencyName": "Secom", "agency": "secom", "publishedAt": "2026-06-02", "summary": "...", "url": "https://example.com/2", "features": {"trendingScore": None, "viewCount": None}},
+            {
+                "uniqueId": "art-1",
+                "title": "Artigo Legível",
+                "agencyName": "Secom",
+                "agency": "secom",
+                "publishedAt": "2026-06-01",
+                "summary": "...",
+                "url": "https://example.com/1",
+                "features": {"trendingScore": None, "viewCount": None},
+            },
+            {
+                "uniqueId": "art-2",
+                "title": "Artigo Técnico Complexo",
+                "agencyName": "Secom",
+                "agency": "secom",
+                "publishedAt": "2026-06-02",
+                "summary": "...",
+                "url": "https://example.com/2",
+                "features": {"trendingScore": None, "viewCount": None},
+            },
         ],
         "found": 2,
-        "page": 1
+        "page": 1,
     }
 }
 
 
 class TestGetReadabilityRecommendations:
-
     async def test_ranking_geral_retorna_tabela_ordenada(self, fake_client):
         """Sem agency_key, deve retornar tabela com agências ordenadas por Flesch decrescente."""
         fake_client.set_response(MOCK_ANALYTICS)
@@ -56,7 +98,17 @@ class TestGetReadabilityRecommendations:
         fake_client.set_response(MOCK_ANALYTICS)
         result = await get_readability_recommendations(agency_key=None, client=fake_client)
         # Min. Defesa tem -22.9; deve ter algum label de dificuldade extrema
-        assert any(label in result for label in ["muito difícil", "abaixo do piso", "ilegível", "< 0", "Muito Difícil", "Abaixo do Piso"])
+        assert any(
+            label in result
+            for label in [
+                "muito difícil",
+                "abaixo do piso",
+                "ilegível",
+                "< 0",
+                "Muito Difícil",
+                "Abaixo do Piso",
+            ]
+        )
 
     async def test_flesch_entre_25_e_50_label_difícil(self, fake_client):
         """Flesch entre 25 e 50 deve ser classificado como 'difícil' ou equivalente."""
@@ -69,21 +121,38 @@ class TestGetReadabilityRecommendations:
         """Flesch >= 50 deve exibir label de leitura média ou fácil."""
         mock_com_facil = {
             "agencyAnalytics": [
-                {"period": "2026-04-01", "agencyKey": "fácil", "agencyName": "Agência Fácil", "articleCount": 50, "avgReadabilityFlesch": 62.0, "avgWordCount": 300.0},
+                {
+                    "period": "2026-04-01",
+                    "agencyKey": "fácil",
+                    "agencyName": "Agência Fácil",
+                    "articleCount": 50,
+                    "avgReadabilityFlesch": 62.0,
+                    "avgWordCount": 300.0,
+                },
             ]
         }
         fake_client.set_response(mock_com_facil)
         result = await get_readability_recommendations(agency_key=None, client=fake_client)
-        assert any(label in result for label in ["médio", "fácil", "Médio", "Fácil", "médio/fácil", "medium", "easy"])
+        assert any(
+            label in result
+            for label in ["médio", "fácil", "Médio", "Fácil", "médio/fácil", "medium", "easy"]
+        )
 
     async def test_agency_sem_dados_retorna_mensagem_de_erro(self, fake_client):
         """Agency inexistente deve retornar mensagem de ausência de dados."""
-        fake_client.set_responses([
-            {"agencyAnalytics": []},
-            {"search": {"articles": [], "found": 0, "page": 1}},
-        ])
+        fake_client.set_responses(
+            [
+                {"agencyAnalytics": []},
+                {"search": {"articles": [], "found": 0, "page": 1}},
+            ]
+        )
         result = await get_readability_recommendations(agency_key="inexistente", client=fake_client)
-        assert "inexistente" in result or "sem dados" in result.lower() or "não encontrada" in result.lower() or "nenhum" in result.lower()
+        assert (
+            "inexistente" in result
+            or "sem dados" in result.lower()
+            or "não encontrada" in result.lower()
+            or "nenhum" in result.lower()
+        )
 
     async def test_retorna_markdown_nao_vazio(self, fake_client):
         """O retorno deve ser uma string Markdown não vazia."""

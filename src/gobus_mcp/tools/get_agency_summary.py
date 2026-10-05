@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+
 from gobus_mcp.client import GobusGraphQLClient
 
 _ANALYTICS_QUERY = """
@@ -36,19 +37,25 @@ async def get_agency_summary(
     date_to = date.today().isoformat()
     date_from = (date.today() - timedelta(days=days)).isoformat()
 
-    analytics_data = await client.execute(_ANALYTICS_QUERY, {
-        "agencies": [agency_key],
-        "dateFrom": date_from,
-        "dateTo": date_to,
-        "granularity": "MONTH",
-    })
-    trends_data = await client.execute(_TRENDS_QUERY, {
-        "windowDays": 7,
-        "baselineDays": 28,
-        "growthThreshold": 1.0,
-        "agencyKey": agency_key,
-        "limit": 5,
-    })
+    analytics_data = await client.execute(
+        _ANALYTICS_QUERY,
+        {
+            "agencies": [agency_key],
+            "dateFrom": date_from,
+            "dateTo": date_to,
+            "granularity": "MONTH",
+        },
+    )
+    trends_data = await client.execute(
+        _TRENDS_QUERY,
+        {
+            "windowDays": 7,
+            "baselineDays": 28,
+            "growthThreshold": 1.0,
+            "agencyKey": agency_key,
+            "limit": 5,
+        },
+    )
 
     rows = analytics_data.get("agencyAnalytics") or []
     themes = trends_data.get("trendingThemes") or []

@@ -7,9 +7,12 @@ def monitor_agency_prompt(agency_key: str, agency_name: str = "", days: int = 1)
         days: Janela de dias para análise (default 1)
     """
     display = agency_name or agency_key
-    return [{
-        "role": "user",
-        "content": {"type": "text", "text": f"""Crie um briefing de comunicação para a agência **{display}** dos últimos {days} dia(s).
+    return [
+        {
+            "role": "user",
+            "content": {
+                "type": "text",
+                "text": f"""Crie um briefing de comunicação para a agência **{display}** dos últimos {days} dia(s).
 
 Siga este roteiro:
 
@@ -32,5 +35,7 @@ Com base nos dados, escreva um briefing executivo de 200-300 palavras cobrindo:
 - Sentimento geral das publicações (quando disponível)
 - Recomendações para a equipe de comunicação
 
-**Formato de saída:** Briefing em português, linguagem direta, adequada para assessor de comunicação."""}
-    }]
+**Formato de saída:** Briefing em português, linguagem direta, adequada para assessor de comunicação.""",
+            },
+        }
+    ]

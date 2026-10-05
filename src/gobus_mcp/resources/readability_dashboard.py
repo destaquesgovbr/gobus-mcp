@@ -1,12 +1,29 @@
-import json
 import datetime
+import json
 
 from gobus_mcp.client import GobusGraphQLClient
 
 _ACTIVE_AGENCIES = [
-    "agencia_brasil", "secom", "saude", "mec", "fazenda", "trabalho", "mj",
-    "defesa", "mre", "planejamento", "cgcom", "cgu", "agu", "tcu", "planalto",
-    "mcom", "ibge", "anp", "inss", "caixa",
+    "agencia_brasil",
+    "secom",
+    "saude",
+    "mec",
+    "fazenda",
+    "trabalho",
+    "mj",
+    "defesa",
+    "mre",
+    "planejamento",
+    "cgcom",
+    "cgu",
+    "agu",
+    "tcu",
+    "planalto",
+    "mcom",
+    "ibge",
+    "anp",
+    "inss",
+    "caixa",
 ]
 
 _ANALYTICS_QUERY = """
@@ -81,7 +98,7 @@ def _render_bar_chart_svg(agencies_data: list[dict]) -> str:
     return (
         f'<svg width="600" height="{total_height}" xmlns="http://www.w3.org/2000/svg" '
         f'role="img" aria-label="Gráfico de legibilidade por agência">'
-        f'{svg_content}'
+        f"{svg_content}"
         f"</svg>"
     )
 
@@ -99,12 +116,15 @@ async def fetch_readability_dashboard(client: GobusGraphQLClient) -> str:
     date_from = (today - datetime.timedelta(days=90)).isoformat()
     date_to = today.isoformat()
 
-    data = await client.execute(_ANALYTICS_QUERY, {
-        "agencies": _ACTIVE_AGENCIES,
-        "dateFrom": date_from,
-        "dateTo": date_to,
-        "granularity": "MONTH",
-    })
+    data = await client.execute(
+        _ANALYTICS_QUERY,
+        {
+            "agencies": _ACTIVE_AGENCIES,
+            "dateFrom": date_from,
+            "dateTo": date_to,
+            "granularity": "MONTH",
+        },
+    )
     rows = data.get("agencyAnalytics") or []
 
     # Agrega múltiplos períodos por agência (média ponderada)
@@ -133,13 +153,15 @@ async def fetch_readability_dashboard(client: GobusGraphQLClient) -> str:
         total = agg["totalArticles"]
         avg_f = agg["fleschSum"] / total if total > 0 else 0.0
         avg_wc = agg["wcSum"] / total if total > 0 else 0.0
-        agencies_data.append({
-            "agencyKey": key,
-            "agencyName": agg["agencyName"],
-            "articleCount": total,
-            "avgReadabilityFlesch": round(avg_f, 2),
-            "avgWordCount": round(avg_wc, 1),
-        })
+        agencies_data.append(
+            {
+                "agencyKey": key,
+                "agencyName": agg["agencyName"],
+                "articleCount": total,
+                "avgReadabilityFlesch": round(avg_f, 2),
+                "avgWordCount": round(avg_wc, 1),
+            }
+        )
 
     agencies_data.sort(key=lambda r: r["avgReadabilityFlesch"], reverse=True)
 
@@ -242,12 +264,14 @@ class Chart {
       <tr><th>#</th><th>Agência</th><th>Flesch</th><th>Artigos</th><th>Palavras/art.</th></tr>
     </thead>
     <tbody>
-      {"".join(
-          f'<tr><td>{i+1}</td><td>{d["agencyName"]}</td>'
-          f'<td style="color:{_flesch_color(d["avgReadabilityFlesch"])};font-weight:600">{d["avgReadabilityFlesch"]:.1f}</td>'
-          f'<td>{d["articleCount"]}</td><td>{d["avgWordCount"]:.0f}</td></tr>'
-          for i, d in enumerate(agencies_data)
-      )}
+      {
+        "".join(
+            f"<tr><td>{i + 1}</td><td>{d['agencyName']}</td>"
+            f'<td style="color:{_flesch_color(d["avgReadabilityFlesch"])};font-weight:600">{d["avgReadabilityFlesch"]:.1f}</td>'
+            f"<td>{d['articleCount']}</td><td>{d['avgWordCount']:.0f}</td></tr>"
+            for i, d in enumerate(agencies_data)
+        )
+    }
     </tbody>
   </table>
 </div>

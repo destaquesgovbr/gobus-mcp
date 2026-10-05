@@ -79,7 +79,10 @@ def _weighted_benchmark(rows: list[dict]) -> tuple[float, float]:
     total = sum(r.get("articleCount") or 0 for r in rows)
     if total <= 0:
         return 0.0, 0.0
-    flesch = sum((r.get("avgReadabilityFlesch") or 0.0) * (r.get("articleCount") or 0) for r in rows) / total
+    flesch = (
+        sum((r.get("avgReadabilityFlesch") or 0.0) * (r.get("articleCount") or 0) for r in rows)
+        / total
+    )
     wc = sum((r.get("avgWordCount") or 0.0) * (r.get("articleCount") or 0) for r in rows) / total
     return flesch, wc
 
@@ -122,12 +125,15 @@ async def score_article(unique_id: str, client: GobusGraphQLClient) -> str:
     today = datetime.date.today()
     date_from = (today - datetime.timedelta(days=90)).isoformat()
     date_to = today.isoformat()
-    analytics_data = await client.execute(_ANALYTICS_QUERY, {
-        "agencies": [agency],
-        "dateFrom": date_from,
-        "dateTo": date_to,
-        "granularity": "MONTH",
-    })
+    analytics_data = await client.execute(
+        _ANALYTICS_QUERY,
+        {
+            "agencies": [agency],
+            "dateFrom": date_from,
+            "dateTo": date_to,
+            "granularity": "MONTH",
+        },
+    )
     rows = analytics_data.get("agencyAnalytics") or []
     bench_flesch, bench_wc = _weighted_benchmark(rows)
 

@@ -74,12 +74,15 @@ async def fetch_health_pipelines(client: GobusGraphQLClient) -> str:
     date_to = today.isoformat()
 
     analytics_data, entities_data = await asyncio.gather(
-        client.execute(_ANALYTICS_QUERY, {
-            "agencies": _HEALTH_AGENCIES,
-            "dateFrom": date_from,
-            "dateTo": date_to,
-            "granularity": "MONTH",
-        }),
+        client.execute(
+            _ANALYTICS_QUERY,
+            {
+                "agencies": _HEALTH_AGENCIES,
+                "dateFrom": date_from,
+                "dateTo": date_to,
+                "granularity": "MONTH",
+            },
+        ),
         client.execute(_ENTITIES_QUERY, {"limit": 5}),
     )
     rows = analytics_data.get("agencyAnalytics") or []

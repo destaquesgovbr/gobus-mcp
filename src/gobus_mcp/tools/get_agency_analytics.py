@@ -45,18 +45,23 @@ async def get_agency_analytics(
     Returns:
         Markdown com tabela de métricas por agência e período.
     """
-    data = await client.execute(_ANALYTICS_QUERY, {
-        "agencies": agencies,
-        "dateFrom": date_from,
-        "dateTo": date_to,
-        "granularity": granularity.upper(),
-    })
+    data = await client.execute(
+        _ANALYTICS_QUERY,
+        {
+            "agencies": agencies,
+            "dateFrom": date_from,
+            "dateTo": date_to,
+            "granularity": granularity.upper(),
+        },
+    )
     rows = data.get("agencyAnalytics") or []
 
     if not rows:
         return f"Nenhum dado encontrado para {', '.join(agencies)} em {date_from}–{date_to}"
 
-    lines = [f"# Analytics: {', '.join(agencies)}\n**{date_from} → {date_to}** (granularity: {granularity})\n"]
+    lines = [
+        f"# Analytics: {', '.join(agencies)}\n**{date_from} → {date_to}** (granularity: {granularity})\n"
+    ]
 
     current_period = None
     for row in rows:
@@ -75,8 +80,8 @@ async def get_agency_analytics(
 
         metrics = [f"**{count}** artigos"]
         if pct_pos is not None:
-            neg_part = f" / {pct_neg*100:.0f}% neg" if pct_neg is not None else ""
-            metrics.append(f"😊 {pct_pos*100:.0f}% pos{neg_part}")
+            neg_part = f" / {pct_neg * 100:.0f}% neg" if pct_neg is not None else ""
+            metrics.append(f"😊 {pct_pos * 100:.0f}% pos{neg_part}")
         if sent is not None:
             metrics.append(f"sentimento {sent:.2f}")
         if flesch is not None:

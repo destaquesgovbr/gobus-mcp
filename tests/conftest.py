@@ -1,6 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock
-from gobus_mcp.client import GobusGraphQLClient
+
+import pytest
 
 
 class FakeGraphQLClient:

@@ -122,11 +122,14 @@ async def get_policy_lifecycle(
         Markdown com fases, âncoras narrativos e perspectiva da fase atual.
     """
     # 1. Resolver nome → entityId
-    search_data = await client.execute(_ENTITY_SEARCH_QUERY, {
-        "query": policy_name,
-        "entityType": "POLICY",
-        "limit": 1,
-    })
+    search_data = await client.execute(
+        _ENTITY_SEARCH_QUERY,
+        {
+            "query": policy_name,
+            "entityType": "POLICY",
+            "limit": 1,
+        },
+    )
     hits = search_data.get("entitySearch") or []
     if not hits:
         return f"Política não encontrada: **{policy_name}**"
@@ -136,11 +139,14 @@ async def get_policy_lifecycle(
     canonical_name = entity["canonicalName"]
 
     # 2. Série temporal de cobertura mensal
-    coverage_data = await client.execute(_ENTITY_COVERAGE_QUERY, {
-        "entityId": entity_id,
-        "granularity": "MONTH",
-        "dateFrom": date_from,
-    })
+    coverage_data = await client.execute(
+        _ENTITY_COVERAGE_QUERY,
+        {
+            "entityId": entity_id,
+            "granularity": "MONTH",
+            "dateFrom": date_from,
+        },
+    )
     coverage = coverage_data.get("entityCoverage") or []
 
     if not coverage:
@@ -166,10 +172,13 @@ async def get_policy_lifecycle(
     articles: list[dict] = []
     if peak_point:
         try:
-            search_result = await client.execute(_SEARCH_QUERY, {
-                "query": policy_name,
-                "page": 1,
-            })
+            search_result = await client.execute(
+                _SEARCH_QUERY,
+                {
+                    "query": policy_name,
+                    "page": 1,
+                },
+            )
             articles = (search_result.get("search") or {}).get("articles") or []
         except Exception:
             articles = []

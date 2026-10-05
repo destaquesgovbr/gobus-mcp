@@ -88,8 +88,14 @@ async def get_article(unique_id: str, client: GobusGraphQLClient) -> str:
             by_type: dict[str, list] = {}
             for e in entities:
                 by_type.setdefault(e.get("type", "MISC"), []).append(e)
-            type_labels = {"ORG": "Instituições", "PER": "Pessoas", "LOC": "Locais",
-                           "EVENT": "Eventos", "POLICY": "Políticas", "LAW": "Leis"}
+            type_labels = {
+                "ORG": "Instituições",
+                "PER": "Pessoas",
+                "LOC": "Locais",
+                "EVENT": "Eventos",
+                "POLICY": "Políticas",
+                "LAW": "Leis",
+            }
             for etype, items in by_type.items():
                 label = type_labels.get(etype, etype)
                 names = [f"{e['text']} ({e.get('count', 0)}x)" for e in items[:8]]

@@ -54,12 +54,24 @@ async def detect_anomalies(client: GobusGraphQLClient, sensitivity: str = "mediu
     thresholds = _SENSITIVITY.get(sensitivity, _SENSITIVITY["medium"])
 
     themes_3d_data, themes_7d_data = await asyncio.gather(
-        client.execute(_THEMES_QUERY, {
-            "windowDays": 3, "baselineDays": 21, "growthThreshold": 0.5, "limit": 15,
-        }),
-        client.execute(_THEMES_QUERY, {
-            "windowDays": 7, "baselineDays": 28, "growthThreshold": 0.5, "limit": 15,
-        }),
+        client.execute(
+            _THEMES_QUERY,
+            {
+                "windowDays": 3,
+                "baselineDays": 21,
+                "growthThreshold": 0.5,
+                "limit": 15,
+            },
+        ),
+        client.execute(
+            _THEMES_QUERY,
+            {
+                "windowDays": 7,
+                "baselineDays": 28,
+                "growthThreshold": 0.5,
+                "limit": 15,
+            },
+        ),
     )
     entities_data = await client.execute(_ENTITIES_QUERY, {"limit": 20})
 

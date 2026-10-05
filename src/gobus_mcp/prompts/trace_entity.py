@@ -1,4 +1,6 @@
-def trace_entity_prompt(entity_name: str, entity_type: str = "", date_from: str = "", date_to: str = "") -> list[dict]:
+def trace_entity_prompt(
+    entity_name: str, entity_type: str = "", date_from: str = "", date_to: str = ""
+) -> list[dict]:
     """Trajetória completa de uma entidade ao longo do tempo.
 
     Args:
@@ -10,17 +12,20 @@ def trace_entity_prompt(entity_name: str, entity_type: str = "", date_from: str 
     type_filter = f" do tipo {entity_type}" if entity_type else ""
     period = f" de {date_from}" if date_from else ""
     period += f" a {date_to}" if date_to else ""
-    return [{
-        "role": "user",
-        "content": {"type": "text", "text": f"""Trace a trajetória completa de **{entity_name}**{type_filter}{period} no portal Gov.BR.
+    return [
+        {
+            "role": "user",
+            "content": {
+                "type": "text",
+                "text": f"""Trace a trajetória completa de **{entity_name}**{type_filter}{period} no portal Gov.BR.
 
 ## Roteiro de análise
 
 ### 1. Identificação da entidade
-Use `resolve_entity` com query="{entity_name}"{f' e entity_type="{entity_type}"' if entity_type else ''} para encontrar o ID canônico.
+Use `resolve_entity` com query="{entity_name}"{f' e entity_type="{entity_type}"' if entity_type else ""} para encontrar o ID canônico.
 
 ### 2. Perfil e cobertura temporal
-Use `get_entity_profile` com o entity_name encontrado{f', date_from="{date_from}"' if date_from else ''}{f', date_to="{date_to}"' if date_to else ''} para ver a série temporal de menções.
+Use `get_entity_profile` com o entity_name encontrado{f', date_from="{date_from}"' if date_from else ""}{f', date_to="{date_to}"' if date_to else ""} para ver a série temporal de menções.
 
 > **Dica de paralelismo:** Após obter o entityId de `resolve_entity` (step 1),
 > `get_entity_profile` (step 2) e `get_entity_network` (step 3) são independentes
@@ -40,5 +45,7 @@ Com base nos dados, construa:
 - **Estado atual:** Tendência recente de cobertura
 - **Conclusão:** Relevância desta entidade no contexto do governo federal
 
-**Formato:** Relatório estruturado em português, com dados concretos (datas, contagens, nomes de agências)."""}
-    }]
+**Formato:** Relatório estruturado em português, com dados concretos (datas, contagens, nomes de agências).""",
+            },
+        }
+    ]

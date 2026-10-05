@@ -5,30 +5,30 @@ from fastmcp.server.http import Mount, Request, Response, SseServerTransport
 
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.config import settings
-from gobus_mcp.tools.search_news import search_news
-from gobus_mcp.tools.get_article import get_article
-from gobus_mcp.tools.resolve_entity import resolve_entity
-from gobus_mcp.tools.get_entity_profile import get_entity_profile
-from gobus_mcp.tools.get_entity_network import get_entity_network
-from gobus_mcp.tools.get_agency_analytics import get_agency_analytics
-from gobus_mcp.tools.detect_trends import detect_trends
-from gobus_mcp.tools.get_agency_summary import get_agency_summary
-from gobus_mcp.tools.get_readability_recommendations import get_readability_recommendations
-from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
-from gobus_mcp.tools.detect_anomalies import detect_anomalies
-from gobus_mcp.tools.forecast_trends import forecast_trends
-from gobus_mcp.tools.score_article import score_article
-from gobus_mcp.resources.agencies import fetch_agencies
-from gobus_mcp.resources.readability_dashboard import fetch_readability_dashboard
-from gobus_mcp.resources.readability_report import fetch_readability_report
-from gobus_mcp.resources.health_pipelines import fetch_health_pipelines
-from gobus_mcp.resources.themes import fetch_themes
-from gobus_mcp.resources.platform_stats import fetch_platform_stats
-from gobus_mcp.resources.taxonomy_queries import fetch_taxonomy_queries
-from gobus_mcp.prompts.monitor_agency import monitor_agency_prompt
 from gobus_mcp.prompts.draft_press_release import draft_press_release_prompt
+from gobus_mcp.prompts.monitor_agency import monitor_agency_prompt
 from gobus_mcp.prompts.trace_entity import trace_entity_prompt
 from gobus_mcp.prompts.weekly_digest import weekly_digest_prompt
+from gobus_mcp.resources.agencies import fetch_agencies
+from gobus_mcp.resources.health_pipelines import fetch_health_pipelines
+from gobus_mcp.resources.platform_stats import fetch_platform_stats
+from gobus_mcp.resources.readability_dashboard import fetch_readability_dashboard
+from gobus_mcp.resources.readability_report import fetch_readability_report
+from gobus_mcp.resources.taxonomy_queries import fetch_taxonomy_queries
+from gobus_mcp.resources.themes import fetch_themes
+from gobus_mcp.tools.detect_anomalies import detect_anomalies
+from gobus_mcp.tools.detect_trends import detect_trends
+from gobus_mcp.tools.forecast_trends import forecast_trends
+from gobus_mcp.tools.get_agency_analytics import get_agency_analytics
+from gobus_mcp.tools.get_agency_summary import get_agency_summary
+from gobus_mcp.tools.get_article import get_article
+from gobus_mcp.tools.get_entity_network import get_entity_network
+from gobus_mcp.tools.get_entity_profile import get_entity_profile
+from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
+from gobus_mcp.tools.get_readability_recommendations import get_readability_recommendations
+from gobus_mcp.tools.resolve_entity import resolve_entity
+from gobus_mcp.tools.score_article import score_article
+from gobus_mcp.tools.search_news import search_news
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
@@ -48,13 +48,16 @@ _sse = SseServerTransport("/messages/")
 async def _sse_compat(request: Request) -> Response:
     async with _sse.connect_sse(request.scope, request.receive, request._send) as streams:
         await mcp._mcp_server.run(
-            streams[0], streams[1],
+            streams[0],
+            streams[1],
             mcp._mcp_server.create_initialization_options(),
         )
     return Response()
 
 
-mcp._additional_http_routes.append(Mount("/messages", app=_sse.handle_post_message))  # Starlette redireciona /messages → /messages/ sem trailing slash
+mcp._additional_http_routes.append(
+    Mount("/messages", app=_sse.handle_post_message)
+)  # Starlette redireciona /messages → /messages/ sem trailing slash
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -66,6 +69,7 @@ _client = GobusGraphQLClient(
 
 
 # ── Tools ────────────────────────────────────────────────────────────────────
+
 
 @mcp.tool()
 async def gobus_search_news(
@@ -90,7 +94,9 @@ async def gobus_search_news(
 
     Dica: Execute em paralelo com gobus_get_agency_analytics para a mesma agência.
     """
-    return await search_news(query, _client, agency_key or None, page, limit, date_from or None, date_to or None)
+    return await search_news(
+        query, _client, agency_key or None, page, limit, date_from or None, date_to or None
+    )
 
 
 @mcp.tool()
@@ -149,8 +155,7 @@ async def gobus_get_entity_profile(
     Use summary_only=True quando precisar apenas de um overview rápido.
     """
     return await get_entity_profile(
-        entity_name, _client,
-        entity_type or None, date_from or None, date_to or None, summary_only
+        entity_name, _client, entity_type or None, date_from or None, date_to or None, summary_only
     )
 
 
@@ -228,7 +233,15 @@ async def gobus_detect_trends(
     Dica: Use gobus://taxonomy-queries para mapear temas detectados a termos de busca.
     Para cada tema, execute gobus_search_news em paralelo com o nome do tema.
     """
-    return await detect_trends(_client, window_days, baseline_days, min_articles, growth_threshold, agency_key or None, limit)
+    return await detect_trends(
+        _client,
+        window_days,
+        baseline_days,
+        min_articles,
+        growth_threshold,
+        agency_key or None,
+        limit,
+    )
 
 
 @mcp.tool()
@@ -348,6 +361,7 @@ async def gobus_score_article(unique_id: str) -> str:
 
 # ── Resources ────────────────────────────────────────────────────────────────
 
+
 @mcp.resource("gobus://agencies")
 async def agencies_resource() -> str:
     """Lista completa de agências governamentais com suas chaves."""
@@ -392,6 +406,7 @@ async def health_pipelines_resource() -> str:
 
 # ── Prompts ──────────────────────────────────────────────────────────────────
 
+
 @mcp.prompt()
 def prompt_monitor_agency(agency_key: str, agency_name: str = "", days: int = 1) -> list[dict]:
     """Briefing diário de comunicação de uma agência governamental."""
@@ -405,7 +420,9 @@ def prompt_draft_press_release(topic: str, agency_key: str = "", limit: int = 5)
 
 
 @mcp.prompt()
-def prompt_trace_entity(entity_name: str, entity_type: str = "", date_from: str = "", date_to: str = "") -> list[dict]:
+def prompt_trace_entity(
+    entity_name: str, entity_type: str = "", date_from: str = "", date_to: str = ""
+) -> list[dict]:
     """Trajetória completa de uma entidade no portal Gov.BR."""
     return trace_entity_prompt(entity_name, entity_type, date_from, date_to)
 

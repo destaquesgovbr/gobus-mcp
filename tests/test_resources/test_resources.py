@@ -1,18 +1,23 @@
 import pytest
-from tests.conftest import FakeGraphQLClient
+
 from gobus_mcp.resources.agencies import fetch_agencies
-from gobus_mcp.resources.themes import fetch_themes
 from gobus_mcp.resources.platform_stats import fetch_platform_stats
+from gobus_mcp.resources.themes import fetch_themes
+from tests.conftest import FakeGraphQLClient
 
 
 class TestAgenciesResource:
     @pytest.mark.asyncio
     async def test_formata_lista_de_agencias(self):
         client = FakeGraphQLClient()
-        client.set_response({"agencies": [
-            {"code": "mec", "label": "Ministério da Educação"},
-            {"code": "ms", "label": "Ministério da Saúde"},
-        ]})
+        client.set_response(
+            {
+                "agencies": [
+                    {"code": "mec", "label": "Ministério da Educação"},
+                    {"code": "ms", "label": "Ministério da Saúde"},
+                ]
+            }
+        )
         result = await fetch_agencies(client)
         assert "Ministério da Educação" in result
         assert "`mec`" in result
@@ -39,9 +44,16 @@ class TestPlatformStatsResource:
     @pytest.mark.asyncio
     async def test_formata_kpis(self):
         client = FakeGraphQLClient()
-        client.set_response({"analyticsKpis": {
-            "total": 335268, "activeThemes": 25, "activeAgencies": 45, "dailyAverage": 42.5
-        }})
+        client.set_response(
+            {
+                "analyticsKpis": {
+                    "total": 335268,
+                    "activeThemes": 25,
+                    "activeAgencies": 45,
+                    "dailyAverage": 42.5,
+                }
+            }
+        )
         result = await fetch_platform_stats(client)
         assert "335" in result
         assert "25" in result

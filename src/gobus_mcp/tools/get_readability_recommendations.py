@@ -3,9 +3,26 @@ import datetime
 from gobus_mcp.client import GobusGraphQLClient
 
 _ACTIVE_AGENCIES = [
-    "agencia_brasil", "secom", "saude", "mec", "fazenda", "trabalho", "mj",
-    "defesa", "mre", "planejamento", "cgcom", "cgu", "agu", "tcu", "planalto",
-    "mcom", "ibge", "anp", "inss", "caixa",
+    "agencia_brasil",
+    "secom",
+    "saude",
+    "mec",
+    "fazenda",
+    "trabalho",
+    "mj",
+    "defesa",
+    "mre",
+    "planejamento",
+    "cgcom",
+    "cgu",
+    "agu",
+    "tcu",
+    "planalto",
+    "mcom",
+    "ibge",
+    "anp",
+    "inss",
+    "caixa",
 ]
 
 _ANALYTICS_QUERY = """
@@ -116,12 +133,15 @@ async def get_readability_recommendations(
 
     if not agency_key:
         # ── Modo ranking geral ─────────────────────────────────────────────────
-        data = await client.execute(_ANALYTICS_QUERY, {
-            "agencies": _ACTIVE_AGENCIES,
-            "dateFrom": date_from,
-            "dateTo": date_to,
-            "granularity": "MONTH",
-        })
+        data = await client.execute(
+            _ANALYTICS_QUERY,
+            {
+                "agencies": _ACTIVE_AGENCIES,
+                "dateFrom": date_from,
+                "dateTo": date_to,
+                "granularity": "MONTH",
+            },
+        )
         rows = data.get("agencyAnalytics") or []
 
         if not rows:
@@ -146,11 +166,13 @@ async def get_readability_recommendations(
         for key, agg in by_agency.items():
             total = agg["totalArticles"]
             avg_flesch = agg["fleschSum"] / total if total > 0 else 0.0
-            ranked.append({
-                "agencyName": agg["agencyName"],
-                "flesch": avg_flesch,
-                "count": total,
-            })
+            ranked.append(
+                {
+                    "agencyName": agg["agencyName"],
+                    "flesch": avg_flesch,
+                    "count": total,
+                }
+            )
 
         ranked.sort(key=lambda r: r["flesch"], reverse=True)
         ranked = ranked[:limit]
@@ -167,24 +189,32 @@ async def get_readability_recommendations(
             )
 
         lines.append("\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional")
-        lines.append("**Benchmark interno:** Agência Brasil (~33.5) — melhor índice atual entre as agências.")
+        lines.append(
+            "**Benchmark interno:** Agência Brasil (~33.5) — melhor índice atual entre as agências."
+        )
         return "\n".join(lines)
 
     else:
         # ── Modo diagnóstico de agência específica ─────────────────────────────
-        analytics_data = await client.execute(_ANALYTICS_QUERY, {
-            "agencies": [agency_key],
-            "dateFrom": date_from,
-            "dateTo": date_to,
-            "granularity": "MONTH",
-        })
+        analytics_data = await client.execute(
+            _ANALYTICS_QUERY,
+            {
+                "agencies": [agency_key],
+                "dateFrom": date_from,
+                "dateTo": date_to,
+                "granularity": "MONTH",
+            },
+        )
         rows = analytics_data.get("agencyAnalytics") or []
 
-        articles_data = await client.execute(_SEARCH_QUERY, {
-            "query": "",
-            "agencies": [agency_key],
-            "limit": 3,
-        })
+        articles_data = await client.execute(
+            _SEARCH_QUERY,
+            {
+                "query": "",
+                "agencies": [agency_key],
+                "limit": 3,
+            },
+        )
         articles = (articles_data.get("search") or {}).get("articles") or []
 
         if not rows:
@@ -196,14 +226,17 @@ async def get_readability_recommendations(
         # Agrega múltiplos períodos em um único valor médio
         total_count = sum(r.get("articleCount") or 0 for r in rows)
         if total_count > 0:
-            flesch = sum(
-                (r.get("avgReadabilityFlesch") or 0.0) * (r.get("articleCount") or 0)
-                for r in rows
-            ) / total_count
-            avg_wc = sum(
-                (r.get("avgWordCount") or 0.0) * (r.get("articleCount") or 0)
-                for r in rows
-            ) / total_count
+            flesch = (
+                sum(
+                    (r.get("avgReadabilityFlesch") or 0.0) * (r.get("articleCount") or 0)
+                    for r in rows
+                )
+                / total_count
+            )
+            avg_wc = (
+                sum((r.get("avgWordCount") or 0.0) * (r.get("articleCount") or 0) for r in rows)
+                / total_count
+            )
         else:
             flesch = rows[0].get("avgReadabilityFlesch") or 0.0
             avg_wc = rows[0].get("avgWordCount") or 0.0

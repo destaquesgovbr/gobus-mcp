@@ -1,5 +1,6 @@
 import pytest
-from gobus_mcp.resources.taxonomy_queries import fetch_taxonomy_queries, TAXONOMY_QUERIES
+
+from gobus_mcp.resources.taxonomy_queries import TAXONOMY_QUERIES, fetch_taxonomy_queries
 
 
 class TestTaxonomyQueries:
