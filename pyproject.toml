@@ -32,6 +32,12 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "live: consulta a graphql-api de produção (fora do CI; rodar com -m live)",
+    "ui: render headless dos MCP Apps (Playwright; rodar com -m ui)",
+]
+addopts = "-m 'not live and not ui'"
 
 [tool.ruff]
 line-length = 100
