@@ -1,7 +1,7 @@
 from gobus_mcp.client import GobusGraphQLClient
 
 _THEMES_QUERY = """
-{
+query Themes {
   themes {
     code
     label

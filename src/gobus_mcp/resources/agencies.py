@@ -1,7 +1,7 @@
 from gobus_mcp.client import GobusGraphQLClient
 
 _AGENCIES_QUERY = """
-{
+query Agencies {
   agencies {
     code
     label
