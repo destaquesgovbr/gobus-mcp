@@ -260,12 +260,13 @@ def _entities(
     signals: list[EntitySignal] = []
     failures = 0
     for candidate, ctx in zip(selection.candidates, fetch.contexts, strict=True):
+        entity_id = candidate.get("entityId")
         if isinstance(ctx, BaseException):
             failures += 1
-            logger.warning("anomalias: contexto de %s indisponível (%s)", candidate, ctx)
+            logger.warning("anomalias: contexto de %s indisponível (%s)", entity_id, ctx)
             continue
-        signals.append(
-            entity_signal(
+        try:
+            signal = entity_signal(
                 entity=ctx.get("entity") or {},
                 coverage_rows=ctx.get("entityCoverage") or [],
                 policy_domain=(ctx.get("policyDetails") or {}).get("domain"),
@@ -275,7 +276,12 @@ def _entities(
                 activity=snapshot,
                 candidate=candidate,
             )
-        )
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
+            # dado malformado de um candidato não derruba a tool
+            failures += 1
+            logger.warning("anomalias: contexto de %s malformado (%s)", entity_id, exc)
+            continue
+        signals.append(signal)
     signals.sort(key=lambda s: (-s.severity, s.name))
 
     status: Status = ranking.status
@@ -299,8 +305,8 @@ def _entities(
             else worst_status([status, "degraded"])
         )
         notes.append(
-            f"{failures} de {len(selection.candidates)} candidatos sem contexto (falha ao "
-            "consultar a graphql-api)"
+            f"{failures} de {len(selection.candidates)} candidatos sem contexto (falha da "
+            "consulta ou dado malformado)"
         )
     if republishers_fallback:
         status = worst_status([status, "degraded"])
