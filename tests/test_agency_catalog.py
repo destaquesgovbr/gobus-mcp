@@ -181,3 +181,19 @@ async def test_active_sem_republicadoras_completa_o_limite():
         "mdr",
         "mec",
     ]
+
+
+async def test_display_name_prefere_o_catalogo_e_nunca_levanta():
+    catalog = _catalog(_client())
+    assert await catalog.display_name("pf", "pf") == "Polícia Federal"
+    assert await catalog.display_name("susep", "Superintendência de Seguros") == (
+        "Superintendência de Seguros"  # catálogo sem nome → nome da API
+    )
+    assert await catalog.display_name("nao-existe") == "nao-existe"
+    assert await catalog.display_name("", "Sem código") == "Sem código"
+
+    broken = FakeGraphQLClient()
+    broken.route("CatalogAgencies", RuntimeError("graphql fora do ar"))
+    fallback = _catalog(broken)
+    assert await fallback.display_name("pf", "Polícia Federal (API)") == "Polícia Federal (API)"
+    assert await fallback.display_name("pf") == "pf"
