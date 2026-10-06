@@ -197,3 +197,14 @@ async def test_display_name_prefere_o_catalogo_e_nunca_levanta():
     fallback = _catalog(broken)
     assert await fallback.display_name("pf", "Polícia Federal (API)") == "Polícia Federal (API)"
     assert await fallback.display_name("pf") == "pf"
+
+
+async def test_display_names_resolve_o_mapa_uma_vez_e_nunca_levanta():
+    catalog = _catalog(_client())
+    names = await catalog.display_names()
+    assert names["pf"] == "Polícia Federal"
+    assert "susep" not in names  # sem nome no catálogo: quem exibe usa o fallback
+
+    broken = FakeGraphQLClient()
+    broken.route("CatalogAgencies", RuntimeError("graphql fora do ar"))
+    assert await _catalog(broken).display_names() == {}

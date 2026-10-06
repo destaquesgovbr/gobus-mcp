@@ -340,3 +340,24 @@ async def test_analytics_date_to_invalida_segue_para_a_api(fake_client):
 
     (call,) = fake_client.calls("AgencyAnalytics")
     assert call["dateTo"] == "30/09/2026"
+
+
+@pytest.mark.parametrize("broken_op", ["CatalogAgencyNames", "CatalogAgencies"])
+async def test_analytics_resolve_os_nomes_do_catalogo_uma_vez_so(fake_client, broken_op):
+    # a falha do catálogo não é cacheada: resolver o nome por linha repetiria o timeout
+    route_catalog(fake_client)
+    fake_client.route(broken_op, RuntimeError("timeout"))
+    rows = [
+        _metrics(period=f"2026-09-0{day}", agencyKey=key, agencyName=name)
+        for day in (1, 2, 3)
+        for key, name in (("mec", "MEC (API)"), ("saude", "MS (API)"))
+    ]
+    fake_client.route("AgencyAnalytics", {"agencyAnalytics": rows})
+
+    result = await get_agency_analytics(
+        ["mec", "saude"], "2026-09-01", "2026-09-03", fake_client, "DAY"
+    )
+
+    assert len(fake_client.calls(broken_op)) == 1
+    assert result.count("**MEC (API)**") == 3  # sem catálogo, o agencyName da API
+    assert result.count("**MS (API)**") == 3
