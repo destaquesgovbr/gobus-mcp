@@ -157,3 +157,16 @@ async def test_preview_com_estado_inexistente_lista_as_opcoes():
     assert result.structuredContent is None
     text = result.content[0].text
     assert DEV_NOTE in text and "scored" in text and "refused" in text
+
+
+async def test_preview_sem_estado_usa_o_principal_de_cada_app():
+    # o basic-host chama com os defaults da tool: o scorecard não tem fixture "ok"
+    async with Client(_preview_server()) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+        for name in EXPECTED:
+            result = await client.call_tool_mcp(name, {})
+            assert result.structuredContent is not None, name
+            default = tools[name].inputSchema["properties"]["state"].get("default")
+            assert default in ("", None), name
+
+    assert preview_states(FIXTURES_DIR, "article_scorecard")[0] == "scored"

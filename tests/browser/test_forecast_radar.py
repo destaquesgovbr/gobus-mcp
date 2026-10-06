@@ -75,6 +75,16 @@ async def test_fullscreen_renderiza_limpo(open_host, state, width):
     await run.screenshot(f"{APP}-{state}-fullscreen-{width}")
 
 
+async def test_radar_nao_amplia_alem_do_desenho_em_tela_larga(open_host):
+    # em host largo o SVG (viewBox de até 600 px) não pode crescer e engordar os rótulos
+    run, _ = await _fullscreen(open_host, "ok", width=1280)
+
+    box = await run.app.get_by_test_id("radar").bounding_box()
+    view_box = await run.app.get_by_test_id("radar").get_attribute("viewBox")
+    assert box["width"] <= float(view_box.split()[2]) + 1
+    assert run.problems == []
+
+
 async def test_radar_log2_com_anel_1x_um_eixo_por_tema(open_host):
     run, fixture = await _open(open_host, "ok")
     themes = _sc(fixture)["themes"]
