@@ -129,3 +129,10 @@ async def test_resources_json_declaram_mime_application_json():
         resources = {str(r.uri): r for r in await client.list_resources()}
 
     assert resources["gobus://health/pipelines"].mimeType == "application/json"
+
+
+async def test_readability_report_declara_mime_json():
+    async with Client(server.mcp) as client:
+        resources = {str(r.uri): r for r in await client.list_resources()}
+
+    assert resources["gobus://readability-report"].mimeType == "application/json"
