@@ -197,3 +197,142 @@ async def test_payload_camel_case_e_summary(fake_client):
         assert key in data
     assert data["benchmark"]["sampleSize"] == 12
     assert ScoreReport.model_validate(data) == report
+
+
+# ── semáforos, sugestões e comparação (app ui://article-scorecard) ─────────
+
+
+def _titled(sample: dict, prefix: str, flesch: list[float | None]) -> dict:
+    """Ids ``<prefix><i>`` e títulos; os primeiros artigos recebem os Flesch dados."""
+    for i, art in enumerate(sample["articles"]):
+        art["uniqueId"] = f"{prefix}{i}"
+        art["title"] = f"Título {prefix}{i}"
+        if i < len(flesch):
+            art["features"]["readabilityFlesch"] = flesch[i]
+    return sample
+
+
+def _route_two(client, articles: dict[str, dict], ag=None, ab=None):
+    """Dois artigos (``ScoreArticle`` por ``uniqueId``) com o mesmo benchmark."""
+    route_catalog(client)
+    client.route("ScoreArticle", lambda v: {"article": articles.get(v["uniqueId"])})
+    client.route(
+        "ScoreArticleBenchmark",
+        {"ag": ag if ag is not None else _sample(12), "ab": ab if ab is not None else _sample(20)},
+    )
+    return client
+
+
+async def test_semaforo_por_dimensao_e_da_nota(fake_client):
+    # 10 → verde; 8 → verde; 4 → amarelo (limiares no Python, não no JS)
+    _route(fake_client, _article(), ag=_sample(12, wc=420))
+
+    report = await build_score_payload(fake_client, "a1", now=NOW)
+
+    lights = {d.key: d.light for d in report.dimensions}
+    assert lights == {"readability": "green", "conciseness": "green", "entity_density": "yellow"}
+    assert report.overall_light == "green"
+    data = report.model_dump(mode="json")
+    assert data["overallLight"] == "green"
+    assert data["dimensions"][0]["light"] == "green"
+
+
+async def test_nota_recusada_tem_semaforos_cinza(fake_client):
+    _route(fake_client, _article(flesch=None, word_count=None))
+
+    report = await build_score_payload(fake_client, "a1", now=NOW)
+
+    assert {d.light for d in report.dimensions} == {"gray"}
+    assert report.overall_light == "gray"
+
+
+async def test_semaforo_vermelho_abaixo_de_4(fake_client):
+    _route(fake_client, _article(flesch=10.0, word_count=900, entities=[]), ag=_sample(12, wc=400))
+
+    report = await build_score_payload(fake_client, "a1", now=NOW)
+
+    lights = {d.key: d.light for d in report.dimensions}
+    assert lights["readability"] == "red"  # Flesch 10 → 2,0
+    assert lights["conciseness"] == "red"  # 900/400 → 2,0
+    assert report.overall_light == "red"
+
+
+async def test_sugere_ate_2_comparacoes_com_o_maior_flesch_de_cada_amostra(fake_client):
+    ag = _titled(_sample(12), "ag", [30.0, 61.0, 45.0])
+    ab = _titled(_sample(15, flesch=35.0), "ab", [40.0, 72.0])
+    ag["articles"].append(  # o próprio artigo nunca é sugerido
+        {"uniqueId": "a1", "title": "Ele mesmo", "publishedAt": "2026-05-30T12:00:00Z",
+         "features": {"readabilityFlesch": 99.0, "wordCount": 300}}
+    )  # fmt: skip
+    _route(fake_client, _article(), ag=ag, ab=ab)
+
+    report = await build_score_payload(fake_client, "a1", now=NOW)
+
+    own, reference = report.suggested_comparisons
+    assert (own.unique_id, own.title, own.agency_key, own.flesch) == (
+        "ag1",
+        "Título ag1",
+        "pf",
+        61.0,
+    )
+    assert (reference.unique_id, reference.agency_key, reference.flesch) == (
+        "ab1",
+        "agencia_brasil",
+        72.0,
+    )
+    assert "Polícia Federal" in own.reason and "Agência Brasil" in reference.reason
+    md = render_score_markdown(report)
+    assert "`ag1`" in md and "`ab1`" in md and "compare_with" in md
+
+
+async def test_sem_titulo_na_amostra_a_sugestao_usa_o_id(fake_client):
+    _route(fake_client, _article())
+
+    report = await build_score_payload(fake_client, "a1", now=NOW)
+
+    assert all(s.title == s.unique_id for s in report.suggested_comparisons)
+
+
+async def test_compare_with_pontua_os_dois_artigos(fake_client):
+    other = _article(flesch=20.0, word_count=700, agency="saude", agency_name="saude")
+    other["article"]["uniqueId"] = "b2"
+    other["article"]["title"] = "Portaria regulamenta repasses"
+    _route_two(fake_client, {"a1": _article()["article"], "b2": other["article"]})
+
+    report = await build_score_payload(fake_client, "a1", compare_with="b2", now=NOW)
+
+    assert report.params == {"unique_id": "a1", "compare_with": "b2"}
+    assert report.article.unique_id == "a1"
+    cmp = report.comparison
+    assert cmp is not None and report.comparison_error is None
+    assert cmp.article.unique_id == "b2"
+    assert cmp.article.agency_name == "Ministério da Saúde"
+    assert cmp.score_status in ("scored", "partial")
+    assert {d.key for d in cmp.dimensions} == {"readability", "conciseness", "entity_density"}
+    assert {c["uniqueId"] for c in fake_client.calls("ScoreArticle")} == {"a1", "b2"}
+    md = render_score_markdown(report)
+    assert "## Comparação" in md and "Portaria regulamenta repasses" in md
+    assert report.summary == md
+    data = report.model_dump(mode="json")
+    assert data["comparison"]["article"]["uniqueId"] == "b2"
+
+
+async def test_compare_with_inexistente_avisa_sem_derrubar_a_nota(fake_client):
+    _route_two(fake_client, {"a1": _article()["article"]})
+
+    report = await build_score_payload(fake_client, "a1", compare_with="zz", now=NOW)
+
+    assert report.score_status == "scored"
+    assert report.comparison is None
+    assert "zz" in report.comparison_error
+    assert "Comparação indisponível" in render_score_markdown(report)
+
+
+async def test_compare_with_igual_ao_artigo_e_ignorado(fake_client):
+    _route(fake_client, _article())
+
+    report = await build_score_payload(fake_client, "a1", compare_with="a1", now=NOW)
+
+    assert report.comparison is None
+    assert report.comparison_error
+    assert len(fake_client.calls("ScoreArticle")) == 1

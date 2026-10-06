@@ -14,6 +14,7 @@ pytestmark = [pytest.mark.ui, pytest.mark.asyncio(loop_scope="session")]
 # app → fixture de referência (estado ok)
 APPS = {
     "readability_dashboard": "ok",
+    "article_scorecard": "scored",
 }
 
 

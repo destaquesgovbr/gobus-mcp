@@ -7,10 +7,12 @@ from pathlib import Path
 import pytest
 
 from gobus_mcp.payloads.readability import ReadabilityReport
+from gobus_mcp.payloads.scorecard import ScoreReport
 from tests.fixtures.ui.build import FIXTURES_DIR, build_all, dumps
 
 MODELS = {
     "gobus.readability": ReadabilityReport,
+    "gobus.scorecard": ScoreReport,
 }
 FILES = sorted(FIXTURES_DIR.glob("*/*.json"))
 

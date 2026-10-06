@@ -18,12 +18,14 @@ from gobus_mcp import server
 from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.client import GobusGraphQLError
 from gobus_mcp.payloads.readability import ReadabilityReport
+from gobus_mcp.payloads.scorecard import ScoreReport
 from tests.conftest import FakeGraphQLClient
 from tests.fixtures.ui.build import (
     READABILITY_BASE,
     readability_articles,
     readability_rows,
     route_readability,
+    route_score,
 )
 
 MIME = "text/html;profile=mcp-app"
@@ -34,6 +36,7 @@ HTML_MAX = 60 * 1024
 # tool de app → (URI do resource, modelo do payload)
 APP_TOOLS = {
     "gobus_get_readability_recommendations": ("ui://readability-dashboard", ReadabilityReport),
+    "gobus_score_article": ("ui://article-scorecard", ScoreReport),
 }
 
 
@@ -47,6 +50,17 @@ APP_CALLS = {
         ({"days": 90, "date_to": "2026-06-30"}, _route_readability),
         ({"agency_key": "saude", "days": 90, "date_to": "2026-06-30"}, _route_readability),
         ({}, _route_readability),
+    ],
+    "gobus_score_article": [
+        ({"unique_id": "pf-operacao-desarticula-quadrilha"}, route_score),
+        (
+            {
+                "unique_id": "pf-operacao-desarticula-quadrilha",
+                "compare_with": "saude-campanha-gripe",
+            },
+            route_score,
+        ),
+        ({"unique_id": "pf-operacao-outubro"}, route_score),
     ],
 }
 CALL_CASES = [
@@ -158,6 +172,24 @@ async def test_call_tool_com_graphql_falhando_devolve_is_error(deps, name):
     assert result.isError is True
     assert result.structuredContent is None
     assert result.content[0].text.strip()
+
+
+async def test_score_article_sem_artigo_devolve_so_texto(deps):
+    route_score(deps.client)
+
+    async with Client(server.mcp) as client:
+        result = await client.call_tool_mcp("gobus_score_article", {"unique_id": "nao-existe"})
+
+    assert result.isError is False
+    assert result.structuredContent is None  # o app mostra o texto
+    assert "não encontrado" in result.content[0].text
+
+
+async def test_score_article_aceita_compare_with():
+    tool = (await _tools())["gobus_score_article"]
+
+    assert set(tool.inputSchema["properties"]) == {"unique_id", "compare_with"}
+    assert tool.inputSchema["properties"]["compare_with"]["default"] == ""
 
 
 async def test_servidor_anuncia_a_extensao_ui():
