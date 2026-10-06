@@ -163,3 +163,13 @@ async def test_sem_capacidades_do_host_nao_oferece_acoes(open_host):
         assert await run.app.get_by_test_id(testid).count() == 0, testid
     assert await run.app.locator('button[data-testid="article-link"]').count() == 0
     assert run.problems == []
+
+
+async def test_host_que_recusa_ui_message_esconde_o_botao_sem_erro(open_host):
+    run, _ = await _open(open_host, "scored", fail_methods=("ui/message",))
+
+    await run.app.get_by_test_id("action-rewrite").click()
+    await run.app.locator('[data-testid="action-rewrite"][hidden]').wait_for(state="attached")
+
+    assert await run.eval("() => document.getElementById('app').dataset.state") == "ok"
+    assert run.problems == []

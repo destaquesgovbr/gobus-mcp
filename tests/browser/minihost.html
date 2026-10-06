@@ -64,6 +64,10 @@
     const isResponse = m.method === undefined;
     gb.log.push(isResponse ? "response:" + m.id : m.method);
     if (isResponse) { gb.responses.push(m); return; }
+    if (m.id !== undefined && (cfg.failMethods || []).indexOf(m.method) >= 0) {
+      fail(m.id, -32000, "mini-host: recusado pelo host");
+      return;
+    }
     switch (m.method) {
       case "ui/initialize":
         gb.init = m.params;

@@ -187,6 +187,7 @@ async def open_host(browser: Browser) -> AsyncIterator[OpenHost]:
         width: int = 760,
         capabilities: dict | None = None,
         context: dict | None = None,
+        fail_methods: tuple[str, ...] = (),
     ) -> HostRun:
         page = await browser.new_page(viewport={"width": width, "height": 900})
         pages.append(page)
@@ -211,6 +212,7 @@ async def open_host(browser: Browser) -> AsyncIterator[OpenHost]:
             "fixture": copy.deepcopy(fixture),
             "hostCapabilities": ALL_CAPABILITIES if capabilities is None else capabilities,
             "hostContext": context or host_context(theme),
+            "failMethods": list(fail_methods),  # requests que o host recusa (erro JSON-RPC)
         }
         # como JSON (igual ao fio): o serializador do Playwright manda 0.0 como -0
         await page.evaluate("cfg => window.__gbStart(JSON.parse(cfg))", json.dumps(config))

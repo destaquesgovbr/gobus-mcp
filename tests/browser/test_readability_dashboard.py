@@ -179,3 +179,13 @@ async def test_sem_capacidades_do_host_nao_oferece_acoes(open_host):
     await run2.page.wait_for_timeout(100)
     assert (await run2.gb())["toolCalls"] == []
     assert run.problems == [] and run2.problems == []
+
+
+async def test_host_que_recusa_ui_message_esconde_o_botao_sem_erro(open_host):
+    run, _ = await _open(open_host, "agency_detail", fail_methods=("ui/message",))
+
+    await run.app.get_by_test_id("action-ask").click()
+    await run.app.locator('[data-testid="action-ask"][hidden]').wait_for(state="attached")
+
+    assert await run.eval("() => document.getElementById('app').dataset.state") == "ok"
+    assert run.problems == []
