@@ -70,8 +70,10 @@ seção separada. O smoke `pytest -m live tests/test_live_coherence.py` confere 
   - Bolsa Família: março 28 contra 68, abril 12 contra 33.
 
   Antes, a tool diria "nenhum artigo". Agora ela compara o `found` com o `entityCoverage` da
-  janela (mesma chamada do prior): avisa `INDEXING_LAG` e fica indisponível quando o índice
-  tem 0 contra N. **Follow-up:** reindex completo do `entity_canonical` no Typesense.
+  janela (mesma chamada do prior, filtrada pelas `agencies` pedidas): avisa `INDEXING_LAG` e
+  fica indisponível quando o índice tem 0 contra N ou menos de 50% (Bolsa Família em março:
+  28 de 68); entre 50% e 90%, tira o timing do índice. **Follow-up:** reindex completo do
+  `entity_canonical` no Typesense.
 - **Entidades de agência com QID não são excluídas.** Exemplos: "MDS", "INSS" e "Governo do
   Brasil" aparecem como âncoras compartilhadas, porque a regra do desenho exclui só
   `dgb_{código}` do catálogo. **Follow-up:** mapear agência do catálogo → entidade canônica.

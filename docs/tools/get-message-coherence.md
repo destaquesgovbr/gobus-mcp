@@ -10,7 +10,7 @@ Não tem MCP App nesta fase. O builder já produz o `CoherenceReport` (payload v
 |-----------|------|-------------|---------|-----------|
 | `entity_id` | `str` | Um dos dois | `""` | `entityId` canônico (`Q575545`, `dgb_pe-de-meia`) ou um **nome**. Com nome, a tool usa o `entitySearch(limit:3)` e fica com a entidade de maior volume; as outras aparecem como alternativas |
 | `theme` | `str` | Um dos dois | `""` | Label L1 de tema ([`gobus://themes`](../resources/themes.md)). Aceita sem acento e prefixo único (`"defesa"` → `Defesa e Forças Armadas`) |
-| `agencies` | `list[str]` | Não | — | Restringe às agências listadas (códigos do catálogo). Código inválido devolve sugestões (`"ms"` → `saude`) |
+| `agencies` | `list[str]` | Não | — | Restringe às agências listadas (códigos do catálogo). Código inválido devolve sugestões (`"ms"` → `saude`). A conferência do índice de busca e o prior também usam só essas agências |
 | `date_from` | `str` | Não | D−14 | Primeiro dia da janela (ISO, dia em BRT) |
 | `date_to` | `str` | Não | D−1 | Último dia da janela (ISO, dia em BRT). Só `date_from` → 14 dias a partir dele, limitados a ontem |
 
@@ -58,7 +58,7 @@ A saída fica em torno de 2–4 KB (alvo ≤ 5 KB): até 12 agências, 8 âncora
 
 ## Algoritmo
 
-1. **Amostra:** `articles(limit:250, page, filter, sort:DATE)` com `entityCanonical` (entidade) ou `themeLabel` (tema), mais `agencies` e a janela em BRT (`startDate`/`endDate` com `-03:00`, fim exclusivo). A tool lê a página 1 e, com `found > 250`, as páginas 2–4 em paralelo. Acima de 1000 artigos, a amostra fica com os 1000 mais recentes e sai o aviso `SAMPLE_TRUNCATED`. O `content` não é pedido.
+1. **Amostra:** `articles(limit:250, page, filter, sort:DATE)` com `entityCanonical` (entidade) ou `themeLabel` (tema), mais `agencies` e a janela em BRT (`startDate`/`endDate` com `-03:00`, fim exclusivo). A tool lê a página 1 e, com `found > 250`, as páginas 2–4 em paralelo. Acima de 1000 artigos, a amostra fica com os 1000 mais recentes e sai o aviso `SAMPLE_TRUNCATED`. Como o `sort` só é decrescente, a 1ª publicação de cada agência pode ficar fora da amostra: nesse caso (e com páginas 2–4 em falha), o **timing sai do índice** e a tabela mostra a "1ª na amostra". O `content` não é pedido.
 2. **Emissores:** agências **não republicadoras** com pelo menos 2 artigos. As republicadoras do catálogo (Agência Brasil, TV Brasil, EBC e Radioagência Nacional) ficam sempre numa seção separada, com volume, participação e atraso da 1ª republicação. Com menos de 2 emissores não há índice ("voz única: X").
 3. **Dimensões** (funções puras em `analytics/coherence.py` e `analytics/framing.py`):
 
@@ -71,9 +71,9 @@ A saída fica em torno de 2–4 KB (alvo ≤ 5 KB): até 12 agências, 8 âncora
 
 4. **Índice:** `score = Σ w·D / Σ w` das dimensões disponíveis (pesos renormalizados). Índice 1–5 pelos cortes 0,2 / 0,4 / 0,6 / 0,8, **provisórios** (ver Calibração).
 5. **Contexto:** HHI do volume entre os emissores (no payload) e os 5 pares de menor similaridade combinada, com a dimensão mais fraca de cada um.
-6. **Cobertura do Postgres** (só entidade, em paralelo com a página 1): `entityCoverage(DAY)` dos 30 dias antes da janela e da própria janela, numa chamada.
+6. **Cobertura do Postgres** (só entidade, em paralelo com a página 1): `entityCoverage(DAY)` dos 30 dias antes da janela e da própria janela, numa chamada. Com `agencies`, só as linhas dessas agências contam, a mesma base do `found` do Typesense.
     - **Início truncado:** a pauta já corria antes da janela quando a taxa diária do prior é pelo menos metade da taxa da janela (com ≥ 3 artigos antes). Nesse caso, o atraso conta a partir do início da janela.
-    - **Índice de busca:** compara o `found` do Typesense com o Postgres na janela (`indexing_lag`). Se o Typesense não tem a marcação `entity_canonical` (histórico ainda não reindexado), o relatório fica **indisponível**, com `INDEXING_LAG`, em vez de dizer "nenhum artigo".
+    - **Índice de busca:** compara o `found` do Typesense com o Postgres na janela (`indexing_lag`). Se o Typesense não tem a marcação `entity_canonical` (histórico ainda não reindexado), o relatório fica **indisponível**, com `INDEXING_LAG`, em vez de dizer "nenhum artigo". Com menos de 50% dos artigos do Postgres no índice, também fica indisponível: a amostra parcial distorceria timing e âncoras. Entre 50% e 90% (degradado), o índice sai sem o timing.
 
 Custo típico: 3–4 requisições em 1–2 s. Os nomes das agências vêm do catálogo (cache de 24 h). A frio, a tool espera por eles até 2 s desde o início; depois disso, a tabela mostra os códigos.
 
@@ -86,8 +86,8 @@ Custo típico: 3–4 requisições em 1–2 s. Os nomes das agências vêm do ca
 | `CLASSIFIER_CHANGED` | caminho por tema com janela que cruza a troca do classificador (25/09/2026) |
 | `THEMES_UNCLASSIFIED` | caminho por tema: fração dos artigos **da janela** com tema, medida por aliases de contagem (total contra Σ labels L1). Abaixo de 80% fica degradado e abaixo de 50%, indisponível; a tool sugere `entity_id`. O aviso some sozinho quando o re-enriquecimento e o reindex cobrem a janela |
 | `SENTIMENT_UNAVAILABLE` | cobertura de sentimento dos emissores abaixo de 80% (abaixo de 50%, o tom sai do índice) |
-| `SAMPLE_TRUNCATED` | mais de 1000 artigos, ou páginas 2–4 com falha |
-| `INDEXING_LAG` | Typesense com menos artigos que o Postgres na janela (caminho por entidade) |
+| `SAMPLE_TRUNCATED` | mais de 1000 artigos, ou páginas 2–4 com falha; o timing sai do índice |
+| `INDEXING_LAG` | Typesense com menos artigos que o Postgres na janela, nas agências pedidas (caminho por entidade). Degradado (50–90%): sem timing; indisponível (abaixo de 50%): sem índice |
 
 Também aparecem no Markdown: as entidades sem NER (`entities_ner`), os resumos `[MOCK]` ignorados, o início truncado e as falhas do catálogo.
 
@@ -111,7 +111,8 @@ Os cortes e os pesos são provisórios. A rodada de 06/10/2026 (`_experiments/co
 
 ## Limitações
 
-- Antes de ~20/05/2026, o filtro `entityCanonical` do Typesense ainda não tem a marcação (histórico não reindexado). Nessas janelas, a tool avisa `INDEXING_LAG` ou fica indisponível.
+- Antes de ~20/05/2026, o filtro `entityCanonical` do Typesense ainda não tem a marcação (histórico não reindexado). Nessas janelas, a tool avisa `INDEXING_LAG`, tira o timing do índice ou fica indisponível (Bolsa Família em março: 28 de 68 artigos no índice, indisponível).
 - Entidades de agência com QID (por exemplo "MDS", "INSS") não são excluídas, porque a regra exclui só `dgb_{código}`, e podem aparecer como âncoras compartilhadas.
 - O tom quase não discrimina: a comunicação oficial sai 85–95% positiva.
-- Acima de 1000 artigos, o timing usa só a amostra mais recente.
+- Acima de 1000 artigos, o timing fica fora do índice: a API só ordena por data decrescente, então a 1ª publicação de cada agência pode não estar na amostra. As âncoras e o enquadramento usam a amostra mais recente.
+- A conferência do índice de busca e o prior contam as republicadoras dos dois lados (o filtro do Typesense não exclui agências).
