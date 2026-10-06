@@ -14,9 +14,11 @@ Ciclo de vida comunicacional de uma política pública: série **mensal** de cob
 ```
 # Ciclo de Vida: Pé-de-Meia
 
-**ID:** `dgb_pe-de-meia` · **Fase atual:** ROUTINE
-**Pico:** 2026-04 (132 artigos) · **Último mês com cobertura:** 2026-09 · **Total no período:** 824 artigos
+**ID:** `dgb_pe-de-meia` · **Fase atual:** ROUTINE (2026-09, último mês fechado)
+**Pico:** 2026-04 (132 artigos) · **Último mês com cobertura:** 2026-07 · **Total no período:** 824 artigos
 **Domínio:** SOCIAL
+
+> Sem cobertura desde 2026-07: 2 meses fechados sem artigos (até 2026-09).
 
 ## Fases Identificadas (por mês, somando as agências)
 
@@ -26,6 +28,9 @@ Ciclo de vida comunicacional de uma política pública: série **mensal** de cob
 | 2026-04 | 132 | ANNOUNCED | Ministério da Educação |
 | 2026-05 | 21 | ROUTINE | Ministério da Educação |
 | 2026-06 | 130 | IMPLEMENTATION | Ministério da Educação |
+| … | … | … | … |
+| 2026-09 | 0 | ROUTINE | — |
+| 2026-10 (parcial) | 0 | — | — |
 
 ## Âncoras Narrativos por Fase
 - **ANNOUNCED:** Ministério da Educação
@@ -45,8 +50,9 @@ Ciclo de vida comunicacional de uma política pública: série **mensal** de cob
 
 ## Notas
 
-- **Série mensal:** o `entityCoverage(MONTH)` devolve uma linha por mês × agência; a tool soma as agências de cada mês. Meses sem artigos entre o primeiro e o último entram com 0.
-- **Fases:** ANNOUNCED = mês de maior volume; IMPLEMENTATION = ≥40% do pico; ROUTINE = abaixo disso. A fase atual é a do último mês da série.
+- **Série mensal:** o `entityCoverage(MONTH)` devolve uma linha por mês × agência; a tool soma as agências de cada mês. Meses sem artigos, do primeiro mês com cobertura até o mês corrente, entram com 0. Os meses são UTC, como na API.
+- **Fases:** ANNOUNCED = mês fechado de maior volume; IMPLEMENTATION = ≥40% do pico; ROUTINE = abaixo disso. A fase atual é a do **último mês fechado**, não a do último mês com cobertura: uma política sem artigos há meses aparece em ROUTINE, com o aviso "Sem cobertura desde AAAA-MM".
+- **Mês corrente:** aparece como `(parcial)`, fora da classificação e das âncoras (só é classificado quando é o único mês com cobertura). Se o parcial já supera o pico dos meses fechados, há um aviso.
 - **Âncoras:** agência com mais artigos em cada fase (soma dos meses da fase).
 - **Artigos do pico:** `articles(filter: {entityCanonical, startDate, endDate})` no mês de pico; se nenhum artigo tiver a entidade marcada, busca pelo nome na mesma janela.
 - Use `gobus_resolve_entity(entity_type="POLICY")` para descobrir o nome canônico. `policyDetails` (domínio, população-alvo) é opcional.
