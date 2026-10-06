@@ -180,10 +180,29 @@ def brt_bounds(r: DateRange) -> tuple[str, str]:
 
 
 def utc_day_bounds(r: DateRange, *, end_exclusive: bool = True) -> tuple[str, str]:
-    """Datas ISO (dias UTC da API). ``entityCoverage`` usa ``dateTo`` exclusivo;
-    ``agencyAnalytics`` DAY é inclusivo (``end_exclusive=False``)."""
+    """Datas ISO (dias UTC da API). ``entityCoverage`` e ``agencyAnalytics`` MONTH/WEEK
+    usam ``dateTo`` exclusivo; ``agencyAnalytics`` DAY é inclusivo (``end_exclusive=False``).
+    Para o ``agencyAnalytics``, prefira ``agency_analytics_bounds``."""
     end = r.end + timedelta(days=1) if end_exclusive else r.end
     return r.start.isoformat(), end.isoformat()
+
+
+def agency_analytics_date_to(last_day: date, granularity: str = "MONTH") -> str:
+    """``dateTo`` do ``agencyAnalytics`` que inclui ``last_day`` inteiro (dia UTC da API).
+
+    O resolver tem duas semânticas:
+    - ``DAY``: ``published_at::date BETWEEN from AND to`` → fim inclusivo;
+    - ``MONTH``/``WEEK``: ``published_at BETWEEN from::timestamptz AND to::timestamptz``, e
+      o asyncpg converte a data em 00:00 → fim **exclusivo** na prática (manda o dia seguinte).
+    """
+    exclusive = granularity.upper() != "DAY"
+    return (last_day + timedelta(days=1) if exclusive else last_day).isoformat()
+
+
+def agency_analytics_bounds(r: DateRange, granularity: str = "MONTH") -> tuple[str, str]:
+    """``(dateFrom, dateTo)`` do ``agencyAnalytics`` para cobrir ``r`` inteiro em qualquer
+    granularidade (ver ``agency_analytics_date_to``)."""
+    return r.start.isoformat(), agency_analytics_date_to(r.end, granularity)
 
 
 def as_window(r: DateRange, *, baseline_overlaps_blackout: bool = False) -> Window:

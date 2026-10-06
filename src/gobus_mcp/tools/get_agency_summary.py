@@ -12,7 +12,7 @@ from datetime import date
 
 from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.analytics.ratios import overlap_growth_threshold, ratio_from_trending_row
-from gobus_mcp.calendario import closed_window, reference_date
+from gobus_mcp.calendario import agency_analytics_bounds, closed_window, reference_date
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import metric_coverage_status, theme_coverage
 from gobus_mcp.readability import FleschValue, describe_flesch, weighted_metric
@@ -87,6 +87,7 @@ async def get_agency_summary(
         return check.message
     code = check.code
     window = closed_window(max(1, days), today)
+    date_from, date_to = agency_analytics_bounds(window, "MONTH")  # MONTH: dateTo exclusivo
     g0 = round(overlap_growth_threshold(TREND_MIN_RATIO, TREND_WINDOW_DAYS, TREND_BASELINE_DAYS), 4)
 
     analytics_data, trends_data, coverage, name = await asyncio.gather(
@@ -94,8 +95,8 @@ async def get_agency_summary(
             _ANALYTICS_QUERY,
             {
                 "agencies": [code],
-                "dateFrom": window.start.isoformat(),
-                "dateTo": window.end.isoformat(),
+                "dateFrom": date_from,
+                "dateTo": date_to,
                 "granularity": "MONTH",
             },
         ),

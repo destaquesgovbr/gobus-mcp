@@ -1,4 +1,7 @@
+from datetime import date
+
 from gobus_mcp.agency_catalog import AgencyCatalog
+from gobus_mcp.calendario import agency_analytics_date_to
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import metric_coverage_status, sentiment_analytics_status
 from gobus_mcp.readability import describe_flesch
@@ -65,6 +68,17 @@ def _row_metrics(row: dict) -> list[str]:
     return metrics
 
 
+def _api_date_to(date_to: str, granularity: str) -> str:
+    """O ``date_to`` do usuário é inclusivo em toda granularidade; a API trata o ``dateTo``
+    de MONTH/WEEK como exclusivo (00:00), então soma 1 dia. Data inválida segue como veio
+    (a API devolve o erro de formato)."""
+    try:
+        last_day = date.fromisoformat(date_to)
+    except ValueError:
+        return date_to
+    return agency_analytics_date_to(last_day, granularity)
+
+
 async def _unknown_agencies(agencies: list[str], catalog: AgencyCatalog) -> list[str]:
     """Mensagens de validação das chaves que não estão no catálogo."""
     messages = []
@@ -92,7 +106,7 @@ async def get_agency_analytics(
     Args:
         agencies: Lista de agency_keys (ex: ["mec", "saude"])
         date_from: Data de início ISO (ex: "2024-01-01")
-        date_to: Data de fim ISO (ex: "2024-12-31")
+        date_to: Data de fim ISO, inclusiva em toda granularidade (ex: "2024-12-31")
         granularity: DAY | WEEK | MONTH (default: MONTH)
         catalog: catálogo de agências (nomes humanos e validação das chaves)
 
@@ -106,7 +120,7 @@ async def get_agency_analytics(
         {
             "agencies": agencies,
             "dateFrom": date_from,
-            "dateTo": date_to,
+            "dateTo": _api_date_to(date_to, granularity),
             "granularity": granularity.upper(),
         },
     )

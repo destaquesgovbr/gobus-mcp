@@ -236,7 +236,7 @@ async def gobus_get_agency_analytics(
     Parâmetros:
     - agencies: Lista de chaves de agência (ex: ["saude", "mec"]) — ver gobus://agencies
     - date_from: Data de início ISO (ex: "2024-01-01")
-    - date_to: Data de fim ISO (ex: "2024-12-31")
+    - date_to: Data de fim ISO, inclusiva em toda granularidade (ex: "2024-12-31")
     - granularity: Agrupamento temporal — "DAY", "WEEK" ou "MONTH" (default "MONTH")
 
     Retorna: Markdown com métricas por período: artigos publicados, sentimento médio,

@@ -23,11 +23,11 @@ from datetime import datetime
 
 from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.calendario import (
+    agency_analytics_bounds,
     calendar_context,
     closed_window,
     now_brt,
     reference_date,
-    utc_day_bounds,
 )
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import (
@@ -99,7 +99,7 @@ async def fetch_health_pipelines(
     now = now or now_brt()
     today = reference_date(now)
     window = closed_window(WINDOW_DAYS, today)
-    date_from, date_to = utc_day_bounds(window, end_exclusive=False)
+    date_from, date_to = agency_analytics_bounds(window, "MONTH")  # inclui D−1
 
     async def analytics() -> list[DataStatus]:
         agencies = await catalog.active(ACTIVE_DAYS, limit=SAMPLE_AGENCIES)

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from gobus_mcp.agency_catalog import AgencyCatalog
-from gobus_mcp.calendario import DateRange
+from gobus_mcp.calendario import DateRange, agency_analytics_bounds
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import metric_coverage_status
 from gobus_mcp.payloads.common import DataStatus
@@ -71,10 +71,12 @@ class ReadabilityWindow:
 
 
 async def _fetch(client: GobusGraphQLClient, agencies: list[str], r: DateRange) -> list[dict]:
-    # agencyAnalytics: dateTo inclusivo (dias UTC da API)
+    # agencyAnalytics MONTH: dateTo exclusivo na prática (00:00) → manda r.end + 1 para
+    # incluir o último dia (dias UTC da API)
+    date_from, date_to = agency_analytics_bounds(r, "MONTH")
     data = await client.execute(
         _WINDOW_QUERY,
-        {"agencies": agencies, "dateFrom": r.start.isoformat(), "dateTo": r.end.isoformat()},
+        {"agencies": agencies, "dateFrom": date_from, "dateTo": date_to},
     )
     return data.get("agencyAnalytics") or []
 
