@@ -12,13 +12,13 @@ Todas as funções são puras: recebem ``today``/``now`` (só ``now_brt`` lê o 
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from gobus_mcp.payloads.common import CalendarContext, Window
+from gobus_mcp.payloads.common import CalendarContext, Notice, Window
 
 BRT = ZoneInfo("America/Sao_Paulo")
 
@@ -205,16 +205,48 @@ def agency_analytics_bounds(r: DateRange, granularity: str = "MONTH") -> tuple[s
     return r.start.isoformat(), agency_analytics_date_to(r.end, granularity)
 
 
-def as_window(r: DateRange, *, baseline_overlaps_blackout: bool = False) -> Window:
-    """``Window`` fechada em BRT para o payload (``end`` exclusivo: D 00:00 BRT)."""
+def as_window(
+    r: DateRange,
+    *,
+    baseline_overlaps_blackout: bool = False,
+    bucket_tz: Literal["America/Sao_Paulo", "UTC"] = "America/Sao_Paulo",
+) -> Window:
+    """``Window`` fechada (dias nominais em BRT) para o payload; ``end`` exclusivo (D 00:00 BRT).
+
+    ``bucket_tz="UTC"`` quando as contagens vêm em dias UTC da API (``entityCoverage``,
+    ``agencyAnalytics`` DAY), embora a janela seja nomeada pelos dias em BRT.
+    """
     return Window(
         kind="closed",
         start=_brt_midnight(r.start),
         end=_brt_midnight(r.end + timedelta(days=1)),
         days=r.days,
-        bucket_tz="America/Sao_Paulo",
+        bucket_tz=bucket_tz,
         baseline_overlaps_blackout=baseline_overlaps_blackout,
     )
+
+
+def rolling_window(days: int, now: datetime, *, baseline_overlaps_blackout: bool = False) -> Window:
+    """Janela móvel de ``days`` × 24 h até ``now``, em UTC — o ``range:{days}`` do Typesense
+    (``topThemes``, ``analyticsKpis``). ``now`` precisa ter fuso."""
+    if now.tzinfo is None:
+        raise ValueError("rolling_window exige datetime com fuso")
+    end = now.astimezone(UTC)
+    return Window(
+        kind="rolling",
+        start=end - timedelta(days=days),
+        end=end,
+        days=days,
+        bucket_tz="UTC",
+        baseline_overlaps_blackout=baseline_overlaps_blackout,
+    )
+
+
+def rolling_range(days: int, today: date) -> DateRange:
+    """Dias tocados por uma janela móvel de ``days`` dias até hoje: ``[D−days, D]``
+    (o primeiro e o último parciais). Serve para checar sobreposição com o defeso e com a
+    troca de classificador."""
+    return DateRange(today - timedelta(days=days), today)
 
 
 def overlaps_blackout(r: DateRange, periods: tuple[BlackoutPeriod, ...] = BLACKOUTS) -> bool:
@@ -290,3 +322,74 @@ def baseline_for(
 def classifier_changed_within(r: DateRange, cutoff: date | None = CLASSIFIER_CUTOFF) -> bool:
     """O intervalo cruza a troca de classificador (dias antes e depois do corte)?"""
     return cutoff is not None and r.start < cutoff <= r.end
+
+
+def _fmt(day: date) -> str:
+    return day.strftime("%d/%m/%Y")
+
+
+def calendar_notices(
+    today: date,
+    *,
+    baselines: Iterable[DateRange] = (),
+    silenced_agencies: int | None = None,
+    periods: tuple[BlackoutPeriod, ...] = BLACKOUTS,
+    cutoff: date | None = CLASSIFIER_CUTOFF,
+) -> list[Notice]:
+    """Avisos de calendário em ``today`` (detecção pela fase e pelos intervalos passados):
+
+    - ``ELECTORAL_BLACKOUT`` durante o defeso;
+    - ``POST_BLACKOUT_RECOVERY`` na recuperação (baselines pré-defeso, confiança −1 nível);
+    - ``CLASSIFIER_CHANGED`` enquanto algum intervalo de ``baselines`` cruzar ``cutoff``.
+    """
+    notices: list[Notice] = []
+    current, period = _active(today, periods)
+    if current == "blackout" and period is not None:
+        silenced = (
+            f" {silenced_agencies} agências estão sem publicar há ≥14 dias."
+            if silenced_agencies
+            else ""
+        )
+        notices.append(
+            Notice(
+                code="ELECTORAL_BLACKOUT",
+                severity="info",
+                message=(
+                    f"{period.label} de {_fmt(period.start)} a {_fmt(period.end)} "
+                    f"(faltam {(period.end - today).days} dias): o volume e a mistura de "
+                    f"agências mudam, e as comparações com o período anterior são atenuadas."
+                    f"{silenced}"
+                ),
+                since=period.start,
+                affects=["themes", "entities"],
+            )
+        )
+    elif current == "recovery" and period is not None:
+        notices.append(
+            Notice(
+                code="POST_BLACKOUT_RECOVERY",
+                severity="info",
+                message=(
+                    f"Recuperação pós-{period.label.lower()} até {_fmt(period.recovery_until)}: "
+                    "agências retomando a publicação; os baselines usam o período antes do "
+                    "defeso e a confiança dos sinais cai um nível."
+                ),
+                since=period.end + timedelta(days=1),
+                affects=["themes", "entities"],
+            )
+        )
+    if cutoff is not None and any(classifier_changed_within(r, cutoff) for r in baselines):
+        notices.append(
+            Notice(
+                code="CLASSIFIER_CHANGED",
+                severity="warn",
+                message=(
+                    f"Troca do classificador de temas em {_fmt(cutoff)}: comparações cujo "
+                    "baseline cruza essa data misturam dois modelos e podem mostrar picos ou "
+                    "quedas artificiais de tema."
+                ),
+                since=cutoff,
+                affects=["themes"],
+            )
+        )
+    return notices
