@@ -254,6 +254,11 @@ async def test_rajada_com_max_day_share_acima_de_0_8(fake_client):
     assert censo.max_day_share >= 0.8
     assert censo.kind == "burst"
     assert "Censo Escolar 2025" in _section(report.summary, "Rajadas e Entidades Novas")
+    # rajada pontual (razão 81× contra 2 no baseline) e entidade nova não são "alerta"
+    assert (censo.band, _by_id(report)["dgb_novo"].band) == ("watch", "watch")
+    for name in ("Censo Escolar 2025", "Programa Novo"):
+        line = next(ln for ln in report.summary.splitlines() if name in ln)
+        assert "alerta" not in line and "(atenção)" in line
 
 
 async def test_classes_recalculadas_pela_cobertura(fake_client):

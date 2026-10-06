@@ -17,6 +17,7 @@ from gobus_mcp.analytics.entities import (
     silence_score,
 )
 from gobus_mcp.analytics.entities import classify_entity as _classify
+from gobus_mcp.analytics.ratios import BAND_ALERT, band, severity
 from gobus_mcp.analytics.themes import SENSITIVITY
 from gobus_mcp.calendario import DateRange
 from gobus_mcp.domains import Domain
@@ -215,6 +216,23 @@ def test_entidade_nova_com_baseline_zero():
     a = classify(s, _owner())
     assert a.kind == "new_entity"
     assert a.ratio == pytest.approx(((16 + 1) / 7) / (1 / 28))
+
+
+def test_rajada_e_entidade_nova_ficam_no_maximo_em_atencao():
+    # Rajada é pontual e entidade nova não tem baseline: a razão (81× no caso Censo, 32×
+    # com 7 artigos novos) saturaria a severidade em 1,0 ("alerta"). Ficam em "atenção".
+    w = entity_windows(NORMAL_DAY)
+    day = w.window.start + timedelta(days=2)
+    censo_rows = _cov("inep", {day: 57, day + timedelta(days=1): 3})
+    censo = classify(_stats(censo_rows + _cov("mec", {w.baseline.start: 2})))
+    robust = classify(_stats(censo_rows + _cov("inep", _spread(w.baseline, 100))))
+    nova = classify(_stats(_cov("saude", dict.fromkeys(w.window, 1))))
+    assert (censo.kind, robust.kind, nova.kind) == ("burst", "burst", "new_entity")
+    assert censo.ratio > 80 and nova.ratio == pytest.approx(32.0)
+    # mesmo com baseline robusto, rajada não é tendência: sem o teto seria alerta
+    assert severity(robust.ratio, MEDIUM.ratio) >= BAND_ALERT
+    for a in (censo, robust, nova):
+        assert band(a.severity) == "watch"
 
 
 def _silence_rows(w, *, owner_w=0, owner_b=8, others_w=12, others_b=4, others=("mec", "pf")):
