@@ -138,8 +138,9 @@ ENTITY = {"entity": {"entityId": "Q575545", "canonicalName": "Bolsa Família", "
 def scenario(
     client, *, articles=ARTICLES, found=None, prior=(), window_pg=(), tone=TONE, totals=None
 ):
-    """``prior``/``window_pg``: ``(dia de setembro, artigos)`` no ``entityCoverage`` DAY (Postgres)
-    antes da janela padrão (até 21/09) e dentro dela (22/09 em diante)."""
+    """``prior``/``window_pg``: ``(dia de setembro, artigos[, agência])`` no ``entityCoverage``
+    DAY (Postgres) antes da janela padrão (até 21/09) e dentro dela (22/09 em diante); a
+    agência padrão é ``mds``."""
     route_catalog(client)
     client.route("CoherenceEntity", ENTITY)
     client.route("CoherenceArticles", articles_route(articles, found))
@@ -147,8 +148,8 @@ def scenario(
         "CoherenceCoverage",
         {
             "entityCoverage": [
-                {"period": f"2026-09-{d:02d} 00:00:00+00", "agencyKey": "mds", "articleCount": n}
-                for d, n in [*prior, *window_pg]
+                {"period": f"2026-09-{d:02d} 00:00:00+00", "agencyKey": a, "articleCount": n}
+                for d, n, a in ((*row, "mds")[:3] for row in [*prior, *window_pg])
             ]
         },
     )
@@ -501,6 +502,52 @@ async def test_agencias_filtram_a_consulta_e_validam_pelo_catalogo(fake_client):
 
     assert fake_client.calls("CoherenceArticles")[0]["filter"]["agencies"] == ["saude", "mds"]
     assert report.params["agencies"] == ["saude", "mds"]
+
+
+# Postgres da janela por agência: mds 13, saude 3, mec 2 (Typesense com agencies=[mec, saude]: 5)
+WINDOW_PG_BY_AGENCY = [
+    (22, 4),
+    (23, 4),
+    (24, 5),
+    (23, 2, "saude"),
+    (24, 1, "saude"),
+    (29, 2, "mec"),
+]
+
+
+async def test_agencias_conferem_o_indice_so_com_as_agencias_pedidas(fake_client):
+    scenario(fake_client, window_pg=WINDOW_PG_BY_AGENCY)
+    report, _ = await run(fake_client, entity_id="Q575545", agencies=["mec", "saude"])
+
+    assert report.sample.found == 5
+    lag = next(s for s in report.data_status if s.key == "indexing_lag")
+    assert lag.status == "ok"
+    assert (lag.metric["indexed"], lag.metric["stored"]) == (5, 5)
+    assert "INDEXING_LAG" not in {n.code for n in report.notices}
+    assert report.index_status == "scored"
+    assert report.status == "ok"
+
+
+async def test_agencia_sem_artigos_da_entidade_e_nenhum_artigo_e_nao_lacuna(fake_client):
+    scenario(fake_client, window_pg=WINDOW_PG_BY_AGENCY)
+    report, markdown = await run(fake_client, entity_id="Q575545", agencies=["cgu"])
+
+    assert report.index_status == "no_articles"
+    assert report.status == "empty"
+    assert "Nenhum artigo" in markdown
+    assert "Typesense" not in markdown
+    assert "INDEXING_LAG" not in {n.code for n in report.notices}
+
+
+async def test_agencias_o_prior_conta_so_as_agencias_pedidas(fake_client):
+    # 30 dias antes: mds 40 (fora do filtro), saude 2; janela: saude 3 + mec 2
+    prior = [(d, 2) for d in range(1, 21)] + [(10, 2, "saude")]
+    scenario(fake_client, prior=prior, window_pg=WINDOW_PG_BY_AGENCY)
+    report, _ = await run(fake_client, entity_id="Q575545", agencies=["mec", "saude"])
+
+    assert report.prior.articles == 2
+    assert report.prior.window_daily_rate == pytest.approx(5 / 14, abs=1e-3)
+    assert report.prior.truncated_start is False
 
 
 async def test_agencia_invalida_devolve_sugestao_sem_buscar_artigos(fake_client):
