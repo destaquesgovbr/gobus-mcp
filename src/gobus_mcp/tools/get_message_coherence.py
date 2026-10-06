@@ -20,7 +20,8 @@ Fluxo de ``build_coherence_output`` (I/O aqui; a análise fica em ``analytics.co
    truncada). Uma requisição; a query é gerada por ``counts_query`` (forma validada pelo
    teste de contrato via ``_COUNTS_SAMPLE_QUERY``).
 5. Só entidade, em paralelo com a página 1: ``entityCoverage(DAY)`` (Postgres) dos 30 dias
-   antes da janela e da própria janela, numa chamada:
+   antes da janela e da própria janela, numa chamada (com ``agencies``, só as linhas dessas
+   agências, a mesma base do ``found``):
    - "início truncado" quando a taxa diária do prior ≥ metade da taxa da janela;
    - conferência do índice de busca: ``found`` do Typesense contra o Postgres na janela
      (``indexing_lag``, aviso ``INDEXING_LAG``). O filtro ``entityCanonical`` depende do
@@ -425,9 +426,17 @@ class _PgCoverage:
     window: int
 
 
-def _split_coverage(rows: list[dict], window: DateRange) -> _PgCoverage:
+def _split_coverage(
+    rows: list[dict], window: DateRange, agencies: list[str] | None = None
+) -> _PgCoverage:
+    """Soma o ``entityCoverage`` antes e dentro da janela. Com ``agencies``, só as linhas
+    dessas agências: o ``found`` do Typesense já vem filtrado por elas, e o prior precisa
+    da mesma base para comparar taxas."""
+    allowed = set(agencies) if agencies else None
     prior = inside = 0
     for row in rows:
+        if allowed is not None and row.get("agencyKey") not in allowed:
+            continue
         try:
             day = date.fromisoformat(str(row.get("period") or "")[:10])
         except ValueError:
@@ -716,7 +725,7 @@ async def build_coherence_output(
                 "sem conferência do índice de busca."
             )
         elif pg_result is not None:
-            pg = _split_coverage(pg_result, window)
+            pg = _split_coverage(pg_result, window, agency_codes)
 
     fetch = _Fetch()
     common = dict(

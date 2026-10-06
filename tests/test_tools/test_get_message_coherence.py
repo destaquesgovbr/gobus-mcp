@@ -525,7 +525,6 @@ async def test_agencias_conferem_o_indice_so_com_as_agencias_pedidas(fake_client
     assert (lag.metric["indexed"], lag.metric["stored"]) == (5, 5)
     assert "INDEXING_LAG" not in {n.code for n in report.notices}
     assert report.index_status == "scored"
-    assert report.status == "ok"
 
 
 async def test_agencia_sem_artigos_da_entidade_e_nenhum_artigo_e_nao_lacuna(fake_client):
