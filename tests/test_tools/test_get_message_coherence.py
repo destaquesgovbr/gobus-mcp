@@ -331,6 +331,55 @@ async def test_acima_de_1000_artigos_trunca_e_mede_o_tom_com_totais(fake_client)
     assert tone_dim.metric["coverage"] == pytest.approx(1.0)
 
 
+async def test_amostra_truncada_tira_o_timing_do_indice(fake_client):
+    # sort DATE desc: os 1000 mais recentes; a 1ª publicação de cada agência fica fora
+    totals = {"mds": 400, "saude": 300, "mec": 200}
+    tone = {(a, "positive"): n for a, n in totals.items()}
+    scenario(fake_client, found=1200, tone=tone, totals=totals)
+    report, markdown = await run(fake_client, entity_id="Q575545")
+
+    timing = next(d for d in report.dimensions if d.key == "timing")
+    assert timing.status == "unavailable"
+    assert timing.effective_weight is None
+    assert "mais recentes" in timing.detail and "1ª publicação" in timing.detail
+    assert report.index_status == "scored"
+    notice = next(n for n in report.notices if n.code == "SAMPLE_TRUNCATED")
+    assert "timing fica fora do índice" in notice.message
+    assert "1ª na amostra (BRT)" in markdown
+
+
+async def test_falha_das_paginas_seguintes_tira_o_timing_do_indice(fake_client):
+    scenario(fake_client)
+
+    def handler(variables):
+        if variables["page"] > 1:
+            raise RuntimeError("página 2 caiu")
+        return articles_route(found=600)(variables)
+
+    fake_client.route("CoherenceArticles", handler)
+    report, markdown = await run(fake_client, entity_id="Q575545")
+
+    timing = next(d for d in report.dimensions if d.key == "timing")
+    assert timing.status == "unavailable"
+    assert "13 de 600" in timing.detail
+    assert "1ª na amostra (BRT)" in markdown
+
+
+async def test_amostra_completa_mantem_o_timing_e_a_coluna_de_1a_publicacao(fake_client):
+    scenario(fake_client, window_pg=[(22, 7), (23, 6)])
+    report, markdown = await run(fake_client, entity_id="Q575545")
+
+    timing = next(d for d in report.dimensions if d.key == "timing")
+    assert timing.status == "ok"
+    assert "1ª publicação (BRT)" in markdown and "1ª na amostra" not in markdown
+
+
+async def test_indice_degradado_marca_a_coluna_como_amostra(fake_client):
+    scenario(fake_client, window_pg=[(22, 10), (23, 10)])  # 13 de 20 no Typesense
+    _, markdown = await run(fake_client, entity_id="Q575545")
+    assert "1ª na amostra (BRT)" in markdown
+
+
 async def test_falha_das_paginas_seguintes_mantem_a_primeira(fake_client):
     scenario(fake_client)
 
