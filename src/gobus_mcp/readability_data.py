@@ -17,6 +17,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 
+from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.calendario import DateRange
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import metric_coverage_status
@@ -193,3 +194,22 @@ def rank_agencies(
     )
     without = sorted((a for a in items if not a.has_data), key=lambda a: (-a.article_count, a.code))
     return with_data, without
+
+
+async def load_agency_readability(
+    client: GobusGraphQLClient,
+    catalog: AgencyCatalog,
+    agencies: list[str],
+    requested: DateRange,
+) -> tuple[ReadabilityWindow, list[AgencyReadability]]:
+    """Janela (pedida/efetiva) e a agregação por agência com nomes do catálogo.
+
+    Sem janela efetiva (Flesch nulo em todo o histórico), as contagens de artigos vêm
+    da janela pedida e todo Flesch fica ``None``.
+    """
+    window = await load_readability_window(client, agencies, requested)
+    names = {a.code: a.name for a in await catalog.all()}
+    republishers = await catalog.republishers()
+    rows = window.rows if window.effective.effective else window.requested_rows
+    items = aggregate_agencies(rows, names=names, republishers=republishers, codes=agencies)
+    return window, items

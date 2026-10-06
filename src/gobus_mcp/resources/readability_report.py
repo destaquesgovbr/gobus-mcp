@@ -1,111 +1,80 @@
-import datetime
-import json
+"""gobus://readability-report — legibilidade (Flesch) por agência, em JSON.
 
-from gobus_mcp.client import GobusGraphQLClient
-
-# Top ~20 agências por volume esperado.
-_AGENCIES = [
-    "agencia_brasil",
-    "secom",
-    "saude",
-    "mec",
-    "trabalho",
-    "fazenda",
-    "mre",
-    "defesa",
-    "mj",
-    "planejamento",
-    "cgu",
-    "agu",
-    "ipea",
-    "fnde",
-    "inss",
-    "sus",
-    "anvisa",
-    "ibge",
-    "senado",
-    "camara",
-]
-
-_TARGET_FLESCH = 50
-
-_ANALYTICS_QUERY = """
-query ReadabilityReport($agencies: [String!]!, $dateFrom: String!, $dateTo: String!, $granularity: Granularity!) {
-    agencyAnalytics(agencies: $agencies, dateFrom: $dateFrom, dateTo: $dateTo, granularity: $granularity) {
-        period
-        agencyKey
-        agencyName
-        articleCount
-        avgReadabilityFlesch
-    }
-}
+Agências: as 20 mais ativas dos últimos 90 dias (catálogo, nada de lista fixa).
+Null-aware: agência sem Flesch tem ``avgReadabilityFlesch`` e ``gapToTarget`` nulos (nunca
+0.0). Se o cálculo do Flesch parou antes do fim da janela, os valores vêm da **janela
+efetiva** (mesmo tamanho, até o último mês com dado), com ``windowShifted`` e ``note``.
 """
 
+from __future__ import annotations
 
-async def fetch_readability_report(client: GobusGraphQLClient) -> str:
-    """Relatório JSON de legibilidade por agência (últimos 90 dias).
+import json
+from datetime import UTC, date, datetime
 
-    Agrega os últimos 90 dias por agência: soma de artigos e média ponderada do
-    índice Flesch, com o gap até a meta (Flesch 50). Agências ordenadas por Flesch
-    decrescente.
+from gobus_mcp.agency_catalog import AgencyCatalog
+from gobus_mcp.calendario import closed_window, reference_date
+from gobus_mcp.client import GobusGraphQLClient
+from gobus_mcp.payloads.readability import DayRange, flesch_bands
+from gobus_mcp.readability import FLESCH_SCALE_ID, TARGET_SERVICE, flesch_band
+from gobus_mcp.readability_data import AgencyReadability, load_agency_readability, rank_agencies
 
-    Args:
-        client: Cliente GraphQL.
+SCHEMA_VERSION = 2
+WINDOW_DAYS = 90
+AGENCY_LIMIT = 20
 
-    Returns:
-        JSON string com generatedAt, targetFlesch e lista de agências.
-    """
-    today = datetime.date.today()
-    date_from = (today - datetime.timedelta(days=90)).isoformat()
-    date_to = today.isoformat()
 
-    data = await client.execute(
-        _ANALYTICS_QUERY,
-        {
-            "agencies": _AGENCIES,
-            "dateFrom": date_from,
-            "dateTo": date_to,
-            "granularity": "MONTH",
-        },
-    )
-    rows = data.get("agencyAnalytics") or []
+def _agency(item: AgencyReadability) -> dict:
+    value, raw = item.flesch.value, item.flesch.raw
+    band = flesch_band(item.flesch)
+    return {
+        "agencyKey": item.code,
+        "agencyName": item.name,
+        "isRepublisher": item.is_republisher,
+        "articleCount": item.article_count,
+        "articlesWithData": item.articles_with_data,
+        "avgReadabilityFlesch": None if value is None else round(value, 2),
+        "avgReadabilityFleschRaw": None if raw is None else round(raw, 2),
+        "band": band.key if band else None,
+        "gapToTarget": None if value is None else round(value - TARGET_SERVICE, 2),
+        "avgWordCount": None if item.avg_word_count is None else round(item.avg_word_count, 1),
+    }
 
-    by_agency: dict[str, dict] = {}
-    for row in rows:
-        key = row.get("agencyKey") or ""
-        agg = by_agency.setdefault(
-            key,
-            {
-                "agencyKey": key,
-                "agencyName": row.get("agencyName") or key,
-                "articleCount": 0,
-                "_fleschWeighted": 0.0,
-            },
-        )
-        count = row.get("articleCount") or 0
-        flesch = row.get("avgReadabilityFlesch") or 0.0
-        agg["articleCount"] += count
-        agg["_fleschWeighted"] += flesch * count
 
-    agencies = []
-    for agg in by_agency.values():
-        total = agg["articleCount"]
-        avg_flesch = round(agg["_fleschWeighted"] / total, 2) if total > 0 else 0.0
-        agencies.append(
-            {
-                "agencyKey": agg["agencyKey"],
-                "agencyName": agg["agencyName"],
-                "articleCount": total,
-                "avgReadabilityFlesch": avg_flesch,
-                "gapToTarget": round(avg_flesch - _TARGET_FLESCH, 2),
-            }
-        )
-
-    agencies.sort(key=lambda a: a["avgReadabilityFlesch"], reverse=True)
+async def fetch_readability_report(
+    client: GobusGraphQLClient,
+    *,
+    catalog: AgencyCatalog | None = None,
+    today: date | None = None,
+) -> str:
+    """JSON (``schemaVersion`` 2) com a legibilidade por agência e a janela efetiva."""
+    catalog = catalog or AgencyCatalog(client)
+    today = today or reference_date()
+    requested = closed_window(WINDOW_DAYS, today)
+    agencies = await catalog.active(WINDOW_DAYS, limit=AGENCY_LIMIT)
+    window, items = await load_agency_readability(client, catalog, agencies, requested)
+    with_data, without = rank_agencies(items)
+    effective = window.effective.effective
+    coverage = window.coverage
 
     result = {
-        "generatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "targetFlesch": _TARGET_FLESCH,
-        "agencies": agencies,
+        "schemaVersion": SCHEMA_VERSION,
+        "generatedAt": datetime.now(UTC).isoformat(),
+        "referenceDate": today.isoformat(),
+        "scale": FLESCH_SCALE_ID,
+        "targetFlesch": int(TARGET_SERVICE),
+        "bands": [b.model_dump(mode="json") for b in flesch_bands()],
+        "requestedWindow": DayRange.of(requested).model_dump(mode="json"),
+        "effectiveWindow": DayRange.of(effective).model_dump(mode="json") if effective else None,
+        "windowShifted": window.effective.shifted,
+        "note": window.effective.note,
+        "coverage": {
+            "periodsTotal": coverage.periods_total,
+            "periodsWithData": coverage.periods_with_data,
+            "articlesTotal": coverage.articles_total,
+            "articlesInPeriodsWithData": coverage.articles_in_periods_with_data,
+            "lastPeriodWithData": coverage.last_period_with_data,
+        },
+        "dataStatus": [window.data_status.model_dump(mode="json")],
+        "agencies": [_agency(a) for a in [*with_data, *without]],
     }
     return json.dumps(result, ensure_ascii=False, indent=2)

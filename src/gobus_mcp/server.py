@@ -469,13 +469,16 @@ async def taxonomy_queries_resource() -> str:
 @mcp.resource("ui://readability-dashboard")
 async def readability_dashboard_resource() -> str:
     """Dashboard interativo de legibilidade por agência (HTML/JS auto-contido)."""
-    return await fetch_readability_dashboard(get_deps().client)
+    deps = get_deps()
+    return await fetch_readability_dashboard(deps.client, catalog=deps.catalog)
 
 
-@mcp.resource("gobus://readability-report")
+@mcp.resource("gobus://readability-report", mime_type="application/json")
 async def readability_report_resource() -> str:
-    """Relatório JSON de legibilidade por agência com gap até a meta (Flesch 50)."""
-    return await fetch_readability_report(get_deps().client)
+    """Relatório JSON de legibilidade das agências ativas, com gap até a meta (Flesch 50),
+    janela efetiva e cobertura (sem dado → null, nunca 0)."""
+    deps = get_deps()
+    return await fetch_readability_report(deps.client, catalog=deps.catalog)
 
 
 @mcp.resource("gobus://health/pipelines", mime_type="application/json")

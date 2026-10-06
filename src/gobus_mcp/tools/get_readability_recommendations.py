@@ -44,8 +44,7 @@ from gobus_mcp.readability import (
 from gobus_mcp.readability_data import (
     AgencyReadability,
     ReadabilityWindow,
-    aggregate_agencies,
-    load_readability_window,
+    load_agency_readability,
     rank_agencies,
 )
 
@@ -255,13 +254,7 @@ async def build_readability_payload(
         if BENCHMARK_AGENCY not in agencies:
             agencies = [*agencies, BENCHMARK_AGENCY]
 
-    window = await load_readability_window(client, agencies, requested)
-    all_agencies = await catalog.all()
-    names = {a.code: a.name for a in all_agencies}
-    republishers = await catalog.republishers()
-    # sem janela efetiva, as contagens de artigos vêm da janela pedida (Flesch todo nulo)
-    rows = window.rows if window.effective.effective else window.requested_rows
-    items = aggregate_agencies(rows, names=names, republishers=republishers, codes=agencies)
+    window, items = await load_agency_readability(client, catalog, agencies, requested)
     by_code = {a.code: a for a in items}
     benchmark_item = by_code.get(BENCHMARK_AGENCY)
     benchmark = _agency_row(benchmark_item) if benchmark_item and benchmark_item.has_data else None
