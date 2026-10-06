@@ -17,10 +17,10 @@ def draft_press_release_prompt(topic: str, agency_key: str = "", limit: int = 5)
 ## Roteiro de produção
 
 ### 1. Pesquisa de base
-Use `search_news` com query="{topic}"{f' e agency_key="{agency_key}"' if agency_key else ""} para encontrar os {limit} artigos mais relevantes.
+Use `gobus_search_news` com query="{topic}"{f' e agency_key="{agency_key}"' if agency_key else ""} para encontrar os {limit} artigos mais relevantes.
 
 ### 2. Aprofundamento
-Para os 3 artigos mais relevantes, use `get_article` para obter o conteúdo completo.
+Para os 3 artigos mais relevantes, use `gobus_get_article` para obter o conteúdo completo.
 
 ### 3. Síntese de fatos
 Extraia:

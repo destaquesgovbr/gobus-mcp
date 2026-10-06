@@ -444,8 +444,9 @@ async def gobus_score_article(unique_id: str) -> str:
 
 @mcp.resource("gobus://agencies")
 async def agencies_resource() -> str:
-    """Lista completa de agências governamentais com suas chaves."""
-    return await fetch_agencies(get_deps().client)
+    """Lista completa de agências governamentais: nome, código e republicadoras."""
+    deps = get_deps()
+    return await fetch_agencies(deps.client, catalog=deps.catalog)
 
 
 @mcp.resource("gobus://themes")

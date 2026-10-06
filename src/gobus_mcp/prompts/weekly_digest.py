@@ -10,16 +10,16 @@ def weekly_digest_prompt() -> list[dict]:
 ## Roteiro de produção
 
 ### 1. Temas em alta
-Use `detect_trends` com window_days=7 e baseline_days=28 para identificar os temas mais relevantes da semana.
+Use `gobus_detect_trends` com window_days=7 e baseline_days=28 para identificar os temas mais relevantes da semana.
 
-### 2. Artigos mais vistos
-Use `search_news` com query="*" (ou vazio, se aceitar) ordenado por view_count para encontrar os artigos mais populares da semana.
+### 2. Panorama da semana
+Use `gobus_get_agency_summary` para as 2 ou 3 agências que mais aparecem nos temas do passo 1 e obtenha volume e temas em alta de cada uma.
 
 ### 3. Notícias representativas
-Para os 3 temas em maior crescimento, use `search_news` com o nome do tema para encontrar exemplos concretos. Use `get_article` nos 2 mais relevantes de cada tema.
+Para os 3 temas em maior crescimento, use `gobus_search_news` com o nome do tema para encontrar exemplos concretos. Use `gobus_get_article` nos 2 mais relevantes de cada tema.
 
-> **Dica de paralelismo:** Para os temas retornados por `detect_trends` (step 1),
-> as chamadas `search_news` de cada tema (step 3) são independentes entre si
+> **Dica de paralelismo:** Para os temas retornados por `gobus_detect_trends` (step 1),
+> as chamadas `gobus_search_news` de cada tema (step 3) são independentes entre si
 > e podem ser executadas em paralelo.
 
 ### 4. Boletim em linguagem cidadã
@@ -29,7 +29,7 @@ Escreva um boletim de 400-500 palavras com:
 
 **Destaques da semana:** 3-5 pontos principais em linguagem simples (nível ensino médio)
 
-**O mais visto:** Os 3 artigos que o público mais acessou, com 2-3 linhas cada.
+**Quem mais publicou:** As agências do passo 2 e seus temas, com 2-3 linhas cada.
 
 **Temas emergentes:** O que está crescendo no governo esta semana e por quê pode importar para o cidadão.
 

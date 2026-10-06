@@ -17,16 +17,17 @@ def monitor_agency_prompt(agency_key: str, agency_name: str = "", days: int = 1)
 Siga este roteiro:
 
 ## 1. Busca de publicações recentes
-> **Dica de paralelismo:** As chamadas `search_news` (step 1) e `get_agency_analytics`
+> **Dica de paralelismo:** As chamadas `gobus_search_news` (step 1) e `gobus_get_agency_analytics`
 > (step 2) são independentes entre si — execute-as em paralelo para reduzir latência.
 
-Use `search_news` com agency_key="{agency_key}" para buscar as últimas publicações.
+Use `gobus_search_news` com agency_key="{agency_key}" para buscar as últimas publicações.
 
 ## 2. Análise de volume e performance
-Use `get_agency_analytics` com agencies=["{agency_key}"] e granularity=DAY para ver métricas de publicação.
+Use `gobus_get_agency_analytics` com agencies=["{agency_key}"] e granularity=DAY para ver métricas de publicação.
 
-## 3. Destaques em alta
-Identifique artigos com trending_score > 1.0 nos resultados da busca.
+## 3. Destaques
+Identifique os artigos de maior impacto entre os resultados da busca (anúncios de
+programas, valores, prazos e serviços ao cidadão).
 
 ## 4. Resumo narrativo
 Com base nos dados, escreva um briefing executivo de 200-300 palavras cobrindo:

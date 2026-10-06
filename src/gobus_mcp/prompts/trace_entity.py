@@ -22,20 +22,20 @@ def trace_entity_prompt(
 ## Roteiro de análise
 
 ### 1. Identificação da entidade
-Use `resolve_entity` com query="{entity_name}"{f' e entity_type="{entity_type}"' if entity_type else ""} para encontrar o ID canônico.
+Use `gobus_resolve_entity` com query="{entity_name}"{f' e entity_type="{entity_type}"' if entity_type else ""} para encontrar o ID canônico.
 
 ### 2. Perfil e cobertura temporal
-Use `get_entity_profile` com o entity_name encontrado{f', date_from="{date_from}"' if date_from else ""}{f', date_to="{date_to}"' if date_to else ""} para ver a série temporal de menções.
+Use `gobus_get_entity_profile` com o entity_name encontrado{f', date_from="{date_from}"' if date_from else ""}{f', date_to="{date_to}"' if date_to else ""} para ver a série temporal de menções.
 
-> **Dica de paralelismo:** Após obter o entityId de `resolve_entity` (step 1),
-> `get_entity_profile` (step 2) e `get_entity_network` (step 3) são independentes
+> **Dica de paralelismo:** Após obter o entityId de `gobus_resolve_entity` (step 1),
+> `gobus_get_entity_profile` (step 2) e `gobus_get_entity_network` (step 3) são independentes
 > e podem ser executadas em paralelo.
 
 ### 3. Rede de relacionamentos
-Use `get_entity_network` com o entityId canônico e depth=2 para mapear as entidades conectadas.
+Use `gobus_get_entity_network` com o entityId canônico e depth=2 para mapear as entidades conectadas.
 
 ### 4. Artigos âncoras
-Use `search_news` com o nome da entidade para encontrar as publicações mais relevantes. Use `get_article` nos 3 mais relevantes para extrair detalhes.
+Use `gobus_search_news` com o nome da entidade para encontrar as publicações mais relevantes. Use `gobus_get_article` nos 3 mais relevantes para extrair detalhes.
 
 ### 5. Linha do tempo narrativa
 Com base nos dados, construa:
