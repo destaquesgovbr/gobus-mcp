@@ -112,7 +112,6 @@ def test_coverage_stats_sem_republicadoras():
         *_cov("agencia_brasil", {D(2026, 12, 10): 7, D(2026, 11, 1): 9}),
         *_cov("saude", {D(2026, 12, 15): 50}),  # D (parcial): fora
     ]
-    rows.append(dict(rows[0]))  # duplicata: conta uma vez
     s = _stats(rows)
     assert s.window_count == 6 and s.by_agency_window == {"saude": 5, "mec": 1}
     assert s.baseline_count == 4 and s.by_agency_baseline == {"saude": 4}
@@ -123,6 +122,25 @@ def test_coverage_stats_sem_republicadoras():
     assert s.agency_count("agencia_brasil", w.window) == 7  # consulta direta inclui
     assert s.daily(w.window) == [2, 0, 4, 0, 0, 0, 0]
     assert s.daily(w.window, "mec") == [0, 0, 1, 0, 0, 0, 0]
+
+
+def test_coverage_stats_soma_linhas_da_mesma_agencia_no_mesmo_dia():
+    # O entityCoverage agrupa por (period, agency_key, agency_name): uma agência com dois
+    # nomes vem em duas linhas com artigos distintos (COUNT DISTINCT por grupo). Somam;
+    # não são duplicatas (essas só existem no agencyAnalytics DAY, pelo CTE de nomes).
+    w = entity_windows(NORMAL_DAY)
+    day, base_day = w.window.start, w.baseline.start
+    rows = [
+        {"period": f"{day} 00:00:00+00", "agencyKey": "mec", "articleCount": 4},
+        {"period": f"{day} 00:00:00+00", "agencyKey": "mec", "articleCount": 3},
+        {"period": f"{base_day} 00:00:00+00", "agencyKey": "mec", "articleCount": 2},
+        {"period": f"{base_day} 00:00:00+00", "agencyKey": "mec", "articleCount": 2},
+    ]
+    s = _stats(rows)
+    assert s.window_count == 7 and s.by_agency_window == {"mec": 7}
+    assert s.baseline_count == 4 and s.by_agency_baseline == {"mec": 4}
+    assert s.daily(w.window, "mec")[0] == 7
+    assert s.agency_count("mec", w.window) == 7
 
 
 def test_coverage_stats_vazia():
