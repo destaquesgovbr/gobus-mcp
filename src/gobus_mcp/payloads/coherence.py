@@ -29,7 +29,7 @@ DimensionKey = Literal["entities", "timing", "framing", "tone"]
 Frame = Literal["announcement", "result", "challenge", "service", "agenda"]
 SubjectKind = Literal["entity", "theme"]
 ResolvedBy = Literal["id", "search", "taxonomy", "literal"]
-IndexStatus = Literal["scored", "insufficient", "no_articles"]
+IndexStatus = Literal["scored", "insufficient", "no_articles", "unavailable"]
 DimensionStatus = Literal["ok", "unavailable"]
 
 DIMENSION_ORDER: tuple[DimensionKey, ...] = ("entities", "timing", "framing", "tone")
@@ -171,7 +171,7 @@ class CoherenceReport(ReportBase):
     subject: CoherenceSubject
     window: Window
     index_status: IndexStatus
-    insufficient_reason: str | None = None
+    index_note: str | None = None  # por que não há índice (insufficient/no_articles/unavailable)
     index: CoherenceIndex
     dimensions: list[CoherenceDimension]
     sample: SampleInfo
@@ -182,6 +182,7 @@ class CoherenceReport(ReportBase):
     republishers: RepublishersBlock
     prior: PriorInfo | None = None
     hhi: float | None = None  # concentração do volume entre emissores (contexto)
+    notes: list[str] = []  # observações sem código de aviso (catálogo, validação, …)
 
     @field_validator("dimensions")
     @classmethod

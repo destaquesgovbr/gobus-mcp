@@ -1,4 +1,5 @@
-"""Markdown de ``gobus_detect_anomalies`` e ``gobus_forecast_trends`` a partir dos modelos.
+"""Markdown de ``gobus_detect_anomalies``, ``gobus_forecast_trends`` e
+``gobus_get_message_coherence`` a partir dos modelos.
 
 Puro: recebe ``AnomalyReport``/``ForecastReport`` e devolve o texto. Nas tools de app, o
 Markdown completo (``max_bytes=None``) vai como ``content`` e o ``summary`` do payload é o
@@ -16,10 +17,17 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from datetime import date, timedelta
 
+from gobus_mcp.analytics.framing import FRAME_LABELS
 from gobus_mcp.calendario import BRT
 from gobus_mcp.data_status import NOTICE_FOR_KEY
 from gobus_mcp.domains import DOMAIN_LABELS, Domain
 from gobus_mcp.payloads.anomalies import AnomalyReport, EntitySignal, ThemeSignal
+from gobus_mcp.payloads.coherence import (
+    DIMENSION_WEIGHTS,
+    INDEX_CUTS,
+    AgencyCoherence,
+    CoherenceReport,
+)
 from gobus_mcp.payloads.common import CalendarContext, DataStatus, Notice, Window
 from gobus_mcp.payloads.forecast import ForecastReport, ForecastTheme
 
@@ -382,3 +390,208 @@ def render_forecast_markdown(
     lines.append("")
     lines += _METHODOLOGY_FORECAST
     return fit_summary("\n".join(lines), max_bytes)
+
+
+# ── coerência de mensagem ───────────────────────────────────────────────────
+
+DIMENSION_PT = {
+    "entities": "Entidades",
+    "timing": "Timing (BRT)",
+    "framing": "Enquadramento",
+    "tone": "Tom",
+}
+DIMENSION_PT_LOWER = {
+    "entities": "entidades",
+    "timing": "timing",
+    "framing": "enquadramento",
+    "tone": "tom",
+}
+
+
+def _articles(n: int) -> str:
+    return f"{n} artigo" if n == 1 else f"{n} artigos"
+
+
+def _hm(moment) -> str:
+    return moment.astimezone(BRT).strftime("%d/%m %H:%M")
+
+
+def _delay(hours: float | None) -> str:
+    """Atraso em horas (até 48 h) ou dias; ``1º`` para o primeiro emissor."""
+    if hours is None:
+        return "—"
+    if hours == 0:
+        return "1º"
+    sign = "+" if hours > 0 else "−"
+    value = abs(hours)
+    return f"{sign}{value:.0f} h" if value < 48 else f"{sign}{_num(value / 24)} d"
+
+
+def _agency_label(name: str, key: str) -> str:
+    """``Nome (`código`)``; só o código quando o catálogo não deu o nome."""
+    return f"`{key}`" if not name or name == key else f"{name} (`{key}`)"
+
+
+def _agency_row(a: AgencyCoherence) -> str:
+    frame = FRAME_LABELS[a.dominant_frame] if a.dominant_frame else "—"
+    anchors = "; ".join(x.label for x in a.exclusive_anchors) or "—"
+    return (
+        f"| {_agency_label(a.agency_name, a.agency_key)} | {a.articles} | "
+        f"{_hm(a.first_published_at)} | {_delay(a.delay_hours)} | {frame} | {anchors} |"
+    )
+
+
+def _coherence_header(report: CoherenceReport) -> list[str]:
+    subject = report.subject
+    if subject.kind == "entity":
+        head = f"## Coerência de Mensagem — {subject.label} ({subject.type or 'entidade'} · `{subject.id}`)"
+    else:
+        head = f"## Coerência de Mensagem — {subject.label} (tema)"
+    lines = [head]
+    if subject.resolved_by == "search":
+        alternatives = "; ".join(
+            f"{a.name} (`{a.entity_id}`, {a.article_count or 0} artigos)"
+            for a in subject.alternatives
+        )
+        text = f'_Entidade resolvida pela busca "{subject.query}" (a de maior volume)'
+        lines.append(text + (f"; alternativas: {alternatives}._" if alternatives else "._"))
+    elif subject.kind == "theme" and subject.query and subject.query != subject.label:
+        lines.append(f'_Tema "{subject.query}" → label L1 "{subject.label}"._')
+    start, end = _days(report.window)
+    s, rep = report.sample, report.republishers
+    line = (
+        f"**Janela:** {_span(start, end)} ({report.window.days} dias, BRT) · **Artigos:** {s.found}"
+    )
+    if s.fetched < s.found:
+        line += f" (amostra de {s.fetched})"
+    line += (
+        f" · **Emissores:** {s.emitters} agências ({s.emitter_articles} artigos) · "
+        f"**Republicadoras:** {rep.articles} artigos ({_pct(rep.share)})"
+    )
+    if report.params.get("agencies"):
+        line += f" · **Agências pedidas:** {', '.join(report.params['agencies'])}"
+    lines.append(line)
+    if s.single_article_agencies:
+        lines.append(
+            f"_{s.single_article_agencies} agência(s) não republicadora(s) com 1 artigo ficam "
+            "fora do índice._"
+        )
+    lines.append("")
+    return lines
+
+
+def _coherence_index(report: CoherenceReport) -> list[str]:
+    status = report.index_status
+    if status == "unavailable":
+        return ["### Índice indisponível", f"**Artigos indisponíveis:** {report.index_note}", ""]
+    if status == "no_articles":
+        return ["### Nenhum artigo na janela", report.index_note or "", ""]
+    if status == "insufficient":
+        return [
+            f"### Índice: insuficiente — {report.index_note}",
+            "_A coerência compara ao menos 2 agências não republicadoras com 2 ou mais "
+            "artigos na janela._",
+            "",
+        ]
+    weights = "/".join(f"{DIMENSION_WEIGHTS[k] * 100:.0f}" for k in DIMENSION_WEIGHTS)
+    cuts = "/".join(_num(c, 1) for c in INDEX_CUTS)
+    lines = [
+        f"### Índice: {report.index.level}/5 ({_num(report.index.score or 0.0, 2)})",
+        "| Dimensão | Valor | Peso | Leitura |",
+        "|---|---|---|---|",
+    ]
+    for d in report.dimensions:
+        value = _num(d.value, 2) if d.value is not None else "indisponível"
+        weight = _pct(d.effective_weight) if d.effective_weight is not None else "—"
+        lines.append(f"| {DIMENSION_PT[d.key]} | {value} | {weight} | {d.detail} |")
+    lines += [
+        f"_Pesos nominais {weights}, renormalizados entre as dimensões disponíveis; cortes "
+        f"{cuts} (provisórios)._",
+        "",
+    ]
+    return lines
+
+
+def _coherence_warnings(report: CoherenceReport) -> list[str]:
+    items = _warnings(report.notices, report.data_status)
+    if report.prior is not None and report.prior.truncated_start:
+        p = report.prior
+        items.append(
+            f"Início truncado: a pauta já corria antes da janela ({_num(p.daily_rate)} "
+            f"artigos/dia nos {p.window.days} dias anteriores contra "
+            f"{_num(p.window_daily_rate)}/dia na janela); o atraso conta a partir do início "
+            "da janela."
+        )
+    if report.sample.mock_summaries_ignored:
+        items.append(
+            f"{report.sample.mock_summaries_ignored} resumo(s) [MOCK] (texto de teste) "
+            "ignorado(s) no enquadramento."
+        )
+    if report.subject.kind == "theme" and any(
+        n.code == "THEMES_UNCLASSIFIED" for n in report.notices
+    ):
+        items.append(
+            "Classificação de temas incompleta na janela: o filtro por tema perde artigos. "
+            "Prefira `entity_id` (programa, política ou órgão via gobus_resolve_entity)."
+        )
+    items += report.notes
+    return items
+
+
+def render_coherence_markdown(
+    report: CoherenceReport, *, max_bytes: int | None = SUMMARY_MAX_BYTES
+) -> str:
+    """Markdown da coerência de mensagem (≤ ``max_bytes``; ``None`` = completo)."""
+    lines = _coherence_header(report) + _coherence_index(report)
+
+    if report.agencies:
+        lines += [
+            "### Por agência",
+            "| Agência | Artigos | 1ª publicação (BRT) | Atraso | Enquadramento | "
+            "Âncoras exclusivas |",
+            "|---|---|---|---|---|---|",
+            *(_agency_row(a) for a in report.agencies),
+        ]
+        if report.agencies_omitted:
+            lines.append(f"_… e mais {report.agencies_omitted} emissor(es) de menor volume._")
+        lines.append("")
+
+    if report.index_status == "scored":
+        lines.append("### Âncoras compartilhadas")
+        lines += [
+            f"- {a.label} ({a.type or '—'}) — {a.agencies} agências" for a in report.shared_anchors
+        ] or ["Nenhuma entidade em comum entre a maioria dos emissores."]
+        lines.append("")
+        if report.divergences:
+            lines.append("### Divergências")
+            for d in report.divergences:
+                a, b = d.agencies
+                weakest = (
+                    f" — mais fraca: {DIMENSION_PT_LOWER[d.weakest]} "
+                    f"({_num(d.by_dimension[d.weakest] or 0.0, 2)})"
+                    if d.weakest
+                    else ""
+                )
+                lines.append(f"- `{a}` × `{b}`: {_num(d.similarity, 2)}{weakest}")
+            lines.append("")
+
+    if report.index_status not in ("unavailable", "no_articles"):
+        lines.append("### Republicadoras")
+        if report.republishers.agencies:
+            lines.append("_Fora do índice: republicam conteúdo de outras agências._")
+            for r in report.republishers.agencies:
+                delay = (
+                    f" ({_delay(r.delay_hours)} do 1º emissor)" if r.delay_hours is not None else ""
+                )
+                lines.append(
+                    f"- {_agency_label(r.agency_name, r.agency_key)}: {_articles(r.articles)} · 1ª em "
+                    f"{_hm(r.first_published_at)}{delay}"
+                )
+        else:
+            lines.append("Nenhuma republicadora na janela.")
+        lines.append("")
+
+    warnings = _coherence_warnings(report)
+    if warnings:
+        lines += ["### Avisos de dados", *(f"> - {w}" for w in warnings)]
+    return fit_summary("\n".join(lines).rstrip() + "\n", max_bytes)

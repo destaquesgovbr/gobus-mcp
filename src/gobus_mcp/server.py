@@ -28,6 +28,7 @@ from gobus_mcp.tools.get_agency_summary import get_agency_summary
 from gobus_mcp.tools.get_article import get_article
 from gobus_mcp.tools.get_entity_network import get_entity_network
 from gobus_mcp.tools.get_entity_profile import get_entity_profile
+from gobus_mcp.tools.get_message_coherence import get_message_coherence
 from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
 from gobus_mcp.tools.get_readability_recommendations import build_readability_payload
 from gobus_mcp.tools.resolve_entity import resolve_entity
@@ -520,6 +521,57 @@ async def gobus_score_article(unique_id: str, compare_with: str = "") -> ToolRes
     if report is None:
         return ToolResult(content=f"Artigo não encontrado: `{unique_id}`")
     return app_result(report)
+
+
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
+async def gobus_get_message_coherence(
+    entity_id: str = "",
+    theme: str = "",
+    agencies: list[str] | None = None,
+    date_from: str = "",
+    date_to: str = "",
+) -> str:
+    """Coerência de mensagem entre agências sobre uma entidade ou um tema: as agências falam
+    em sintonia (mesmas entidades, mesmo momento, mesmo enquadramento e tom)?
+
+    Informe exatamente um entre entity_id e theme. Republicadoras (Agência Brasil, TV
+    Brasil, EBC, Radioagência) ficam sempre fora do índice, numa seção separada; o índice
+    compara as agências não republicadoras com 2 ou mais artigos (com menos de 2, "voz
+    única", sem índice).
+
+    Parâmetros:
+    - entity_id: entityId canônico (ex: "Q575545" = Bolsa Família, "dgb_pe-de-meia") ou um
+      nome (resolvido por busca: fica a entidade de maior volume e as outras viram
+      alternativas). Prefira entidade quando a classificação de temas está incompleta.
+    - theme: label L1 de tema (ex: "Saúde", "Defesa e Forças Armadas"; aceita sem acento e
+      prefixo único) — ver gobus://themes
+    - agencies: restringe às agências listadas (códigos, ex: ["mds", "saude"]); código
+      inválido devolve sugestões (ex: "ms" → "saude")
+    - date_from / date_to: janela ISO em dias BRT (padrão: os últimos 14 dias fechados,
+      D−14..D−1; só date_from = 14 dias a partir dele); máximo de 92 dias
+
+    Índice 1–5 = média das dimensões disponíveis com pesos renormalizados:
+    entidades 0,35 (cosseno salience×idf, sem a própria entidade nem as das agências),
+    timing BRT 0,25 (1º artigo em até 48 h + Jaccard dos dias), enquadramento 0,25 (léxico
+    anúncio/resultado/desafio/serviço/agenda; resumos [MOCK] ignorados) e tom 0,15 (só com
+    cobertura de sentimento ≥ 50%). Cortes provisórios.
+
+    Retorna: Markdown com o índice e a tabela de dimensões, uma linha por agência (1ª
+    publicação, atraso, enquadramento dominante, âncoras exclusivas), âncoras
+    compartilhadas, pares mais divergentes, republicadoras e avisos de dados (defeso,
+    classificação de temas, amostra truncada acima de 1000 artigos, início truncado).
+    """
+    deps = get_deps()
+    return await get_message_coherence(
+        deps.client,
+        entity_id,
+        theme,
+        agencies,
+        date_from,
+        date_to,
+        catalog=deps.catalog,
+        cache=deps.cache,
+    )
 
 
 # ── Resources ────────────────────────────────────────────────────────────────

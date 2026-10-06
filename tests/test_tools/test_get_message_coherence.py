@@ -320,7 +320,8 @@ async def test_acima_de_1000_artigos_trunca_e_mede_o_tom_com_totais(fake_client)
     assert "1000" in notice.message and "1200" in notice.message
     (variables,) = fake_client.calls("CoherenceCounts")
     totals_aliases = [f for f in variables.values() if "sentiment" not in f]
-    assert sorted(f["agencies"][0] for f in totals_aliases) == ["mds", "mec", "saude"]
+    # as 4 páginas repetem as linhas da fixture: secom (1 por página) vira emissor
+    assert sorted(f["agencies"][0] for f in totals_aliases) == ["mds", "mec", "saude", "secom"]
     tone_dim = next(d for d in report.dimensions if d.key == "tone")
     assert tone_dim.metric["coverage"] == pytest.approx(1.0)
 
