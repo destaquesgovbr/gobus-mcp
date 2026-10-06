@@ -9,7 +9,7 @@ cobertura própria. Razões com Laplace (baseline zero não explode).
 
 Precedência das classes (``classify_entity``):
 1. ``burst``: ``max_day_share ≥ 0,8`` (caso Censo: 57 de 60 artigos num dia);
-2. ``new_entity``: ``baseline_count == 0``;
+2. ``new_entity``: ``baseline_count == 0`` (com menções na janela);
 3. ``calendar_explained``: no defeso, dona silenciada (≥ 14 dias sem publicar) ou com
    produção < 0,2× do baseline; na recuperação, ≥ 50% da janela vindo de agências
    retomadas **e** o sinal não se sustenta sem elas (se sustenta, segue com a flag
@@ -326,7 +326,7 @@ def classify_entity(
             f"{stats.max_day_share:.0%} das menções da janela num único dia: rajada pontual, "
             "não tendência sustentada."
         )
-    elif bc == 0:
+    elif bc == 0 and wc > 0:
         kind = "new_entity"
         explanation = f"Sem menções no baseline ({B} dias); {wc} artigos na janela."
     elif (
@@ -392,6 +392,9 @@ def classify_entity(
                 f"Cobertura {_x(ratio)} acima do baseline concentrada em "
                 f"{stats.window_agencies} agência(s) e {stats.distinct_days} dias."
             )
+        elif wc == 0:
+            kind = "normal"
+            explanation = "Sem menções próprias na janela (republicadoras não contam)."
         else:
             kind = "normal"
             explanation = f"Razão {_x(ratio)} em {stats.window_agencies} agência(s)."
