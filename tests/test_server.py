@@ -114,3 +114,11 @@ async def test_score_article_documenta_recusa_e_benchmark_ancorado():
     description = tools["gobus_score_article"].description or ""
     assert "indisponível" in description
     assert "90 dias antes" in description
+
+
+async def test_detect_trends_documenta_razao_sem_sobreposicao():
+    async with Client(server.mcp) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+
+    description = tools["gobus_detect_trends"].description or ""
+    assert "sem sobreposição" in description

@@ -1,6 +1,6 @@
 import pytest
 
-from gobus_mcp.tools.detect_trends import detect_trends
+from gobus_mcp.tools.detect_trends import _TRENDING_QUERY, detect_trends
 from gobus_mcp.tools.get_agency_analytics import get_agency_analytics
 from tests.conftest import FakeGraphQLClient, route_catalog
 
@@ -113,98 +113,128 @@ class TestGetAgencyAnalytics:
         assert "420" in result
 
 
+THEMES = [
+    {
+        # w=42 em 7 dias; baseline (28 dias, inclui a janela) = 3,0/dia → b_prev = 42
+        "themeLabel": "Saúde",
+        "themeCode": None,
+        "windowCount": 42,
+        "baselineDailyAvg": 3.0,
+        "growthScore": 2.0,
+        "topArticles": [
+            {
+                "uniqueId": "a1",
+                "title": "T1",
+                "agencyName": "Ministério da Saúde",
+                "publishedAt": "2026-06-01",
+                "trendingScore": None,
+            },
+            {
+                "uniqueId": "a2",
+                "title": "T2",
+                "agencyName": "SECOM",
+                "publishedAt": "2026-06-02",
+                "trendingScore": None,
+            },
+        ],
+    },
+    {
+        # baseline = só a janela: tema novo
+        "themeLabel": "Educação",
+        "themeCode": None,
+        "windowCount": 21,
+        "baselineDailyAvg": 0.75,
+        "growthScore": 4.0,
+        "topArticles": [],
+    },
+]
+
+
+def _route_trends(client, themes, *, classified=900, total=1000):
+    route_catalog(client)
+    client.route("TrendingThemes", {"trendingThemes": themes})
+    client.route(
+        "ThemeCoverage",
+        {
+            "topThemes": [{"label": "Saúde", "count": classified}] if classified else [],
+            "analyticsKpis": {"total": total},
+        },
+    )
+    return client
+
+
 class TestDetectTrends:
-    @pytest.mark.asyncio
-    async def test_retorna_temas_em_crescimento(self):
-        client = FakeGraphQLClient()
-        client.set_response(
-            {
-                "trendingThemes": [
-                    {
-                        "themeLabel": "Saúde",
-                        "themeCode": "SAU",
-                        "windowCount": 42,
-                        "baselineDailyAvg": 1.5,
-                        "growthScore": 4.0,
-                        "topArticles": [],
-                    },
-                    {
-                        "themeLabel": "Educação",
-                        "themeCode": "EDU",
-                        "windowCount": 21,
-                        "baselineDailyAvg": 2.0,
-                        "growthScore": 1.5,
-                        "topArticles": [],
-                    },
-                ]
-            }
-        )
-        result = await detect_trends(client)
-        assert "Saúde" in result
-        assert "4.0" in result
-        assert "🔥" in result or "trending" in result.lower() or "crescimento" in result.lower()
+    async def test_pede_baseline_e_converte_o_limiar(self, fake_client):
+        _route_trends(fake_client, THEMES)
 
-    @pytest.mark.asyncio
-    async def test_sem_temas_retorna_mensagem(self):
-        client = FakeGraphQLClient()
-        client.set_response({"trendingThemes": []})
-        result = await detect_trends(client)
-        assert "Nenhum" in result
+        await detect_trends(fake_client, growth_threshold=1.5)
 
-    @pytest.mark.asyncio
-    async def test_agency_key_passado_nas_variaveis(self):
-        client = FakeGraphQLClient()
-        client.set_response({"trendingThemes": []})
-        await detect_trends(client, agency_key="mec")
-        call_vars = client.execute.call_args[0][1]
-        assert call_vars.get("agencyKey") == "mec"
+        assert "baselineDailyAvg" in _TRENDING_QUERY
+        (variables,) = fake_client.calls("TrendingThemes")
+        assert variables["growthThreshold"] == pytest.approx(1.3333, abs=1e-4)
+        assert variables["windowDays"] == 7 and variables["baselineDays"] == 28
 
-    @pytest.mark.asyncio
-    async def test_exibe_agencias_por_tema(self):
-        """Contagem de agências dos topArticles deve aparecer por tema."""
-        client = FakeGraphQLClient()
-        client.set_response(
-            {
-                "trendingThemes": [
-                    {
-                        "themeLabel": "Saúde Pública",
-                        "themeCode": "SAU",
-                        "windowCount": 10,
-                        "baselineDailyAvg": 1.0,
-                        "growthScore": 2.5,
-                        "topArticles": [
-                            {
-                                "uniqueId": "a1",
-                                "title": "T1",
-                                "agencyName": "Ministério da Saúde",
-                                "publishedAt": "2026-06-01",
-                                "trendingScore": 1.5,
-                            },
-                            {
-                                "uniqueId": "a2",
-                                "title": "T2",
-                                "agencyName": "Ministério da Saúde",
-                                "publishedAt": "2026-06-02",
-                                "trendingScore": 1.2,
-                            },
-                            {
-                                "uniqueId": "a3",
-                                "title": "T3",
-                                "agencyName": "SECOM",
-                                "publishedAt": "2026-06-03",
-                                "trendingScore": 1.0,
-                            },
-                        ],
-                    }
-                ]
-            }
-        )
-        result = await detect_trends(client)
-        assert "Ministério da Saúde" in result
-        assert "SECOM" in result
-        assert "T1" in result
-        assert "T2" in result
-        assert "a1" in result
+    async def test_nunca_envia_limiar_zero(self, fake_client):
+        _route_trends(fake_client, THEMES)
+
+        result = await detect_trends(fake_client, growth_threshold=0)
+
+        (variables,) = fake_client.calls("TrendingThemes")
+        assert variables["growthThreshold"] >= 1.0
+        assert "1.0×" in result
+
+    async def test_mostra_razao_sem_sobreposicao_e_growth_da_api(self, fake_client):
+        _route_trends(fake_client, THEMES)
+
+        result = await detect_trends(fake_client)
+
+        saude = next(line for line in result.splitlines() if "Saúde" in line)
+        assert "3.0×" in saude  # razão real ((42+1)/7)/((42+1)/21)
+        assert "2.0" in saude  # growthScore da API (baseline sobreposto)
+        educacao = next(line for line in result.splitlines() if "Educação" in line)
+        assert "novo" in educacao.lower()
+
+    async def test_exibe_agencias_e_artigos_por_tema(self, fake_client):
+        _route_trends(fake_client, THEMES)
+
+        result = await detect_trends(fake_client)
+
+        assert "Ministério da Saúde" in result and "SECOM" in result
+        assert "T1" in result and "`a1`" in result
+
+    async def test_sem_temas_com_cobertura_baixa_avisa_indisponivel(self, fake_client):
+        _route_trends(fake_client, [], classified=0, total=930)
+
+        result = await detect_trends(fake_client)
+
+        assert "Nenhum tema em crescimento" not in result
+        assert "Temas: indisponível" in result
+        assert "26/09/2026" in result
+
+    async def test_sem_temas_com_cobertura_ok(self, fake_client):
+        _route_trends(fake_client, [])
+
+        result = await detect_trends(fake_client)
+
+        assert "Nenhum tema em crescimento" in result
+
+    async def test_agency_key_validado_e_passado(self, fake_client):
+        _route_trends(fake_client, [])
+
+        await detect_trends(fake_client, agency_key="saude")
+        bad = await detect_trends(fake_client, agency_key="ms")
+
+        (variables,) = fake_client.calls("TrendingThemes")
+        assert variables["agencyKey"] == "saude"
+        assert "saude" in bad  # sugestão, sem nova consulta
+
+    async def test_baseline_menor_que_janela_e_erro(self, fake_client):
+        _route_trends(fake_client, THEMES)
+
+        result = await detect_trends(fake_client, window_days=28, baseline_days=7)
+
+        assert "baseline_days" in result
+        assert fake_client.calls("TrendingThemes") == []
 
 
 # ── null ≠ 0, faixa única, nomes do catálogo e validação ────────────────────
