@@ -109,6 +109,11 @@ def worst_status(statuses: Iterable[Status]) -> Status:
     return max(statuses, key=_STATUS_RANK.__getitem__, default="ok")
 
 
+def worst_data_status(statuses: Iterable[DataStatus]) -> DataStatus:
+    """O ``DataStatus`` de pior status; no empate, o de menor ``metric["ratio"]``."""
+    return max(statuses, key=lambda s: (_STATUS_RANK[s.status], -(s.metric.get("ratio") or 0)))
+
+
 def failed_status(key: DataKey, error: BaseException | str) -> DataStatus:
     """``unavailable`` por falha de consulta. Sem dica de ``since``: a falha é de agora."""
     text = error if isinstance(error, str) else (str(error) or type(error).__name__)
