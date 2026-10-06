@@ -1,0 +1,271 @@
+{
+  "app": "anomaly_radar",
+  "state": "unavailable",
+  "description": "DEV — dados fictícios: graphql-api fora do ar",
+  "toolName": "gobus_detect_anomalies",
+  "toolInput": {},
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** medium · **Domínio:** todos\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n> - Temas: indisponível — falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar)\n> - Ranking de entidades em alta: indisponível — falha ao consultar a graphql-api (GraphQL errors: graphql-api fora do ar)\n> - Atividade das agências: indisponível — snapshot indisponível (GraphQL errors: graphql-api fora do ar); perfil semanal padrão\n\n### Picos Sustentados\n_Indisponível: Bloco de temas indisponível: falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar)._\n\n### Quedas Sustentadas\n_Indisponível: Bloco de temas indisponível: falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar)._\n\n### Silêncio Coordenado\n_Entidades indisponíveis: Ranking de entidades indisponível: falha ao consultar a graphql-api (GraphQL errors: graphql-api fora do ar)._\n\n### Cobertura Concentrada\n_Sem dados de entidades._\n\n### Explicado pelo Calendário\n_Sem dados de entidades._\n\n### Rajadas e Entidades Novas\n_Sem dados de entidades._\n\n### Tendências Normais\n_Sem dados de entidades._\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção."
+      }
+    ],
+    "structuredContent": {
+      "summary": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** medium · **Domínio:** todos\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n> - Temas: indisponível — falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar)\n> - Ranking de entidades em alta: indisponível — falha ao consultar a graphql-api (GraphQL errors: graphql-api fora do ar)\n> - Atividade das agências: indisponível — snapshot indisponível (GraphQL errors: graphql-api fora do ar); perfil semanal padrão\n\n### Picos Sustentados\n_Indisponível: Bloco de temas indisponível: falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar)._\n\n### Quedas Sustentadas\n_Indisponível: Bloco de temas indisponível: falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar)._\n\n### Silêncio Coordenado\n_Entidades indisponíveis: Ranking de entidades indisponível: falha ao consultar a graphql-api (GraphQL errors: graphql-api fora do ar)._\n\n### Cobertura Concentrada\n_Sem dados de entidades._\n\n### Explicado pelo Calendário\n_Sem dados de entidades._\n\n### Rajadas e Entidades Novas\n_Sem dados de entidades._\n\n### Tendências Normais\n_Sem dados de entidades._\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção.",
+      "schemaVersion": 1,
+      "kind": "gobus.anomalies",
+      "tool": "gobus_detect_anomalies",
+      "status": "unavailable",
+      "generatedAt": "2026-10-05T22:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "sensitivity": "medium",
+        "domain_filter": null
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": null,
+        "resumedAgencies": null
+      },
+      "dataStatus": [
+        {
+          "key": "themes",
+          "status": "unavailable",
+          "since": null,
+          "message": "Temas: indisponível — falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar)",
+          "metric": {}
+        },
+        {
+          "key": "entity_ranking",
+          "status": "unavailable",
+          "since": null,
+          "message": "Ranking de entidades em alta: indisponível — falha ao consultar a graphql-api (GraphQL errors: graphql-api fora do ar)",
+          "metric": {}
+        },
+        {
+          "key": "agency_activity",
+          "status": "unavailable",
+          "since": null,
+          "message": "Atividade das agências: indisponível — snapshot indisponível (GraphQL errors: graphql-api fora do ar); perfil semanal padrão",
+          "metric": {}
+        }
+      ],
+      "notices": [
+        {
+          "code": "ELECTORAL_BLACKOUT",
+          "severity": "info",
+          "message": "Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas.",
+          "since": "2026-07-04",
+          "affects": [
+            "themes",
+            "entities"
+          ]
+        },
+        {
+          "code": "CLASSIFIER_CHANGED",
+          "severity": "warn",
+          "message": "Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.",
+          "since": "2026-09-25",
+          "affects": [
+            "themes"
+          ]
+        },
+        {
+          "code": "THEMES_UNCLASSIFIED",
+          "severity": "error",
+          "message": "Temas: indisponível — falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar)",
+          "since": null,
+          "affects": [
+            "themes"
+          ]
+        },
+        {
+          "code": "TRENDING_ENTITIES_STALE",
+          "severity": "error",
+          "message": "Ranking de entidades em alta: indisponível — falha ao consultar a graphql-api (GraphQL errors: graphql-api fora do ar)",
+          "since": null,
+          "affects": [
+            "entity_ranking"
+          ]
+        }
+      ],
+      "thresholds": {
+        "ratio": 1.5,
+        "windowAgencies": 5,
+        "silenceRatio": 2.0,
+        "minCount": 5
+      },
+      "themes": {
+        "status": "unavailable",
+        "note": "Bloco de temas indisponível: falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar).",
+        "windows": {
+          "short": {
+            "kind": "rolling",
+            "start": "2026-10-03T01:00:00Z",
+            "end": "2026-10-06T01:00:00Z",
+            "days": 3,
+            "bucketTz": "UTC",
+            "baselineOverlapsBlackout": false
+          },
+          "long": {
+            "kind": "rolling",
+            "start": "2026-09-29T01:00:00Z",
+            "end": "2026-10-06T01:00:00Z",
+            "days": 7,
+            "bucketTz": "UTC",
+            "baselineOverlapsBlackout": false
+          }
+        },
+        "classifiedCoverage": {
+          "short": null,
+          "long": null
+        },
+        "signals": []
+      },
+      "entities": {
+        "status": "unavailable",
+        "note": "Ranking de entidades indisponível: falha ao consultar a graphql-api (GraphQL errors: graphql-api fora do ar).",
+        "window": {
+          "kind": "closed",
+          "start": "2026-09-28T00:00:00-03:00",
+          "end": "2026-10-05T00:00:00-03:00",
+          "days": 7,
+          "bucketTz": "UTC",
+          "baselineOverlapsBlackout": false
+        },
+        "baseline": {
+          "kind": "closed",
+          "start": "2026-08-31T00:00:00-03:00",
+          "end": "2026-09-28T00:00:00-03:00",
+          "days": 28,
+          "bucketTz": "UTC",
+          "baselineOverlapsBlackout": true
+        },
+        "candidates": 0,
+        "upstream": {
+          "lastRunAt": null,
+          "rowsTotal": 0,
+          "rowsLastRun": 0,
+          "rowsLegacyFloor": 0
+        },
+        "signals": [],
+        "omitted": {}
+      },
+      "domains": [
+        {
+          "domain": "HEALTH",
+          "label": "Saúde",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "EDUCATION",
+          "label": "Educação",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "SOCIAL",
+          "label": "Social",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "ECONOMIC",
+          "label": "Economia",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "SECURITY",
+          "label": "Segurança",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "ENVIRONMENT",
+          "label": "Meio ambiente",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "GOVERNANCE",
+          "label": "Governança",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "OTHER",
+          "label": "Outros",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        }
+      ],
+      "severityBands": {
+        "watch": 0.33,
+        "alert": 0.66
+      },
+      "sensitivityOptions": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "isError": false
+  },
+  "toolCalls": []
+}

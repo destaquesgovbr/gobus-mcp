@@ -20,7 +20,7 @@ from gobus_mcp.resources.platform_stats import fetch_platform_stats
 from gobus_mcp.resources.readability_report import fetch_readability_report
 from gobus_mcp.resources.taxonomy_queries import fetch_taxonomy_queries
 from gobus_mcp.resources.themes import fetch_themes
-from gobus_mcp.tools.detect_anomalies import detect_anomalies
+from gobus_mcp.tools.detect_anomalies import build_anomaly_output, invalid_params
 from gobus_mcp.tools.detect_trends import detect_trends
 from gobus_mcp.tools.forecast_trends import forecast_trends
 from gobus_mcp.tools.get_agency_analytics import get_agency_analytics
@@ -399,8 +399,10 @@ async def gobus_get_policy_lifecycle(
     return await get_policy_lifecycle(policy_name, get_deps().client, date_from)
 
 
-@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
-async def gobus_detect_anomalies(sensitivity: str = "medium", domain_filter: str = "") -> str:
+@mcp.tool(**app_tool_kwargs("anomaly_radar"))
+async def gobus_detect_anomalies(
+    sensitivity: str = "medium", domain_filter: str = ""
+) -> ToolResult:
     """Detecta anomalias comunicacionais de temas e de entidades, ciente do defeso eleitoral.
 
     Temas (janelas móveis de 3 e 7 dias, UTC): share-of-voice — a fatia do tema entre os
@@ -429,16 +431,24 @@ async def gobus_detect_anomalies(sensitivity: str = "medium", domain_filter: str
     Quedas Sustentadas, Silêncio Coordenado, Cobertura Concentrada, Explicado pelo
     Calendário, Rajadas e Entidades Novas e Tendências Normais, com severidade 0–1,
     faixa (normal/atenção/alerta) e confiança.
+
+    MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o radar
+    ui://anomaly-radar (8 gauges por domínio; no fullscreen, a lista de sinais com
+    sensibilidade e domínio); o texto devolvido é o Markdown completo.
     """
+    invalid = invalid_params(sensitivity, domain_filter)
+    if invalid is not None:
+        return ToolResult(content=invalid)
     deps = get_deps()
-    return await detect_anomalies(
+    report, markdown = await build_anomaly_output(
         deps.client,
-        sensitivity,
-        domain_filter,
+        sensitivity=sensitivity,
+        domain_filter=domain_filter,
         catalog=deps.catalog,
         activity=deps.activity,
         cache=deps.cache,
     )
+    return app_result(report, content=markdown)
 
 
 @mcp.tool(output_schema=None, annotations={"readOnlyHint": True})

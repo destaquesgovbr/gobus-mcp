@@ -106,6 +106,11 @@ async def test_chips_do_defeso_e_dos_temas_vem_do_payload(open_host):
     run, fixture = await _open(open_host, "partial")
     sc = _sc(fixture)
 
+    # dado faltando: nada de "nada fora do padrão"; o porquê aparece no card
+    assert await run.app.get_by_test_id("quiet").count() == 0
+    assert await run.app.get_by_test_id("no-signals").count() == 1
+    assert sc["themes"]["note"] in await _app_text(run)
+
     calendar = await run.app.get_by_test_id("chip-calendar").text_content()
     assert sc["calendar"]["label"] in calendar
     assert str(sc["calendar"]["daysToEnd"]) in calendar

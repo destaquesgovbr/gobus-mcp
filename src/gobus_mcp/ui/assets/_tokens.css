@@ -65,7 +65,7 @@ body {
 .gb-section { margin-top: 14px; }
 .gb-section > h3 { margin: 0 0 6px; font-size: var(--gb-size); font-weight: var(--gb-weight); }
 
-.gb-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: var(--gb-pill); border: 1px solid var(--gb-border); font-size: var(--gb-size-xs); color: var(--gb-text-2); background: var(--gb-bg-2); white-space: nowrap; }
+.gb-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: var(--gb-pill); border: 1px solid var(--gb-border); font-size: var(--gb-size-xs); color: var(--gb-text-2); background: var(--gb-bg-2); max-width: 100%; }
 .gb-chip[data-tone="warn"] { color: var(--gb-warning); background: var(--gb-warning-bg); border-color: transparent; }
 .gb-chip[data-tone="error"] { color: var(--gb-danger); background: var(--gb-danger-bg); border-color: transparent; }
 .gb-chip[data-tone="ok"] { color: var(--gb-success); background: var(--gb-success-bg); border-color: transparent; }

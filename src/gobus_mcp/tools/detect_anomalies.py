@@ -13,7 +13,9 @@ Fluxo de ``build_anomaly_report`` (I/O aqui; a análise fica em ``analytics/``):
 3. Entidades: ``entity_signal`` por candidato (janela fechada ``[D−7, D−1]``, baseline de
    28 dias ou pré-defeso na recuperação, sem republicadoras, classes com precedência).
 4. ``domain_filter`` filtra os sinais; os gauges ``domains`` resumem todos os domínios.
-5. ``AnomalyReport`` → Markdown (``summary``) → corte de orçamento do payload (20 KB).
+5. ``AnomalyReport`` → Markdown completo (``content`` da tool de app) → ``summary`` = o
+   mesmo texto até 6 KB → payload compacto do app (``compact_anomaly_payload``: séries só
+   nos sinais anômalos, teto de normais, omitidos contados; ≤ 20 KB).
 
 Cada bloco degrada sozinho (``unavailable``/``degraded`` com nota); a tool não cai.
 Caches (``cache=``): ranking 10 min, contexto de entidade 30 min por (id, D), temas 5 min.
@@ -37,7 +39,7 @@ from gobus_mcp.analytics.entities import (
     select_candidates,
     selection_notices,
 )
-from gobus_mcp.analytics.render import render_anomalies_markdown
+from gobus_mcp.analytics.render import fit_summary, render_anomalies_markdown
 from gobus_mcp.analytics.themes import (
     LONG_WINDOW,
     SHORT_WINDOW,
@@ -73,7 +75,7 @@ from gobus_mcp.payloads.anomalies import (
     ThemesBlock,
     ThemeWindows,
     UpstreamInfo,
-    fit_anomaly_budget,
+    compact_anomaly_payload,
     summarize_domains,
 )
 from gobus_mcp.payloads.common import DataStatus, ReportStatus, Status
@@ -341,7 +343,7 @@ def _report_status(themes: ThemesBlock, entities: EntitiesBlock) -> ReportStatus
 # ── builder e tool ──────────────────────────────────────────────────────────
 
 
-async def build_anomaly_report(
+async def build_anomaly_output(
     client: GobusGraphQLClient,
     *,
     sensitivity: str = "medium",
@@ -351,9 +353,12 @@ async def build_anomaly_report(
     now=None,
     cache: TTLCache | None = None,
     max_candidates: int = MAX_CANDIDATES,
-) -> AnomalyReport:
-    """``AnomalyReport`` completo (``summary`` = Markdown). Parâmetro inválido levanta
-    ``ValueError`` com as opções."""
+) -> tuple[AnomalyReport, str]:
+    """``(payload do app, Markdown completo)``.
+
+    O Markdown vai inteiro no ``content`` da tool; o payload traz o mesmo texto até 6 KB
+    em ``summary`` e só os sinais que o app desenha (``compact_anomaly_payload``).
+    Parâmetro inválido levanta ``ValueError`` com as opções (antes de qualquer I/O)."""
     sens_name, sens = parse_sensitivity(sensitivity)
     domain: Domain | None = parse_domain(domain_filter)
     now = now or now_brt()
@@ -424,12 +429,31 @@ async def build_anomaly_report(
         entities=entities_block,
         domains=domains,
     )
-    report = report.model_copy(update={"summary": render_anomalies_markdown(report)})
-    return fit_anomaly_budget(report)
+    markdown = render_anomalies_markdown(report, max_bytes=None)
+    report = report.model_copy(update={"summary": fit_summary(markdown)})
+    return compact_anomaly_payload(report), markdown
+
+
+async def build_anomaly_report(client: GobusGraphQLClient, **kwargs) -> AnomalyReport:
+    """O payload do app (``AnomalyReport`` compacto, ``summary`` ≤ 6 KB); mesmos parâmetros
+    de ``build_anomaly_output``."""
+    report, _ = await build_anomaly_output(client, **kwargs)
+    return report
 
 
 def invalid_params_markdown(error: ValueError) -> str:
     return f"{TITLE}\n\n**Parâmetro inválido:** {error}"
+
+
+def invalid_params(sensitivity: str, domain_filter: str) -> str | None:
+    """Markdown com as opções se a sensibilidade ou o domínio é inválido; ``None`` se ok.
+    Não consulta a API."""
+    try:
+        parse_sensitivity(sensitivity)
+        parse_domain(domain_filter)
+    except ValueError as exc:
+        return invalid_params_markdown(exc)
+    return None
 
 
 async def detect_anomalies(
@@ -442,16 +466,15 @@ async def detect_anomalies(
     now=None,
     cache: TTLCache | None = None,
 ) -> str:
-    """Markdown do detector de anomalias (o ``summary`` do ``AnomalyReport``).
+    """Markdown completo do detector de anomalias (o ``content`` da tool de app; o
+    ``summary`` do payload é o mesmo texto até 6 KB).
 
     Parâmetro inválido (sensibilidade ou domínio) devolve as opções, sem consultar a API.
     """
-    try:
-        parse_sensitivity(sensitivity)
-        parse_domain(domain_filter)
-    except ValueError as exc:
-        return invalid_params_markdown(exc)
-    report = await build_anomaly_report(
+    invalid = invalid_params(sensitivity, domain_filter)
+    if invalid is not None:
+        return invalid
+    _, markdown = await build_anomaly_output(
         client,
         sensitivity=sensitivity,
         domain_filter=domain_filter,
@@ -460,4 +483,4 @@ async def detect_anomalies(
         now=now,
         cache=cache,
     )
-    return report.summary
+    return markdown

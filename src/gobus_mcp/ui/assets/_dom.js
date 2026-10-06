@@ -97,6 +97,17 @@ function domButton(label, onClick, testid, extra) {
   return h("button", Object.assign({ type: "button", class: "gb-btn", "data-testid": testid || null, onclick: onClick }, extra || {}), label);
 }
 
+// Controle segmentado (opções exclusivas): options = [{value, label}]; a atual fica com
+// aria-pressed="true" e não dispara de novo.
+function domSegment(options, current, onSelect, testidPrefix, label) {
+  return h("div", { class: "gb-segment", role: "group", "aria-label": label || null },
+    options.map((o) => h("button", {
+      type: "button", class: "gb-btn", "aria-pressed": String(o.value === current),
+      "data-testid": testidPrefix + o.value,
+      onclick: () => { if (o.value !== current) onSelect(o.value); },
+    }, o.label)));
+}
+
 // Botão de ação pelo host (ui/message, display mode…): se o host recusar, o botão some.
 function domAction(label, run, testid) {
   const button = domButton(label, () => {

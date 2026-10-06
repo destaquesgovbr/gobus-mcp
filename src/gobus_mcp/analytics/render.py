@@ -1,7 +1,8 @@
 """Markdown de ``gobus_detect_anomalies`` e ``gobus_forecast_trends`` a partir dos modelos.
 
-Puro: recebe ``AnomalyReport``/``ForecastReport`` e devolve o texto que vai como ``content``
-da tool e como ``summary`` do payload (≤ 6 KB; ``fit_summary`` corta em fim de linha).
+Puro: recebe ``AnomalyReport``/``ForecastReport`` e devolve o texto. Nas tools de app, o
+Markdown completo (``max_bytes=None``) vai como ``content`` e o ``summary`` do payload é o
+mesmo texto até 6 KB (``fit_summary`` corta em fim de linha).
 
 Regras:
 - o cabeçalho diz qual janela é qual (entidades: fechada em BRT, contagens por dia UTC;
@@ -24,7 +25,7 @@ from gobus_mcp.payloads.forecast import ForecastReport, ForecastTheme
 
 SUMMARY_MAX_BYTES = 6_144
 MAX_NORMAL_LINES = 10
-_TRUNCATED = "\n\n_(resumo truncado; o payload estruturado traz a lista completa)_"
+_TRUNCATED = "\n\n_(resumo truncado em 6 KB; o texto completo vai no content da tool)_"
 
 CONFIDENCE_PT = {"high": "alta", "medium": "média", "low": "baixa"}
 BAND_PT = {"normal": "normal", "watch": "atenção", "alert": "alerta"}
@@ -80,9 +81,10 @@ def _span(start: date, end: date) -> str:
     return f"{_dm(start)}–{_d(end)}"
 
 
-def fit_summary(markdown: str, max_bytes: int = SUMMARY_MAX_BYTES) -> str:
-    """O Markdown inteiro se couber em ``max_bytes``; senão, corta em fim de linha e avisa."""
-    if len(markdown.encode()) <= max_bytes:
+def fit_summary(markdown: str, max_bytes: int | None = SUMMARY_MAX_BYTES) -> str:
+    """O Markdown inteiro se couber em ``max_bytes`` (``None`` = sem limite); senão, corta
+    em fim de linha e avisa."""
+    if max_bytes is None or len(markdown.encode()) <= max_bytes:
         return markdown
     budget = max_bytes - len(_TRUNCATED.encode())
     kept, used = [], 0
@@ -206,8 +208,10 @@ _METHODOLOGY_ANOMALIES = [
 ]
 
 
-def render_anomalies_markdown(report: AnomalyReport, *, max_bytes: int = SUMMARY_MAX_BYTES) -> str:
-    """Markdown do detector de anomalias (≤ ``max_bytes``)."""
+def render_anomalies_markdown(
+    report: AnomalyReport, *, max_bytes: int | None = SUMMARY_MAX_BYTES
+) -> str:
+    """Markdown do detector de anomalias (≤ ``max_bytes``; ``None`` = completo)."""
     ent_start, ent_end = _days(report.entities.window)
     base_start, base_end = _days(report.entities.baseline)
     short, long = report.themes.windows.short, report.themes.windows.long
@@ -322,8 +326,10 @@ _METHODOLOGY_FORECAST = [
 ]
 
 
-def render_forecast_markdown(report: ForecastReport, *, max_bytes: int = SUMMARY_MAX_BYTES) -> str:
-    """Markdown do forecast de tendências (≤ ``max_bytes``)."""
+def render_forecast_markdown(
+    report: ForecastReport, *, max_bytes: int | None = SUMMARY_MAX_BYTES
+) -> str:
+    """Markdown do forecast de tendências (≤ ``max_bytes``; ``None`` = completo)."""
     horizon = int(report.params.get("horizon_days") or 0) or 1
     requested = report.params.get("horizon_days_requested")
     start = report.reference_date

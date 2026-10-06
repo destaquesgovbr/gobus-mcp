@@ -97,6 +97,19 @@ APPS: dict[str, AppSpec] = {
             tool="gobus_score_article",
             kind="gobus.scorecard",
         ),
+        AppSpec(
+            name="anomaly_radar",
+            uri="ui://anomaly-radar",
+            title="Radar de anomalias",
+            description=(
+                "MCP App de gobus_detect_anomalies: 8 gauges por domínio (picos e silêncios), "
+                "chips do defeso e dos temas e, no fullscreen, a lista de sinais com "
+                "sensibilidade e domínio. Template estático: os dados chegam pelo "
+                "structuredContent da tool."
+            ),
+            tool="gobus_detect_anomalies",
+            kind="gobus.anomalies",
+        ),
     )
 }
 
@@ -222,10 +235,16 @@ def _resource_fn(spec: AppSpec):
     return resource
 
 
-def app_result(report: ReportBase) -> ToolResult:
-    """Resultado de uma tool de app: ``content`` = ``summary`` (Markdown ≤ 6 KB) e
-    ``structuredContent`` = payload em camelCase com ``summary`` como **primeiro** campo
-    (o Claude Code mostra o ``structuredContent``; o modelo lê o resumo antes dos dados)."""
+def app_result(report: ReportBase, *, content: str | None = None) -> ToolResult:
+    """Resultado de uma tool de app.
+
+    - ``content``: o Markdown completo (``content``; sem ele, ``report.summary``), para o
+      modelo e para hosts sem UI;
+    - ``structuredContent``: o payload em camelCase com ``summary`` como **primeiro** campo
+      (o mesmo Markdown até 6 KB; o Claude Code mostra o ``structuredContent``, então o
+      modelo lê o resumo antes dos dados).
+    """
+    markdown = report.summary if content is None else content
     summary = fit_summary(report.summary, SUMMARY_MAX_BYTES)
     data = report.model_copy(update={"summary": summary}).model_dump(mode="json", by_alias=True)
     data = {"summary": data.pop("summary"), **data}
@@ -234,4 +253,4 @@ def app_result(report: ReportBase) -> ToolResult:
         logger.warning(
             "payload de %s com %d bytes (orçamento %d)", report.tool, size, MAX_PAYLOAD_BYTES
         )
-    return ToolResult(content=summary, structured_content=data)
+    return ToolResult(content=markdown, structured_content=data)

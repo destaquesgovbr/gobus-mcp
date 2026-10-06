@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from collections.abc import Awaitable, Callable
 from datetime import date, datetime
 from pathlib import Path
@@ -646,8 +647,16 @@ async def build_all() -> dict[Path, dict]:
     return out
 
 
+# lista só de números (séries diárias) numa linha só: o JSON indentado fica legível e pequeno
+_NUMBER_LIST_RE = re.compile(r"\[\s*(-?[\d.]+(?:,\s*-?[\d.]+)*)\s*\]")
+
+
 def dumps(fixture: dict) -> str:
-    return json.dumps(fixture, ensure_ascii=False, indent=2) + "\n"
+    text = json.dumps(fixture, ensure_ascii=False, indent=2)
+    text = _NUMBER_LIST_RE.sub(
+        lambda m: "[" + ", ".join(x.strip() for x in m.group(1).split(",")) + "]", text
+    )
+    return text + "\n"
 
 
 def main() -> None:
