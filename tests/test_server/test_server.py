@@ -167,7 +167,7 @@ async def test_message_coherence_usa_o_catalogo_do_conteiner(deps):
     route_catalog(deps.client)
     deps.client.route("CoherenceEntity", {"entity": None})
     deps.client.route("CoherenceArticles", {"articles": {"found": 0, "page": 1, "articles": []}})
-    deps.client.route("CoherencePrior", {"entityCoverage": []})
+    deps.client.route("CoherenceCoverage", {"entityCoverage": []})
 
     async with Client(server.mcp) as client:
         result = await client.call_tool_mcp(

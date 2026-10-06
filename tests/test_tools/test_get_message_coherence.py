@@ -135,16 +135,20 @@ def counts_route(tone=TONE, totals=None, themes=None, theme_total=None):
 ENTITY = {"entity": {"entityId": "Q575545", "canonicalName": "Bolsa Família", "type": "POLICY"}}
 
 
-def scenario(client, *, articles=ARTICLES, found=None, prior=(), tone=TONE, totals=None):
+def scenario(
+    client, *, articles=ARTICLES, found=None, prior=(), window_pg=(), tone=TONE, totals=None
+):
+    """``prior``/``window_pg``: ``(dia de setembro, artigos)`` no ``entityCoverage`` DAY (Postgres)
+    antes da janela padrão (até 21/09) e dentro dela (22/09 em diante)."""
     route_catalog(client)
     client.route("CoherenceEntity", ENTITY)
     client.route("CoherenceArticles", articles_route(articles, found))
     client.route(
-        "CoherencePrior",
+        "CoherenceCoverage",
         {
             "entityCoverage": [
                 {"period": f"2026-09-{d:02d} 00:00:00+00", "agencyKey": "mds", "articleCount": n}
-                for d, n in prior
+                for d, n in [*prior, *window_pg]
             ]
         },
     )
@@ -424,8 +428,9 @@ async def test_prior_com_taxa_alta_marca_inicio_truncado(fake_client):
     scenario(fake_client, prior=[(d, 2) for d in range(1, 21)])  # 40 artigos em 30 dias
     report, markdown = await run(fake_client, entity_id="Q575545")
 
-    (prior_call,) = fake_client.calls("CoherencePrior")
-    assert prior_call == {"id": "Q575545", "dateFrom": "2026-08-23", "dateTo": "2026-09-22"}
+    # uma chamada cobre os 30 dias antes e a janela (dateTo exclusivo)
+    (coverage_call,) = fake_client.calls("CoherenceCoverage")
+    assert coverage_call == {"id": "Q575545", "dateFrom": "2026-08-23", "dateTo": "2026-10-06"}
     assert report.prior.articles == 40
     assert report.prior.truncated_start
     timing = next(d for d in report.dimensions if d.key == "timing")
@@ -437,6 +442,45 @@ async def test_prior_baixo_nao_marca(fake_client):
     scenario(fake_client, prior=[(1, 1)])
     report, _ = await run(fake_client, entity_id="Q575545")
     assert report.prior.truncated_start is False
+
+
+async def test_prior_conta_so_os_dias_antes_da_janela(fake_client):
+    scenario(fake_client, prior=[(1, 2)], window_pg=[(22, 7), (23, 6)])
+    report, _ = await run(fake_client, entity_id="Q575545")
+    assert report.prior.articles == 2
+    assert report.prior.window_daily_rate == pytest.approx(13 / 14, abs=1e-3)
+
+
+async def test_lacuna_do_indice_de_busca_nao_vira_nenhum_artigo(fake_client):
+    # Typesense sem entity_canonical na janela (histórico não reindexado), Postgres com 30
+    scenario(fake_client, articles=[], window_pg=[(22, 10), (23, 10), (24, 10)])
+    report, markdown = await run(fake_client, entity_id="Q575545")
+
+    assert report.status == "unavailable"
+    assert report.index_status == "unavailable"
+    notice = next(n for n in report.notices if n.code == "INDEXING_LAG")
+    assert "0 de 30" in notice.message
+    assert "Nenhum artigo" not in markdown
+    assert "índice de busca" in markdown
+
+
+async def test_indice_parcial_avisa_indexing_lag(fake_client):
+    scenario(fake_client, window_pg=[(22, 20), (23, 20)])  # 40 no Postgres, 13 no Typesense
+    report, _ = await run(fake_client, entity_id="Q575545")
+
+    lag = next(s for s in report.data_status if s.key == "indexing_lag")
+    assert lag.status == "unavailable"
+    assert "INDEXING_LAG" in {n.code for n in report.notices}
+    assert report.status == "partial"
+
+
+async def test_indice_em_dia_sem_aviso(fake_client):
+    scenario(fake_client, window_pg=[(22, 7), (23, 6)])  # 13 = 13
+    report, _ = await run(fake_client, entity_id="Q575545")
+
+    lag = next(s for s in report.data_status if s.key == "indexing_lag")
+    assert lag.status == "ok"
+    assert "INDEXING_LAG" not in {n.code for n in report.notices}
 
 
 async def test_agencias_filtram_a_consulta_e_validam_pelo_catalogo(fake_client):
@@ -539,7 +583,7 @@ async def test_tema_resolve_a_label_l1_e_filtra_por_themelabel(fake_client):
     first = fake_client.calls("CoherenceArticles")[0]["filter"]
     assert first["themeLabel"] == "Desenvolvimento Social"
     assert "entityCanonical" not in first
-    assert not fake_client.calls("CoherencePrior")  # prior só no caminho por entidade
+    assert not fake_client.calls("CoherenceCoverage")  # prior só no caminho por entidade
     assert "THEMES_UNCLASSIFIED" not in {n.code for n in report.notices}
     assert markdown.startswith("## Coerência de Mensagem — Desenvolvimento Social (tema)")
 
