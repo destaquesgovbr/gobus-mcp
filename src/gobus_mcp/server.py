@@ -478,10 +478,12 @@ async def readability_report_resource() -> str:
     return await fetch_readability_report(get_deps().client)
 
 
-@mcp.resource("gobus://health/pipelines")
+@mcp.resource("gobus://health/pipelines", mime_type="application/json")
 async def health_pipelines_resource() -> str:
-    """Health-check dos pipelines de dados (trendingScore, sentimento, legibilidade)."""
-    return await fetch_health_pipelines(get_deps().client)
+    """Saúde das fontes de dados (JSON): temas, legibilidade, sentimento e ranking de
+    entidades, cada uma ok | degraded | unavailable, com avisos."""
+    deps = get_deps()
+    return await fetch_health_pipelines(deps.client, catalog=deps.catalog)
 
 
 # ── Prompts ──────────────────────────────────────────────────────────────────
