@@ -481,6 +481,15 @@ def _coherence_header(report: CoherenceReport) -> list[str]:
     return lines
 
 
+def _partial_sample(report: CoherenceReport) -> bool:
+    """A amostra não cobre a janela inteira (``SAMPLE_TRUNCATED``: acima de 1000 ou páginas
+    com falha; ou índice de busca parcial): a 1ª publicação e o atraso da tabela valem só
+    para a amostra (os mesmos casos em que o timing sai do índice)."""
+    truncated = any(n.code == "SAMPLE_TRUNCATED" for n in report.notices)
+    lagging = any(d.key == "indexing_lag" and d.status != "ok" for d in report.data_status)
+    return truncated or lagging
+
+
 def _coherence_index(report: CoherenceReport) -> list[str]:
     status = report.index_status
     if status == "unavailable":
@@ -546,10 +555,10 @@ def render_coherence_markdown(
     lines = _coherence_header(report) + _coherence_index(report)
 
     if report.agencies:
+        first = "1ª na amostra (BRT)" if _partial_sample(report) else "1ª publicação (BRT)"
         lines += [
             "### Por agência",
-            "| Agência | Artigos | 1ª publicação (BRT) | Atraso | Enquadramento | "
-            "Âncoras exclusivas |",
+            f"| Agência | Artigos | {first} | Atraso | Enquadramento | Âncoras exclusivas |",
             "|---|---|---|---|---|---|",
             *(_agency_row(a) for a in report.agencies),
         ]

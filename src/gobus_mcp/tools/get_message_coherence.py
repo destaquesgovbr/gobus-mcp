@@ -14,7 +14,9 @@ Fluxo de ``build_coherence_output`` (I/O aqui; a análise fica em ``analytics.co
      aliases de contagem (total contra Σ labels L1): aviso ``THEMES_UNCLASSIFIED`` dinâmico
      (some quando o re-enriquecimento e o reindex cobrem a janela).
 3. ``articles(limit:250, page, filter, sort:DATE)``: página 1; com ``found > 250``, páginas
-   2–4 em gather (teto de 1000 → ``SAMPLE_TRUNCATED``). Sem ``content`` (pesado).
+   2–4 em gather (teto de 1000 → ``SAMPLE_TRUNCATED``). Sem ``content`` (pesado). O ``sort``
+   é só decrescente: amostra truncada (ou com página em falha) fica com os mais recentes, a
+   1ª publicação de cada agência pode estar fora dela e o timing sai do índice.
 4. Tom: aliases de contagem ``articles(limit:1, filter:{…, agencies:[a], sentiment:[l]})
    {found}`` para os 12 maiores emissores (mais o total por agência se a amostra foi
    truncada). Uma requisição; a query é gerada por ``counts_query`` (forma validada pelo
@@ -599,12 +601,13 @@ def _truncation_notice(fetch: _Fetch, fetched: int, oldest: datetime | None) -> 
         since = f" (desde {oldest.strftime('%d/%m')})" if oldest else ""
         parts.append(
             f"Amostra limitada aos {SAMPLE_CAP} artigos mais recentes de {fetch.found}{since}: "
-            "timing, âncoras e enquadramento usam só a amostra."
+            "o timing fica fora do índice (a 1ª publicação de cada agência pode estar fora da "
+            "amostra); âncoras e enquadramento usam só a amostra."
         )
     if fetch.page_errors:
         parts.append(
             f"Páginas seguintes indisponíveis ({'; '.join(fetch.page_errors)}): a análise usa "
-            f"{fetched} de {fetch.found} artigos."
+            f"{fetched} de {fetch.found} artigos e o timing fica fora do índice."
         )
     if not parts:
         return None
@@ -893,6 +896,16 @@ async def build_coherence_output(
             )
 
     timing_gaps = []
+    if truncated:
+        timing_gaps.append(
+            f"amostra com os {len(fetch.rows)} artigos mais recentes de {fetch.found}: a 1ª "
+            "publicação de cada agência pode estar fora dela"
+        )
+    elif fetch.page_errors:
+        timing_gaps.append(
+            f"amostra parcial ({len(fetch.rows)} de {fetch.found} artigos; páginas com falha): "
+            "a 1ª publicação de cada agência pode estar fora dela"
+        )
     if pg is not None and lag is not None and lag.status == "degraded":
         timing_gaps.append(
             f"índice de busca parcial ({fetch.found} de {pg.window} artigos do Postgres): a "
