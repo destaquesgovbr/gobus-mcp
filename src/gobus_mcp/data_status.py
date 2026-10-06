@@ -334,8 +334,11 @@ def entity_ranking_status(rows: list[Mapping], *, now: datetime) -> DataStatus:
         distinctRuns=distinct_runs,
         ageHours=round(age_hours, 2),  # metric só aceita números; a data vai no texto
     )
-    if any("isNew" in r for r in rows):
-        metric["isNewShare"] = sum(1 for r in rows if r.get("isNew")) / len(rows)
+    # Fração de isNew (GA-1) só entre as linhas com valor: null (baseline nulo, linha
+    # anterior à 029) não é "não novo". Sem nenhum valor, a métrica não aparece.
+    known_new = [r["isNew"] for r in rows if r.get("isNew") is not None]
+    if known_new:
+        metric["isNewShare"] = sum(1 for v in known_new if v) / len(known_new)
 
     last_txt = last.strftime("%d/%m/%Y %H:%M UTC")
     if age_hours > RANKING_DEAD_DAYS * 24:
