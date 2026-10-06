@@ -1,0 +1,171 @@
+{
+  "app": "readability_dashboard",
+  "state": "xss",
+  "description": "DEV — dados fictícios: nomes de agência com HTML e </script>",
+  "toolName": "gobus_get_readability_recommendations",
+  "toolInput": {
+    "days": 90,
+    "limit": 10,
+    "date_to": "2026-06-30"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Ranking de Legibilidade — 02/04/2026–30/06/2026 (90 dias)\n\n| # | Agência | Flesch | Nível | Artigos (com Flesch) | Gap até 50 |\n|---|---------|--------|-------|----------------------|------------|\n| 1 | Agência Brasil (republicadora) | 33.6 | difícil | 909 (909) | -16.4 |\n| 2 | <img src=x onerror=alert(1)> | 27.1 | difícil | 129 (129) | -22.9 |\n| 3 | </script><script>alert(2)</script> | 12.1 | muito difícil | 99 (99) | -37.9 |\n\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._"
+      }
+    ],
+    "structuredContent": {
+      "summary": "# Ranking de Legibilidade — 02/04/2026–30/06/2026 (90 dias)\n\n| # | Agência | Flesch | Nível | Artigos (com Flesch) | Gap até 50 |\n|---|---------|--------|-------|----------------------|------------|\n| 1 | Agência Brasil (republicadora) | 33.6 | difícil | 909 (909) | -16.4 |\n| 2 | <img src=x onerror=alert(1)> | 27.1 | difícil | 129 (129) | -22.9 |\n| 3 | </script><script>alert(2)</script> | 12.1 | muito difícil | 99 (99) | -37.9 |\n\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._",
+      "schemaVersion": 1,
+      "kind": "gobus.readability",
+      "tool": "gobus_get_readability_recommendations",
+      "status": "ok",
+      "generatedAt": "2026-10-05T12:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "agency_key": null,
+        "days": 90,
+        "limit": 10,
+        "date_to": "2026-06-30"
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": null,
+        "resumedAgencies": null
+      },
+      "dataStatus": [
+        {
+          "key": "readability",
+          "status": "ok",
+          "since": null,
+          "message": "Legibilidade (Flesch): ok — 100% dos artigos com valor (1137 de 1137)",
+          "metric": {
+            "coveredArticles": 1137,
+            "totalArticles": 1137,
+            "ratio": 1.0
+          }
+        }
+      ],
+      "notices": [],
+      "mode": "ranking",
+      "error": null,
+      "scale": "flesch_en_textstat",
+      "bands": [
+        {
+          "key": "very_hard",
+          "label": "muito difícil",
+          "lower": 0.0,
+          "upper": 25.0
+        },
+        {
+          "key": "hard",
+          "label": "difícil",
+          "lower": 25.0,
+          "upper": 50.0
+        },
+        {
+          "key": "medium",
+          "label": "médio",
+          "lower": 50.0,
+          "upper": 75.0
+        },
+        {
+          "key": "easy",
+          "label": "fácil",
+          "lower": 75.0,
+          "upper": 100.0
+        }
+      ],
+      "targetService": 50.0,
+      "targetInstitutional": 30.0,
+      "requestedWindow": {
+        "start": "2026-04-02",
+        "end": "2026-06-30",
+        "days": 90
+      },
+      "effectiveWindow": {
+        "start": "2026-04-02",
+        "end": "2026-06-30",
+        "days": 90
+      },
+      "windowShifted": false,
+      "windowNote": null,
+      "coverage": {
+        "periodsTotal": 3,
+        "periodsWithData": 3,
+        "articlesTotal": 1137,
+        "articlesInPeriodsWithData": 1137,
+        "lastPeriodWithData": "2026-06-01 00:00:00+00"
+      },
+      "agencies": [
+        {
+          "agencyKey": "agencia_brasil",
+          "agencyName": "Agência Brasil",
+          "isRepublisher": true,
+          "articleCount": 909,
+          "articlesWithData": 909,
+          "flesch": 33.61,
+          "fleschRaw": 33.61,
+          "band": "hard",
+          "bandLabel": "difícil",
+          "gapToTarget": -16.39,
+          "avgWordCount": 434.0
+        },
+        {
+          "agencyKey": "xss-img",
+          "agencyName": "<img src=x onerror=alert(1)>",
+          "isRepublisher": false,
+          "articleCount": 129,
+          "articlesWithData": 129,
+          "flesch": 27.07,
+          "fleschRaw": 27.07,
+          "band": "hard",
+          "bandLabel": "difícil",
+          "gapToTarget": -22.93,
+          "avgWordCount": 500.0
+        },
+        {
+          "agencyKey": "xss-script",
+          "agencyName": "</script><script>alert(2)</script>",
+          "isRepublisher": false,
+          "articleCount": 99,
+          "articlesWithData": 99,
+          "flesch": 12.09,
+          "fleschRaw": 12.09,
+          "band": "very_hard",
+          "bandLabel": "muito difícil",
+          "gapToTarget": -37.91,
+          "avgWordCount": 610.0
+        }
+      ],
+      "agenciesWithoutData": [],
+      "benchmark": {
+        "agencyKey": "agencia_brasil",
+        "agencyName": "Agência Brasil",
+        "isRepublisher": true,
+        "articleCount": 909,
+        "articlesWithData": 909,
+        "flesch": 33.61,
+        "fleschRaw": 33.61,
+        "band": "hard",
+        "bandLabel": "difícil",
+        "gapToTarget": -16.39,
+        "avgWordCount": 434.0
+      },
+      "agency": null,
+      "sampleSize": null,
+      "sampleFound": null,
+      "worstArticle": null,
+      "bestArticle": null,
+      "recommendations": []
+    },
+    "isError": false
+  },
+  "toolCalls": []
+}

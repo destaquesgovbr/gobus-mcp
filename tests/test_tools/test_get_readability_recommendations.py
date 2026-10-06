@@ -1,6 +1,7 @@
 """gobus_get_readability_recommendations: ranking e diagnóstico null-aware, janela efetiva,
 amostra via ``articles`` (nunca ``search``) e payload pydantic separado do Markdown."""
 
+import json
 from datetime import datetime
 
 from gobus_mcp.calendario import BRT
@@ -11,6 +12,7 @@ from gobus_mcp.tools.get_readability_recommendations import (
     render_readability_markdown,
 )
 from tests.conftest import route_catalog
+from tests.fixtures.ui.build import readability_rows, route_readability
 
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=BRT)
 REQ_FROM, REQ_TO = "2026-07-07", "2026-10-04"  # closed_window(90) em 05/10
@@ -261,3 +263,32 @@ async def test_payload_serializa_em_camel_case_e_summary_e_o_markdown(fake_clien
     assert data["scale"] == "flesch_en_textstat"
     assert [b["key"] for b in data["bands"]] == ["very_hard", "hard", "medium", "easy"]
     assert ReadabilityReport.model_validate(data) == report
+
+
+async def test_pior_caso_cabe_no_orcamento_do_payload_e_conta_as_omitidas(fake_client):
+    # 60 agências com nome longo, limit=50: sem corte, o structuredContent passaria de 20 KB
+    agencies = [("agencia_brasil", True, "Agência Brasil")] + [
+        (f"agencia-{i:02d}", False, f"Ministério do Desenvolvimento Regional e Integração {i:02d}")
+        for i in range(60)
+    ]
+    base = {
+        code: (100 + i, None if i % 7 == 0 else (i * 3.3) % 110 - 20, 500.0)
+        for i, (code, _, _) in enumerate(agencies)
+    }
+    names = {code: name for code, _, name in agencies}
+    route_readability(fake_client, readability_rows(base, names=names), agencies=agencies)
+
+    report = await build_readability_payload(
+        fake_client, days=90, limit=50, date_to="2026-06-30", now=NOW
+    )
+
+    data = report.model_dump(mode="json")
+    assert len(json.dumps(data, ensure_ascii=False).encode()) <= 20_000
+    assert len(report.summary.encode()) <= 6 * 1024
+    assert report.omitted_with_data > 0 or report.omitted_without_data > 0
+    # nada some sem conta: as 50 agências mais ativas (topAgencies) estão no payload ou
+    # contadas como omitidas
+    kept = len(report.agencies) + len(report.agencies_without_data)
+    assert kept + report.omitted_with_data + report.omitted_without_data == 50
+    flesch = [row.flesch for row in report.agencies]
+    assert flesch == sorted(flesch, reverse=True)  # o corte é pela cauda do ranking

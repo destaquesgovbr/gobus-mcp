@@ -1,0 +1,281 @@
+{
+  "app": "readability_dashboard",
+  "state": "unavailable",
+  "description": "DEV — dados fictícios: nenhum Flesch no histórico consultado",
+  "toolName": "gobus_get_readability_recommendations",
+  "toolInput": {
+    "days": 90,
+    "limit": 10
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Ranking de Legibilidade — 07/07/2026–04/10/2026 (90 dias)\n\n> **Legibilidade indisponível:** sem dados de legibilidade no histórico consultado.\n> Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)\n\n**Sem dado de legibilidade na janela (12):** Agência Brasil (0 artigos), Controladoria-Geral da União (0 artigos), Ministério da Defesa (0 artigos), Ministério da Ciência, Tecnologia e Inovação (0 artigos), Ministério do Desenvolvimento e Assistência Social (0 artigos), Ministério da Educação (0 artigos), Ministério do Meio Ambiente e Mudança do Clima (0 artigos), Polícia Federal (0 artigos), Ministério da Saúde (0 artigos), Secretaria de Comunicação Social (0 artigos), Ministério do Trabalho e Emprego (0 artigos), TV Brasil (0 artigos)\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._"
+      }
+    ],
+    "structuredContent": {
+      "summary": "# Ranking de Legibilidade — 07/07/2026–04/10/2026 (90 dias)\n\n> **Legibilidade indisponível:** sem dados de legibilidade no histórico consultado.\n> Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)\n\n**Sem dado de legibilidade na janela (12):** Agência Brasil (0 artigos), Controladoria-Geral da União (0 artigos), Ministério da Defesa (0 artigos), Ministério da Ciência, Tecnologia e Inovação (0 artigos), Ministério do Desenvolvimento e Assistência Social (0 artigos), Ministério da Educação (0 artigos), Ministério do Meio Ambiente e Mudança do Clima (0 artigos), Polícia Federal (0 artigos), Ministério da Saúde (0 artigos), Secretaria de Comunicação Social (0 artigos), Ministério do Trabalho e Emprego (0 artigos), TV Brasil (0 artigos)\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._",
+      "schemaVersion": 1,
+      "kind": "gobus.readability",
+      "tool": "gobus_get_readability_recommendations",
+      "status": "unavailable",
+      "generatedAt": "2026-10-05T12:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "agency_key": null,
+        "days": 90,
+        "limit": 10,
+        "date_to": null
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": null,
+        "resumedAgencies": null
+      },
+      "dataStatus": [
+        {
+          "key": "readability",
+          "status": "unavailable",
+          "since": "2026-06-30",
+          "message": "Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)",
+          "metric": {
+            "coveredArticles": 0,
+            "totalArticles": 0,
+            "ratio": null
+          }
+        }
+      ],
+      "notices": [
+        {
+          "code": "READABILITY_UNAVAILABLE",
+          "severity": "error",
+          "message": "Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)",
+          "since": "2026-06-30",
+          "affects": [
+            "readability"
+          ]
+        }
+      ],
+      "mode": "ranking",
+      "error": null,
+      "scale": "flesch_en_textstat",
+      "bands": [
+        {
+          "key": "very_hard",
+          "label": "muito difícil",
+          "lower": 0.0,
+          "upper": 25.0
+        },
+        {
+          "key": "hard",
+          "label": "difícil",
+          "lower": 25.0,
+          "upper": 50.0
+        },
+        {
+          "key": "medium",
+          "label": "médio",
+          "lower": 50.0,
+          "upper": 75.0
+        },
+        {
+          "key": "easy",
+          "label": "fácil",
+          "lower": 75.0,
+          "upper": 100.0
+        }
+      ],
+      "targetService": 50.0,
+      "targetInstitutional": 30.0,
+      "requestedWindow": {
+        "start": "2026-07-07",
+        "end": "2026-10-04",
+        "days": 90
+      },
+      "effectiveWindow": null,
+      "windowShifted": false,
+      "windowNote": "sem dados de legibilidade no histórico consultado",
+      "coverage": {
+        "periodsTotal": 0,
+        "periodsWithData": 0,
+        "articlesTotal": 0,
+        "articlesInPeriodsWithData": 0,
+        "lastPeriodWithData": null
+      },
+      "agencies": [],
+      "agenciesWithoutData": [
+        {
+          "agencyKey": "agencia_brasil",
+          "agencyName": "Agência Brasil",
+          "isRepublisher": true,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "cgu",
+          "agencyName": "Controladoria-Geral da União",
+          "isRepublisher": false,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "defesa",
+          "agencyName": "Ministério da Defesa",
+          "isRepublisher": false,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "mcti",
+          "agencyName": "Ministério da Ciência, Tecnologia e Inovação",
+          "isRepublisher": false,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "mds",
+          "agencyName": "Ministério do Desenvolvimento e Assistência Social",
+          "isRepublisher": false,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "mec",
+          "agencyName": "Ministério da Educação",
+          "isRepublisher": false,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "mma",
+          "agencyName": "Ministério do Meio Ambiente e Mudança do Clima",
+          "isRepublisher": false,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "pf",
+          "agencyName": "Polícia Federal",
+          "isRepublisher": false,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "saude",
+          "agencyName": "Ministério da Saúde",
+          "isRepublisher": false,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "secom",
+          "agencyName": "Secretaria de Comunicação Social",
+          "isRepublisher": false,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "trabalho-e-emprego",
+          "agencyName": "Ministério do Trabalho e Emprego",
+          "isRepublisher": false,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "tvbrasil",
+          "agencyName": "TV Brasil",
+          "isRepublisher": true,
+          "articleCount": 0,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        }
+      ],
+      "benchmark": null,
+      "agency": null,
+      "sampleSize": null,
+      "sampleFound": null,
+      "worstArticle": null,
+      "bestArticle": null,
+      "recommendations": []
+    },
+    "isError": false
+  },
+  "toolCalls": []
+}

@@ -1,7 +1,9 @@
 """Servidor MCP em memória (fastmcp.Client): registro das tools e formato da resposta.
 
-Toda tool é ``-> str`` sem ``outputSchema``: o host recebe o Markdown cru em ``content``
-e nenhum ``structuredContent`` (antes, o fastmcp 3.4 embrulhava em ``{"result": …}``).
+Toda tool fica sem ``outputSchema``. As tools sem app são ``-> str``: o host recebe o
+Markdown cru em ``content`` e nenhum ``structuredContent`` (antes, o fastmcp 3.4 embrulhava
+em ``{"result": …}``). As tools de MCP App (``APP_TOOLS``) devolvem ``summary`` + payload:
+o formato delas é coberto por ``test_apps_wire.py``.
 """
 
 import pytest
@@ -13,6 +15,7 @@ from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.cache import TTLCache
 from tests.conftest import FakeGraphQLClient
 from tests.fixtures.g2 import route_g2
+from tests.test_server.test_apps_wire import APP_TOOLS
 
 TOOL_ARGS = {
     "gobus_search_news": {"query": "vacina"},
@@ -77,7 +80,10 @@ async def test_lista_13_tools_sem_output_schema_e_somente_leitura():
         assert tool.annotations.readOnlyHint is True, tool.name
 
 
-@pytest.mark.parametrize(("name", "args"), list(TOOL_ARGS.items()), ids=list(TOOL_ARGS))
+TEXT_TOOLS = {name: args for name, args in TOOL_ARGS.items() if name not in APP_TOOLS}
+
+
+@pytest.mark.parametrize(("name", "args"), list(TEXT_TOOLS.items()), ids=list(TEXT_TOOLS))
 async def test_call_tool_devolve_markdown_sem_structured_content(deps, name, args):
     async with Client(server.mcp) as client:
         result = await client.call_tool_mcp(name, args)

@@ -1,0 +1,584 @@
+{
+  "app": "readability_dashboard",
+  "state": "shifted",
+  "description": "DEV — dados fictícios: janela pedida (jul–out) sem Flesch: janela efetiva até 06/2026",
+  "toolName": "gobus_get_readability_recommendations",
+  "toolInput": {
+    "days": 90,
+    "limit": 10
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Ranking de Legibilidade — 07/07/2026–04/10/2026 (90 dias)\n\n> **Janela efetiva:** 02/04/2026–30/06/2026 (90 dias) — dados até 06/2026. A janela pedida não tem Flesch até o fim.\n> Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)\n\n| # | Agência | Flesch | Nível | Artigos (com Flesch) | Gap até 50 |\n|---|---------|--------|-------|----------------------|------------|\n| 1 | Polícia Federal | 52.4 | médio | 153 (153) | +2.4 |\n| 2 | Secretaria de Comunicação Social | 41.2 | difícil | 165 (165) | -8.8 |\n| 3 | Ministério do Trabalho e Emprego | 39.0 | difícil | 114 (114) | -11.0 |\n| 4 | Agência Brasil (republicadora) | 33.6 | difícil | 939 (939) | -16.4 |\n| 5 | Ministério da Educação | 28.4 | difícil | 189 (189) | -21.6 |\n| 6 | Ministério do Meio Ambiente e Mudança do Clima | 24.6 | muito difícil | 93 (93) | -25.4 |\n| 7 | Ministério da Ciência, Tecnologia e Inovação | 19.9 | muito difícil | 87 (87) | -30.1 |\n| 8 | Ministério da Saúde | 13.7 | muito difícil | 294 (294) | -36.3 |\n| 9 | Controladoria-Geral da União | 0.1 (bruto -1.1) | muito difícil | 129 (129) | -49.9 |\n| 10 | Ministério da Defesa | 0.0 (bruto -22.9) | muito difícil | 207 (207) | -50.0 |\n\n**Sem dado de legibilidade na janela (2):** Ministério do Desenvolvimento e Assistência Social (99 artigos), TV Brasil (84 artigos)\n\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._"
+      }
+    ],
+    "structuredContent": {
+      "summary": "# Ranking de Legibilidade — 07/07/2026–04/10/2026 (90 dias)\n\n> **Janela efetiva:** 02/04/2026–30/06/2026 (90 dias) — dados até 06/2026. A janela pedida não tem Flesch até o fim.\n> Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)\n\n| # | Agência | Flesch | Nível | Artigos (com Flesch) | Gap até 50 |\n|---|---------|--------|-------|----------------------|------------|\n| 1 | Polícia Federal | 52.4 | médio | 153 (153) | +2.4 |\n| 2 | Secretaria de Comunicação Social | 41.2 | difícil | 165 (165) | -8.8 |\n| 3 | Ministério do Trabalho e Emprego | 39.0 | difícil | 114 (114) | -11.0 |\n| 4 | Agência Brasil (republicadora) | 33.6 | difícil | 939 (939) | -16.4 |\n| 5 | Ministério da Educação | 28.4 | difícil | 189 (189) | -21.6 |\n| 6 | Ministério do Meio Ambiente e Mudança do Clima | 24.6 | muito difícil | 93 (93) | -25.4 |\n| 7 | Ministério da Ciência, Tecnologia e Inovação | 19.9 | muito difícil | 87 (87) | -30.1 |\n| 8 | Ministério da Saúde | 13.7 | muito difícil | 294 (294) | -36.3 |\n| 9 | Controladoria-Geral da União | 0.1 (bruto -1.1) | muito difícil | 129 (129) | -49.9 |\n| 10 | Ministério da Defesa | 0.0 (bruto -22.9) | muito difícil | 207 (207) | -50.0 |\n\n**Sem dado de legibilidade na janela (2):** Ministério do Desenvolvimento e Assistência Social (99 artigos), TV Brasil (84 artigos)\n\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._",
+      "schemaVersion": 1,
+      "kind": "gobus.readability",
+      "tool": "gobus_get_readability_recommendations",
+      "status": "partial",
+      "generatedAt": "2026-10-05T12:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "agency_key": null,
+        "days": 90,
+        "limit": 10,
+        "date_to": null
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": null,
+        "resumedAgencies": null
+      },
+      "dataStatus": [
+        {
+          "key": "readability",
+          "status": "unavailable",
+          "since": "2026-06-30",
+          "message": "Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)",
+          "metric": {
+            "coveredArticles": 0,
+            "totalArticles": 0,
+            "ratio": null
+          }
+        }
+      ],
+      "notices": [
+        {
+          "code": "READABILITY_UNAVAILABLE",
+          "severity": "error",
+          "message": "Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)",
+          "since": "2026-06-30",
+          "affects": [
+            "readability"
+          ]
+        }
+      ],
+      "mode": "ranking",
+      "error": null,
+      "scale": "flesch_en_textstat",
+      "bands": [
+        {
+          "key": "very_hard",
+          "label": "muito difícil",
+          "lower": 0.0,
+          "upper": 25.0
+        },
+        {
+          "key": "hard",
+          "label": "difícil",
+          "lower": 25.0,
+          "upper": 50.0
+        },
+        {
+          "key": "medium",
+          "label": "médio",
+          "lower": 50.0,
+          "upper": 75.0
+        },
+        {
+          "key": "easy",
+          "label": "fácil",
+          "lower": 75.0,
+          "upper": 100.0
+        }
+      ],
+      "targetService": 50.0,
+      "targetInstitutional": 30.0,
+      "requestedWindow": {
+        "start": "2026-07-07",
+        "end": "2026-10-04",
+        "days": 90
+      },
+      "effectiveWindow": {
+        "start": "2026-04-02",
+        "end": "2026-06-30",
+        "days": 90
+      },
+      "windowShifted": true,
+      "windowNote": "dados até 06/2026",
+      "coverage": {
+        "periodsTotal": 0,
+        "periodsWithData": 0,
+        "articlesTotal": 0,
+        "articlesInPeriodsWithData": 0,
+        "lastPeriodWithData": "2026-06-01 00:00:00+00"
+      },
+      "agencies": [
+        {
+          "agencyKey": "pf",
+          "agencyName": "Polícia Federal",
+          "isRepublisher": false,
+          "articleCount": 153,
+          "articlesWithData": 153,
+          "flesch": 52.36,
+          "fleschRaw": 52.36,
+          "band": "medium",
+          "bandLabel": "médio",
+          "gapToTarget": 2.36,
+          "avgWordCount": 380.0
+        },
+        {
+          "agencyKey": "secom",
+          "agencyName": "Secretaria de Comunicação Social",
+          "isRepublisher": false,
+          "articleCount": 165,
+          "articlesWithData": 165,
+          "flesch": 41.25,
+          "fleschRaw": 41.25,
+          "band": "hard",
+          "bandLabel": "difícil",
+          "gapToTarget": -8.75,
+          "avgWordCount": 512.0
+        },
+        {
+          "agencyKey": "trabalho-e-emprego",
+          "agencyName": "Ministério do Trabalho e Emprego",
+          "isRepublisher": false,
+          "articleCount": 114,
+          "articlesWithData": 114,
+          "flesch": 38.98,
+          "fleschRaw": 38.98,
+          "band": "hard",
+          "bandLabel": "difícil",
+          "gapToTarget": -11.02,
+          "avgWordCount": 540.0
+        },
+        {
+          "agencyKey": "agencia_brasil",
+          "agencyName": "Agência Brasil",
+          "isRepublisher": true,
+          "articleCount": 939,
+          "articlesWithData": 939,
+          "flesch": 33.61,
+          "fleschRaw": 33.61,
+          "band": "hard",
+          "bandLabel": "difícil",
+          "gapToTarget": -16.39,
+          "avgWordCount": 434.0
+        },
+        {
+          "agencyKey": "mec",
+          "agencyName": "Ministério da Educação",
+          "isRepublisher": false,
+          "articleCount": 189,
+          "articlesWithData": 189,
+          "flesch": 28.45,
+          "fleschRaw": 28.45,
+          "band": "hard",
+          "bandLabel": "difícil",
+          "gapToTarget": -21.55,
+          "avgWordCount": 590.0
+        },
+        {
+          "agencyKey": "mma",
+          "agencyName": "Ministério do Meio Ambiente e Mudança do Clima",
+          "isRepublisher": false,
+          "articleCount": 93,
+          "articlesWithData": 93,
+          "flesch": 24.6,
+          "fleschRaw": 24.6,
+          "band": "very_hard",
+          "bandLabel": "muito difícil",
+          "gapToTarget": -25.4,
+          "avgWordCount": 610.0
+        },
+        {
+          "agencyKey": "mcti",
+          "agencyName": "Ministério da Ciência, Tecnologia e Inovação",
+          "isRepublisher": false,
+          "articleCount": 87,
+          "articlesWithData": 87,
+          "flesch": 19.9,
+          "fleschRaw": 19.9,
+          "band": "very_hard",
+          "bandLabel": "muito difícil",
+          "gapToTarget": -30.1,
+          "avgWordCount": 655.0
+        },
+        {
+          "agencyKey": "saude",
+          "agencyName": "Ministério da Saúde",
+          "isRepublisher": false,
+          "articleCount": 294,
+          "articlesWithData": 294,
+          "flesch": 13.73,
+          "fleschRaw": 13.73,
+          "band": "very_hard",
+          "bandLabel": "muito difícil",
+          "gapToTarget": -36.27,
+          "avgWordCount": 682.0
+        },
+        {
+          "agencyKey": "cgu",
+          "agencyName": "Controladoria-Geral da União",
+          "isRepublisher": false,
+          "articleCount": 129,
+          "articlesWithData": 129,
+          "flesch": 0.11,
+          "fleschRaw": -1.13,
+          "band": "very_hard",
+          "bandLabel": "muito difícil",
+          "gapToTarget": -49.89,
+          "avgWordCount": 620.0
+        },
+        {
+          "agencyKey": "defesa",
+          "agencyName": "Ministério da Defesa",
+          "isRepublisher": false,
+          "articleCount": 207,
+          "articlesWithData": 207,
+          "flesch": 0.0,
+          "fleschRaw": -22.86,
+          "band": "very_hard",
+          "bandLabel": "muito difícil",
+          "gapToTarget": -50.0,
+          "avgWordCount": 800.0
+        }
+      ],
+      "agenciesWithoutData": [
+        {
+          "agencyKey": "mds",
+          "agencyName": "Ministério do Desenvolvimento e Assistência Social",
+          "isRepublisher": false,
+          "articleCount": 99,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        },
+        {
+          "agencyKey": "tvbrasil",
+          "agencyName": "TV Brasil",
+          "isRepublisher": true,
+          "articleCount": 84,
+          "articlesWithData": 0,
+          "flesch": null,
+          "fleschRaw": null,
+          "band": null,
+          "bandLabel": null,
+          "gapToTarget": null,
+          "avgWordCount": null
+        }
+      ],
+      "benchmark": {
+        "agencyKey": "agencia_brasil",
+        "agencyName": "Agência Brasil",
+        "isRepublisher": true,
+        "articleCount": 939,
+        "articlesWithData": 939,
+        "flesch": 33.61,
+        "fleschRaw": 33.61,
+        "band": "hard",
+        "bandLabel": "difícil",
+        "gapToTarget": -16.39,
+        "avgWordCount": 434.0
+      },
+      "agency": null,
+      "sampleSize": null,
+      "sampleFound": null,
+      "worstArticle": null,
+      "bestArticle": null,
+      "recommendations": []
+    },
+    "isError": false
+  },
+  "toolCalls": [
+    {
+      "name": "gobus_get_readability_recommendations",
+      "arguments": {
+        "days": 90,
+        "limit": 10,
+        "date_to": "2026-06-30"
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "# Ranking de Legibilidade — 02/04/2026–30/06/2026 (90 dias)\n\n| # | Agência | Flesch | Nível | Artigos (com Flesch) | Gap até 50 |\n|---|---------|--------|-------|----------------------|------------|\n| 1 | Polícia Federal | 52.4 | médio | 153 (153) | +2.4 |\n| 2 | Secretaria de Comunicação Social | 41.2 | difícil | 165 (165) | -8.8 |\n| 3 | Ministério do Trabalho e Emprego | 39.0 | difícil | 114 (114) | -11.0 |\n| 4 | Agência Brasil (republicadora) | 33.6 | difícil | 939 (939) | -16.4 |\n| 5 | Ministério da Educação | 28.4 | difícil | 189 (189) | -21.6 |\n| 6 | Ministério do Meio Ambiente e Mudança do Clima | 24.6 | muito difícil | 93 (93) | -25.4 |\n| 7 | Ministério da Ciência, Tecnologia e Inovação | 19.9 | muito difícil | 87 (87) | -30.1 |\n| 8 | Ministério da Saúde | 13.7 | muito difícil | 294 (294) | -36.3 |\n| 9 | Controladoria-Geral da União | 0.1 (bruto -1.1) | muito difícil | 129 (129) | -49.9 |\n| 10 | Ministério da Defesa | 0.0 (bruto -22.9) | muito difícil | 207 (207) | -50.0 |\n\n**Sem dado de legibilidade na janela (2):** Ministério do Desenvolvimento e Assistência Social (99 artigos), TV Brasil (84 artigos)\n\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._"
+          }
+        ],
+        "structuredContent": {
+          "summary": "# Ranking de Legibilidade — 02/04/2026–30/06/2026 (90 dias)\n\n| # | Agência | Flesch | Nível | Artigos (com Flesch) | Gap até 50 |\n|---|---------|--------|-------|----------------------|------------|\n| 1 | Polícia Federal | 52.4 | médio | 153 (153) | +2.4 |\n| 2 | Secretaria de Comunicação Social | 41.2 | difícil | 165 (165) | -8.8 |\n| 3 | Ministério do Trabalho e Emprego | 39.0 | difícil | 114 (114) | -11.0 |\n| 4 | Agência Brasil (republicadora) | 33.6 | difícil | 939 (939) | -16.4 |\n| 5 | Ministério da Educação | 28.4 | difícil | 189 (189) | -21.6 |\n| 6 | Ministério do Meio Ambiente e Mudança do Clima | 24.6 | muito difícil | 93 (93) | -25.4 |\n| 7 | Ministério da Ciência, Tecnologia e Inovação | 19.9 | muito difícil | 87 (87) | -30.1 |\n| 8 | Ministério da Saúde | 13.7 | muito difícil | 294 (294) | -36.3 |\n| 9 | Controladoria-Geral da União | 0.1 (bruto -1.1) | muito difícil | 129 (129) | -49.9 |\n| 10 | Ministério da Defesa | 0.0 (bruto -22.9) | muito difícil | 207 (207) | -50.0 |\n\n**Sem dado de legibilidade na janela (2):** Ministério do Desenvolvimento e Assistência Social (99 artigos), TV Brasil (84 artigos)\n\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._",
+          "schemaVersion": 1,
+          "kind": "gobus.readability",
+          "tool": "gobus_get_readability_recommendations",
+          "status": "ok",
+          "generatedAt": "2026-10-05T12:00:00-03:00",
+          "referenceDate": "2026-10-05",
+          "params": {
+            "agency_key": null,
+            "days": 90,
+            "limit": 10,
+            "date_to": "2026-06-30"
+          },
+          "calendar": {
+            "phase": "blackout",
+            "label": "Defeso eleitoral 2026",
+            "blackoutStart": "2026-07-04",
+            "blackoutEnd": "2026-10-25",
+            "recoveryUntil": "2026-11-29",
+            "daysToEnd": 20,
+            "silencedAgencies": null,
+            "resumedAgencies": null
+          },
+          "dataStatus": [
+            {
+              "key": "readability",
+              "status": "ok",
+              "since": null,
+              "message": "Legibilidade (Flesch): ok — 93% dos artigos com valor (2370 de 2553)",
+              "metric": {
+                "coveredArticles": 2370,
+                "totalArticles": 2553,
+                "ratio": 0.9283196239717979
+              }
+            }
+          ],
+          "notices": [],
+          "mode": "ranking",
+          "error": null,
+          "scale": "flesch_en_textstat",
+          "bands": [
+            {
+              "key": "very_hard",
+              "label": "muito difícil",
+              "lower": 0.0,
+              "upper": 25.0
+            },
+            {
+              "key": "hard",
+              "label": "difícil",
+              "lower": 25.0,
+              "upper": 50.0
+            },
+            {
+              "key": "medium",
+              "label": "médio",
+              "lower": 50.0,
+              "upper": 75.0
+            },
+            {
+              "key": "easy",
+              "label": "fácil",
+              "lower": 75.0,
+              "upper": 100.0
+            }
+          ],
+          "targetService": 50.0,
+          "targetInstitutional": 30.0,
+          "requestedWindow": {
+            "start": "2026-04-02",
+            "end": "2026-06-30",
+            "days": 90
+          },
+          "effectiveWindow": {
+            "start": "2026-04-02",
+            "end": "2026-06-30",
+            "days": 90
+          },
+          "windowShifted": false,
+          "windowNote": null,
+          "coverage": {
+            "periodsTotal": 3,
+            "periodsWithData": 3,
+            "articlesTotal": 2553,
+            "articlesInPeriodsWithData": 2553,
+            "lastPeriodWithData": "2026-06-01 00:00:00+00"
+          },
+          "agencies": [
+            {
+              "agencyKey": "pf",
+              "agencyName": "Polícia Federal",
+              "isRepublisher": false,
+              "articleCount": 153,
+              "articlesWithData": 153,
+              "flesch": 52.36,
+              "fleschRaw": 52.36,
+              "band": "medium",
+              "bandLabel": "médio",
+              "gapToTarget": 2.36,
+              "avgWordCount": 380.0
+            },
+            {
+              "agencyKey": "secom",
+              "agencyName": "Secretaria de Comunicação Social",
+              "isRepublisher": false,
+              "articleCount": 165,
+              "articlesWithData": 165,
+              "flesch": 41.25,
+              "fleschRaw": 41.25,
+              "band": "hard",
+              "bandLabel": "difícil",
+              "gapToTarget": -8.75,
+              "avgWordCount": 512.0
+            },
+            {
+              "agencyKey": "trabalho-e-emprego",
+              "agencyName": "Ministério do Trabalho e Emprego",
+              "isRepublisher": false,
+              "articleCount": 114,
+              "articlesWithData": 114,
+              "flesch": 38.98,
+              "fleschRaw": 38.98,
+              "band": "hard",
+              "bandLabel": "difícil",
+              "gapToTarget": -11.02,
+              "avgWordCount": 540.0
+            },
+            {
+              "agencyKey": "agencia_brasil",
+              "agencyName": "Agência Brasil",
+              "isRepublisher": true,
+              "articleCount": 939,
+              "articlesWithData": 939,
+              "flesch": 33.61,
+              "fleschRaw": 33.61,
+              "band": "hard",
+              "bandLabel": "difícil",
+              "gapToTarget": -16.39,
+              "avgWordCount": 434.0
+            },
+            {
+              "agencyKey": "mec",
+              "agencyName": "Ministério da Educação",
+              "isRepublisher": false,
+              "articleCount": 189,
+              "articlesWithData": 189,
+              "flesch": 28.45,
+              "fleschRaw": 28.45,
+              "band": "hard",
+              "bandLabel": "difícil",
+              "gapToTarget": -21.55,
+              "avgWordCount": 590.0
+            },
+            {
+              "agencyKey": "mma",
+              "agencyName": "Ministério do Meio Ambiente e Mudança do Clima",
+              "isRepublisher": false,
+              "articleCount": 93,
+              "articlesWithData": 93,
+              "flesch": 24.6,
+              "fleschRaw": 24.6,
+              "band": "very_hard",
+              "bandLabel": "muito difícil",
+              "gapToTarget": -25.4,
+              "avgWordCount": 610.0
+            },
+            {
+              "agencyKey": "mcti",
+              "agencyName": "Ministério da Ciência, Tecnologia e Inovação",
+              "isRepublisher": false,
+              "articleCount": 87,
+              "articlesWithData": 87,
+              "flesch": 19.9,
+              "fleschRaw": 19.9,
+              "band": "very_hard",
+              "bandLabel": "muito difícil",
+              "gapToTarget": -30.1,
+              "avgWordCount": 655.0
+            },
+            {
+              "agencyKey": "saude",
+              "agencyName": "Ministério da Saúde",
+              "isRepublisher": false,
+              "articleCount": 294,
+              "articlesWithData": 294,
+              "flesch": 13.73,
+              "fleschRaw": 13.73,
+              "band": "very_hard",
+              "bandLabel": "muito difícil",
+              "gapToTarget": -36.27,
+              "avgWordCount": 682.0
+            },
+            {
+              "agencyKey": "cgu",
+              "agencyName": "Controladoria-Geral da União",
+              "isRepublisher": false,
+              "articleCount": 129,
+              "articlesWithData": 129,
+              "flesch": 0.11,
+              "fleschRaw": -1.13,
+              "band": "very_hard",
+              "bandLabel": "muito difícil",
+              "gapToTarget": -49.89,
+              "avgWordCount": 620.0
+            },
+            {
+              "agencyKey": "defesa",
+              "agencyName": "Ministério da Defesa",
+              "isRepublisher": false,
+              "articleCount": 207,
+              "articlesWithData": 207,
+              "flesch": 0.0,
+              "fleschRaw": -22.86,
+              "band": "very_hard",
+              "bandLabel": "muito difícil",
+              "gapToTarget": -50.0,
+              "avgWordCount": 800.0
+            }
+          ],
+          "agenciesWithoutData": [
+            {
+              "agencyKey": "mds",
+              "agencyName": "Ministério do Desenvolvimento e Assistência Social",
+              "isRepublisher": false,
+              "articleCount": 99,
+              "articlesWithData": 0,
+              "flesch": null,
+              "fleschRaw": null,
+              "band": null,
+              "bandLabel": null,
+              "gapToTarget": null,
+              "avgWordCount": null
+            },
+            {
+              "agencyKey": "tvbrasil",
+              "agencyName": "TV Brasil",
+              "isRepublisher": true,
+              "articleCount": 84,
+              "articlesWithData": 0,
+              "flesch": null,
+              "fleschRaw": null,
+              "band": null,
+              "bandLabel": null,
+              "gapToTarget": null,
+              "avgWordCount": null
+            }
+          ],
+          "benchmark": {
+            "agencyKey": "agencia_brasil",
+            "agencyName": "Agência Brasil",
+            "isRepublisher": true,
+            "articleCount": 939,
+            "articlesWithData": 939,
+            "flesch": 33.61,
+            "fleschRaw": 33.61,
+            "band": "hard",
+            "bandLabel": "difícil",
+            "gapToTarget": -16.39,
+            "avgWordCount": 434.0
+          },
+          "agency": null,
+          "sampleSize": null,
+          "sampleFound": null,
+          "worstArticle": null,
+          "bestArticle": null,
+          "recommendations": []
+        },
+        "isError": false
+      }
+    }
+  ]
+}
