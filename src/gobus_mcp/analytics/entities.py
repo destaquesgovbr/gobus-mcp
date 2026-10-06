@@ -171,15 +171,18 @@ def coverage_stats(
     republishers: frozenset[str],
 ) -> CoverageStats:
     """Estatísticas das linhas ``entityCoverage(DAY)`` (``period`` em dias UTC).
-    Duplicatas ``(dia, agência)`` contam uma vez."""
+
+    Linhas da mesma ``(dia, agência)`` **somam**: o resolver agrupa por ``(period,
+    agency_key, agency_name)``, então uma agência com dois nomes vem em linhas com artigos
+    distintos. (O dedup por ``(period, agencyKey)`` só vale para o ``agencyAnalytics`` DAY,
+    cujas repetições vêm do CTE de nomes; ver ``agency_activity``.)"""
     by_day: dict[date, dict[str, int]] = {}
     for row in rows:
         agency, raw = row.get("agencyKey"), row.get("period")
         if not agency or not raw:
             continue
         per_day = by_day.setdefault(period_start(raw), {})
-        if agency not in per_day:
-            per_day[agency] = int(row.get("articleCount") or 0)
+        per_day[agency] = per_day.get(agency, 0) + int(row.get("articleCount") or 0)
 
     in_window = _sum_by_agency(by_day, window, republishers)
     window_count = sum(in_window.values())
