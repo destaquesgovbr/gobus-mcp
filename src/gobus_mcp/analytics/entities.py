@@ -27,7 +27,11 @@ contra ``sens.silence_ratio``); zero sem menções próprias na janela e em
 ``calendar_explained`` (explicado não é anomalia); abaixo de ``min_count`` artigos,
 proporcional ao volume (``× w/min_count``); ``burst`` e ``new_entity`` no máximo na faixa
 ``watch`` (``SEVERITY_WATCH_MAX``): rajada é pontual e entidade nova não tem baseline, então
-a razão (81× no caso Censo) não sustenta "alerta".
+a razão (81× no caso Censo) não sustenta "alerta"; o mesmo teto vale para
+``concentrated_coverage`` (flag ``thin_baseline``) e ``normal`` com baseline abaixo de
+``min_count`` artigos (1 artigo no baseline e 5 na janela já dão 12×). O silêncio
+coordenado não entra nessa regra: já exige baseline da dona ≥ 3 e a severidade vem do
+``silence_score``.
 
 O ``volumeRatio`` do upstream só é repassado ao payload; nunca decide nada aqui.
 """
@@ -426,6 +430,12 @@ def classify_entity(
     # Censo: 81×) sem ser tendência sustentada. Ficam no máximo em "atenção".
     if kind in ("burst", "new_entity"):
         sev = min(sev, SEVERITY_WATCH_MAX)
+    # Baseline abaixo do volume mínimo é o mesmo artefato de contagem pequena que o bc=0
+    # (1 artigo no baseline e 5 na janela dão 12× com Laplace): no máximo "atenção".
+    elif kind in ("concentrated_coverage", "normal") and bc < sens.min_count:
+        sev = min(sev, SEVERITY_WATCH_MAX)
+        if kind == "concentrated_coverage":
+            flags.append("thin_baseline")
 
     def _r(value: float | None) -> float | None:
         return None if value is None else round(value, 3)

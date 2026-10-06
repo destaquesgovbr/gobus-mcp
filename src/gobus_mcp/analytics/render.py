@@ -42,6 +42,7 @@ FLAG_PT = {
     "resumed_agencies": "inclui agências retomadas",
     "owner_activity_unknown": "atividade da dona desconhecida",
     "republishers_excluded": "republicadoras excluídas",
+    "thin_baseline": "baseline pequeno",
 }
 
 
@@ -200,8 +201,8 @@ _METHODOLOGY_ANOMALIES = [
     "Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura "
     "concentrada → normal.",
     "- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele "
-    "(atenção a partir de 0,33; alerta a partir de 0,66). Rajadas e entidades novas ficam "
-    "no máximo em atenção.",
+    "(atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e "
+    "cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção.",
 ]
 
 
