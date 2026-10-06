@@ -361,10 +361,11 @@ async def gobus_get_policy_lifecycle(
 ) -> str:
     """Ciclo de vida comunicacional de uma política pública no portal Gov.BR.
 
-    Analisa a série temporal de cobertura mensal para identificar fases:
-    ANNOUNCED (pico de lançamento), IMPLEMENTATION (sustentação), ROUTINE (queda).
-    Identifica as agências dominantes por fase (âncoras narrativos) e apresenta
-    artigos representativos do período de maior cobertura.
+    Analisa a série mensal de cobertura (somando as agências de cada mês; meses sem
+    artigos entram com 0) para identificar fases: ANNOUNCED (mês de pico),
+    IMPLEMENTATION (≥40% do pico) e ROUTINE (abaixo disso). Identifica as agências
+    dominantes por mês e por fase (âncoras narrativos) e apresenta artigos publicados
+    no mês de pico.
 
     Parâmetros:
     - policy_name: Nome ou alias da política (ex: "Pé-de-Meia", "Bolsa Família")
