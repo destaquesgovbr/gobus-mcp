@@ -216,3 +216,14 @@ def test_anomalias_entidade_sem_mencoes_proprias_nao_mostra_razao():
     line = next(x for x in md.splitlines() if "Caminhos da Reportagem" in x)
     assert "sem menções próprias" in line
     assert "razão" not in line
+
+
+def test_anomalias_linha_normal_sem_severidade_nem_faixa():
+    # "normal" é ausência de padrão anômalo: a faixa "alerta" na seção de normais confunde
+    growing = entity_signal(
+        name="Operação Carga Pesada", kind="normal", ratio=10.0, severity=0.8, band="alert"
+    )
+    md = render_anomalies_markdown(anomaly_report(entity_signals=[growing]))
+    line = next(x for x in md.splitlines() if "Operação Carga Pesada" in x)
+    assert "razão 10,0×" in line
+    assert "severidade" not in line and "alerta" not in line
