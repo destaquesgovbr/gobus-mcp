@@ -192,3 +192,27 @@ def test_forecast_fora_do_defeso_sem_linha_de_calendario():
     md = render_forecast_markdown(report)
     assert "defeso" not in md.split("### Metodologia")[0].lower()
     assert len(md.encode()) <= SUMMARY_MAX_BYTES
+
+
+def test_anomalias_entidade_sem_mencoes_proprias_nao_mostra_razao():
+    # w = b = 0 (só republicadoras): a razão de Laplace (4×) não mede nada
+    ghost = entity_signal(
+        name="Caminhos da Reportagem",
+        kind="normal",
+        window_count=0,
+        baseline_count=0,
+        window_agencies=0,
+        distinct_days=0,
+        max_day_share=0.0,
+        ratio=4.0,
+        owner=None,
+        owner_window_count=None,
+        owner_activity_ratio=None,
+        severity=0.0,
+        band="normal",
+        flags=["republishers_excluded"],
+    )
+    md = render_anomalies_markdown(anomaly_report(entity_signals=[ghost]))
+    line = next(x for x in md.splitlines() if "Caminhos da Reportagem" in x)
+    assert "sem menções próprias" in line
+    assert "razão" not in line

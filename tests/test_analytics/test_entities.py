@@ -457,3 +457,41 @@ def test_explicado_pelo_calendario_tem_severidade_zero():
     assert (blackout.kind, recovery.kind) == ("calendar_explained", "calendar_explained")
     assert blackout.severity == 0.0
     assert recovery.severity == 0.0
+
+
+# ── volume mínimo da sensibilidade (min_count) ──────────────────────────────
+
+
+def test_cobertura_concentrada_exige_o_volume_minimo():
+    # 3 artigos em 2 agências e 3 dias, razão 8×: abaixo de min_count (5) não é sinal
+    w = entity_windows(NORMAL_DAY)
+    days = list(w.window)
+    rows = (
+        _cov("saude", {days[0]: 1, days[2]: 1})
+        + _cov("mec", {days[4]: 1})
+        + _cov("saude", {w.baseline.start: 1})
+    )
+    a = classify(_stats(rows), _owner("cgu"), activity=1.0)
+    assert a.ratio >= MEDIUM.ratio
+    assert a.kind == "normal"
+
+
+def test_silencio_coordenado_exige_o_volume_minimo_das_outras_agencias():
+    w = entity_windows(NORMAL_DAY)
+    few = _stats(_silence_rows(w, others_w=4, others_b=2))  # outras: 4 artigos na janela
+    enough = _stats(_silence_rows(w, others_w=6, others_b=2))
+    assert classify(few, _owner(), activity=0.9).kind != "coordinated_silence"
+    assert classify(enough, _owner(), activity=0.9).kind == "coordinated_silence"
+
+
+def test_severidade_proporcional_ao_volume_abaixo_do_minimo():
+    # 1 artigo é "rajada" por definição (100% num dia), mas não é alerta
+    w = entity_windows(NORMAL_DAY)
+    one = classify(
+        _stats(_cov("saude", {w.window.start: 1}) + _cov("saude", {w.baseline.start: 1}))
+    )
+    two_new = classify(_stats(_cov("mec", {w.window.start: 1, w.window.end: 1})))
+    assert one.kind == "burst"
+    assert one.severity == pytest.approx(0.2)  # 1,0 × 1/5
+    assert two_new.kind == "new_entity"
+    assert two_new.severity == pytest.approx(0.4)  # 1,0 × 2/5
