@@ -1,4 +1,6 @@
+from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.client import GobusGraphQLClient
+from gobus_mcp.readability import describe_flesch
 
 _ARTICLE_QUERY = """
 query GetArticle($uniqueId: String!) {
@@ -30,15 +32,23 @@ query GetArticle($uniqueId: String!) {
 """
 
 
-async def get_article(unique_id: str, client: GobusGraphQLClient) -> str:
+async def get_article(
+    unique_id: str,
+    client: GobusGraphQLClient,
+    *,
+    catalog: AgencyCatalog | None = None,
+) -> str:
     """Retorna conteúdo completo de um artigo pelo ID único.
 
     Args:
         unique_id: ID único do artigo (ex: obtido via search_news)
+        catalog: catálogo de agências (nome humano da agência)
 
     Returns:
         Markdown com artigo completo incluindo features e entidades mencionadas.
+        Métricas nulas aparecem como "indisponível" (nunca 0); Flesch na faixa única.
     """
+    catalog = catalog or AgencyCatalog(client)
     data = await client.execute(_ARTICLE_QUERY, {"uniqueId": unique_id})
     art = data.get("article")
     if not art:
@@ -47,7 +57,7 @@ async def get_article(unique_id: str, client: GobusGraphQLClient) -> str:
     pub_at = (art.get("publishedAt") or "")[:10]
     tags = ", ".join(art.get("tags") or [])
     agency_code = art.get("agency") or ""
-    agency_name = art.get("agencyName") or ""
+    agency_name = await catalog.display_name(agency_code, art.get("agencyName"))
     if agency_code and agency_name:
         agency_str = f"[{agency_code}] {agency_name}"
     elif agency_code:
@@ -69,12 +79,12 @@ async def get_article(unique_id: str, client: GobusGraphQLClient) -> str:
         vc = features.get("viewCount")
         ts = features.get("trendingScore")
         meta_parts = []
-        if wc:
-            read_min = round(wc / 200)
+        if wc is not None:
+            read_min = max(1, round(wc / 200))
             meta_parts.append(f"⏱ {read_min} min leitura ({wc} palavras)")
-        if flesch:
-            nivel = "fácil" if flesch > 70 else ("médio" if flesch > 50 else "difícil")
-            meta_parts.append(f"📖 Legibilidade: {nivel} ({flesch:.0f})")
+        else:
+            meta_parts.append("⏱ Tamanho: indisponível")
+        meta_parts.append(f"📖 Legibilidade: {describe_flesch(flesch)}")
         if vc:
             meta_parts.append(f"👁 {vc:,} visualizações")
         if ts and ts > 1.0:

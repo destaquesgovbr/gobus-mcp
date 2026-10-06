@@ -143,7 +143,8 @@ async def gobus_get_article(unique_id: str) -> str:
     Restrições: Não use para descoberta — primeiro busque com gobus_search_news,
     depois use este tool para ler os artigos de interesse.
     """
-    return await get_article(unique_id, get_deps().client)
+    deps = get_deps()
+    return await get_article(unique_id, deps.client, catalog=deps.catalog)
 
 
 @mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
@@ -238,13 +239,17 @@ async def gobus_get_agency_analytics(
     - date_to: Data de fim ISO (ex: "2024-12-31")
     - granularity: Agrupamento temporal — "DAY", "WEEK" ou "MONTH" (default "MONTH")
 
-    Retorna: Markdown com tabela de métricas por período: artigos publicados,
-    sentimento médio, % positivo e índice de legibilidade Flesch.
+    Retorna: Markdown com métricas por período: artigos publicados, sentimento médio,
+    % positivo e índice de legibilidade Flesch (faixa única 0/25/50/75, limitado a 0–100).
+    Métrica sem dado aparece como "indisponível" (nunca 0), com aviso no topo.
 
     Dica de paralelismo: Execute em paralelo com gobus_search_news para a mesma agência.
     Para overview rápido sem granularidade, prefira gobus_get_agency_summary.
     """
-    return await get_agency_analytics(agencies, date_from, date_to, get_deps().client, granularity)
+    deps = get_deps()
+    return await get_agency_analytics(
+        agencies, date_from, date_to, deps.client, granularity, catalog=deps.catalog
+    )
 
 
 @mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
