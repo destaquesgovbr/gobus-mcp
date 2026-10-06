@@ -100,7 +100,7 @@ async def test_flesch_e_sentimento_nulos_ficam_indisponiveis(fake_client):
     assert "**Legibilidade:** indisponível" in result
     assert "**Sentimento:** indisponível" in result
     assert "0.0" not in result
-    assert "0%" not in result
+    assert "0% positivos" not in result  # o 0.0 do pctPositive sem dado é artefato
 
 
 async def test_sem_temas_com_cobertura_baixa_avisa(fake_client):

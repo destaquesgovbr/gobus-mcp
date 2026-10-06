@@ -305,13 +305,16 @@ async def gobus_get_agency_summary(agency_key: str, days: int = 30) -> str:
     - agency_key: chave da agência (ex: "saude", "mec") — ver gobus://agencies
     - days: janela em dias (default 30)
 
-    Retorna: Markdown com volume total de artigos, índice de legibilidade e
-    temas em alta com links para artigos representativos.
+    Retorna: Markdown com volume total de artigos, índice de legibilidade, sentimento
+    e temas em alta (razão ≥ 1.5× sem sobreposição, últimos 7 dias) com artigos
+    representativos. Métrica sem dado aparece como "indisponível" (nunca 0). Chave de
+    agência inválida devolve sugestões (ex: "trabalho" → "trabalho-e-emprego").
 
     Restrições: Não substitui gobus_get_agency_analytics quando precisar de
     granularidade por dia/semana ou comparar múltiplas agências.
     """
-    return await get_agency_summary(agency_key, get_deps().client, days)
+    deps = get_deps()
+    return await get_agency_summary(agency_key, deps.client, days, catalog=deps.catalog)
 
 
 @mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
