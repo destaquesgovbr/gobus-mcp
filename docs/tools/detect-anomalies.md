@@ -22,7 +22,7 @@ Limiares por sensibilidade:
 Markdown com:
 
 - **Cabeçalho das janelas.** Entidades: janela **fechada** de 7 dias até ontem 23:59 (America/Sao_Paulo; as contagens vêm em dias UTC da API) contra o baseline. Temas: janelas **móveis** de 3 e 7 dias até o instante da consulta (UTC).
-- **Calendário:** fase (defeso de 04/07 a 25/10/2026, recuperação até 29/11), dias restantes, agências silenciadas ou retomadas.
+- **Calendário:** fase (defeso de 04/07 a 25/10/2026, recuperação até 29/11), dias restantes, agências silenciadas (no defeso) ou retomadas depois do defeso (na recuperação).
 - **Avisos de dados** (ver abaixo).
 - Seções `### Picos Sustentados`, `### Quedas Sustentadas`, `### Silêncio Coordenado`, `### Cobertura Concentrada`, `### Explicado pelo Calendário`, `### Rajadas e Entidades Novas`, `### Tendências Normais` e `### Metodologia`.
 
@@ -39,7 +39,7 @@ Cada sinal traz a razão, o volume, a severidade de 0 a 1 com a faixa (normal, a
 > - 31 de 50 linhas do ranking de entidades com baseline zero (piso antigo) descartadas como candidatas; …
 
 ### Cobertura Concentrada
-- **Centro Integrado de Comando e Controle Nacional (CICCN)** (ORG, Outros) · 5 artigos/7d em 2 agência(s) e 3 dia(s) · razão 12,0× · severidade 1,00 (alerta) · confiança média
+- **Centro Integrado de Comando e Controle Nacional (CICCN)** (ORG, Outros) · 5 artigos/7d em 2 agência(s) e 3 dia(s) · razão 12,0× · severidade 0,65 (atenção) · confiança média · _baseline pequeno_
 ```
 
 ## Algoritmo
@@ -55,17 +55,18 @@ Cada sinal traz a razão, o volume, a severidade de 0 a 1 com a faixa (normal, a
 
 - **Candidatos:** `trendingEntities(limit:50)`, só a última execução (`computedAt`) e sem as linhas do piso antigo (`volumeRatio / windowCount ≥ 100`, baseline zero). As linhas descartadas geram `BASELINE_ZERO_SUPPRESSED`. Execuções misturadas ou linhas legadas deixam o ranking `degraded` (`TRENDING_ENTITIES_STALE`). Até 30 candidatos, por `trendingScore`.
 - **Recálculo por candidato:** `entity` (dona por `agencyKey`) + `entityCoverage(DAY)` + `policyDetails` (domínio), com no máximo 8 consultas em voo e cache de 30 min. O `volumeRatio` do upstream só vai para o payload (`upstreamVolumeRatio`), **nunca** para o Markdown nem para a decisão.
-- **Janelas:** janela `[D−7, D−1]` e baseline de 28 dias antes dela. Na recuperação (26/10 a 29/11), o baseline são os 28 dias antes do defeso (06/06 a 03/07), como o D2 do upstream. As contagens excluem as **republicadoras** (Agência Brasil, TV Brasil e afins). Razões com Laplace: baseline zero não explode.
+- **Janelas:** janela `[D−7, D−1]` e baseline de 28 dias antes dela. Na recuperação (26/10 a 29/11), o baseline são os 28 dias antes do defeso (06/06 a 03/07), como o D2 do upstream. As contagens excluem as **republicadoras** (Agência Brasil, TV Brasil e afins). Razões com Laplace: baseline zero não explode. Linhas do `entityCoverage` da mesma agência no mesmo dia **somam**: o resolver agrupa também pelo nome da agência, então uma agência com dois nomes vem em linhas com artigos distintos.
 - **Dona:** `entity.agencyKey` ou, sem ele, a agência dominante em `[D−90, D−8]` sem republicadoras (fatia ≥ 0,3 e ≥ 3 artigos).
 - **Classes**, em ordem de precedência:
   1. `burst`: ≥ 80% das menções da janela num único dia (caso Censo: 57 de 60);
   2. `new_entity`: nenhuma menção no baseline;
-  3. `calendar_explained`: no defeso, dona silenciada (≥ 14 dias sem publicar) ou com produção < 0,2× do baseline. Na recuperação, ≥ 50% da janela vem de agências retomadas **e** o sinal não se sustenta sem elas; se se sustentar, segue com a flag `resumed_agencies`;
+  3. `calendar_explained`: no defeso, dona silenciada (≥ 14 dias sem publicar) ou com produção < 0,2× do baseline. Na recuperação, ≥ 50% da janela vem de agências retomadas **depois do defeso** (caladas ≥ 14 dias até o último dia do defeso, 25/10, e de volta depois) **e** o sinal não se sustenta sem elas; se se sustentar, segue com a flag `resumed_agencies`. Agência esporádica, que "voltou" de um silêncio dentro do defeso, não conta;
   4. `coordinated_silence`: as outras agências sobem (razão ≥ limiar do silêncio e ≥ volume mínimo), a dona some (0 menções ou ≤ 25% do próprio normal), mas segue ativa no geral (≥ 0,5× da própria produção) e tinha ≥ 3 menções no baseline;
   5. `concentrated_coverage`: razão ≥ limiar, ≥ volume mínimo, menos agências que o limite e ≥ 2 dias distintos;
   6. `normal`.
 - Garantia: baseline zero **nunca** vira silêncio coordenado nem cobertura concentrada (vira entidade nova).
 - **Severidade** (0–1): 1/3 no limiar e 2/3 no quadrado dele (faixas: atenção a partir de 0,33, alerta a partir de 0,66). No silêncio coordenado, conta o `silence_score`. Vale zero sem menções próprias e em `calendar_explained`. Abaixo do volume mínimo, é proporcional ao volume.
+- **Teto de atenção (0,65):** rajadas e entidades novas nunca passam de atenção (rajada é pontual; entidade nova não tem baseline; o caso Censo dá 81×). Cobertura concentrada (e tendência normal) com baseline abaixo do volume mínimo da sensibilidade também não, com a flag `thin_baseline` ("baseline pequeno"): com Laplace, 1 artigo no baseline e 5 na janela já dão 12×.
 - **Confiança:** pelo volume da janela; cai um nível na recuperação e quando a atividade da dona é desconhecida.
 
 ### Domínios
@@ -92,5 +93,6 @@ Cada sinal traz a razão, o volume, a severidade de 0 a 1 com a faixa (normal, a
 - As janelas de tema são móveis em UTC (o `range:{days}` do Typesense) e as de entidade são fechadas em BRT com contagens por dia UTC. Os dois blocos não se comparam dia a dia.
 - O ranking upstream limita os candidatos a 50 e é recalculado 2×/dia. Uma anomalia fora do top-50 não aparece.
 - O mapa agência → domínio é curado e parcial: agências sem mapa caem em `OTHER`.
+- Na recuperação, picos de **tema** não são atribuídos às agências retomadas: o rebaixamento por `_THEME_AGENCY_SHARE_QUERY` do desenho ficou adiado até os temas voltarem (verificação C.4; sem tema desde 26/09 não havia o que atribuir). Esses picos aparecem com o aviso `POST_BLACKOUT_RECOVERY` e confiança reduzida em um nível.
 - O `entity.agencyKey` do registro de entidades pode apontar uma dona improvável. Ele é usado como veio.
 - Orçamento de latência: p50 ≤ 2 s com cache quente e ≤ 6 s a frio, dominado pelo snapshot de atividade das 156 agências (cache de 6 h).

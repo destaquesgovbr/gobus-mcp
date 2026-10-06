@@ -26,12 +26,12 @@ Saúde das fontes de dados que alimentam as tools, em **JSON**. Use antes de int
                      "message": "Indexação (Typesense): indisponível — 71 de 172 artigos de 05–06/10 (UTC) no Typesense (41%); faltam 101",
                      "metric": {"indexed": 71, "stored": 172, "missing": 101, "ratio": 0.413}},
     "agency_activity": {"key": "agency_activity", "status": "ok",
-                        "message": "Atividade das agências: ok — 156 agências de 06/06/2026 a 04/10/2026; 45 sem publicar há ≥14 dias; 17 retomadas",
-                        "metric": {"agencies": 156, "silenced": 45, "resumed": 17, "days": 121}}
+                        "message": "Atividade das agências: ok — 156 agências de 06/06/2026 a 04/10/2026; 45 sem publicar há ≥14 dias; 17 retomadas (0 depois do defeso)",
+                        "metric": {"agencies": 156, "silenced": 45, "resumed": 17, "resumedAfterBlackout": 0, "days": 121}}
   },
   "agencyActivity": {
     "silenced": [{"key": "gestao", "name": "Ministério da Gestão e da Inovação em Serviços Públicos", "silentSince": "2026-07-04", "lastActive": "2026-07-03"}, "…"],
-    "resumed": [{"key": "…", "name": "…", "resumedOn": "2026-09-30"}, "…"]
+    "resumed": [{"key": "…", "name": "…", "resumedOn": "2026-09-30", "afterBlackout": false}, "…"]
   },
   "notices": [{"code": "THEMES_UNCLASSIFIED", "severity": "error", "message": "…", "since": "2026-09-26", "affects": ["themes"]}]
 }
@@ -46,10 +46,10 @@ Status por fonte: `ok | degraded | unavailable`; `status` geral = o pior. A dete
 | `themes` | Σ `topThemes` ÷ `analyticsKpis.total`, últimos 7 dias | < 50% classificados | < 80% |
 | `readability` | fração de artigos (5 agências mais ativas, 7 dias fechados) em linhas com `avgReadabilityFlesch` — **nulo não conta como dado** | < 10% | < 80% |
 | `sentiment_analytics` | fração com `avgSentimentScore` não nulo; `pctPositive` (fração 0..1) só como métrica, porque vem 0.0 sem dado | < 10% | < 80% |
-| `entity_ranking` | `trendingEntities(50)`: linhas no piso antigo (`volumeRatio/windowCount ≥ 100`), execuções misturadas (`computedAt` espalhado), idade da última execução | vazio ou última execução > 7 dias | linhas legadas, execuções misturadas ou idade > 13 h |
+| `entity_ranking` | `trendingEntities(50)`: linhas no piso antigo (`volumeRatio/windowCount ≥ 100`), execuções misturadas (`computedAt` espalhado), idade da última execução. Com o GA-1, `metric.isNewShare` = fração de `isNew` entre as linhas com valor (`isNew` nulo, de linha gravada antes da migração 029, não conta como "não novo"; sem nenhum valor, a métrica não aparece) | vazio ou última execução > 7 dias | linhas legadas, execuções misturadas ou idade > 13 h |
 | `indexing_lag` | artigos do dia D (UTC) no Typesense (`articles{found}`) ÷ artigos do mesmo dia no Postgres (soma do `agencyAnalytics` DAY de todas as agências, sem duplicatas). Com menos de 20 artigos em D (começo do dia UTC), a amostra vira D−1..D. Faltar até 5 artigos não conta como atraso | < 50% indexados | < 90% |
-| `agency_activity` | snapshot `agencyAnalytics` DAY das 156 agências (D−90 a D−1; no defeso e na recuperação, desde 28 dias antes do defeso), cache de 6 h. Lista as **silenciadas** (≥ 14 dias sem publicar até D−1) e as **retomadas** (voltaram depois de um silêncio de ≥ 14 dias, nos últimos 35 dias) no bloco `agencyActivity` | falha da consulta (`agencyActivity: null`) | — |
+| `agency_activity` | snapshot `agencyAnalytics` DAY das 156 agências (D−90 a D−1; no defeso e na recuperação, desde 28 dias antes do defeso), cache de 6 h. Lista as **silenciadas** (≥ 14 dias sem publicar até D−1) e as **retomadas** (voltaram depois de um silêncio de ≥ 14 dias, nos últimos 35 dias) no bloco `agencyActivity`. A lista de retomadas é genérica (inclui agência esporádica e volta dentro do defeso); `afterBlackout: true` marca as que estavam caladas no último dia do defeso e voltaram depois dele | falha da consulta (`agencyActivity: null`) | — |
 
 Cada fonte não-ok vira um aviso em `notices` (`THEMES_UNCLASSIFIED`, `READABILITY_UNAVAILABLE`, `SENTIMENT_UNAVAILABLE`, `TRENDING_ENTITIES_STALE`, `INDEXING_LAG`). Uma consulta que falha deixa só a sua chave `unavailable`, com o erro na mensagem.
 
-O atraso de indexação é medido no dia D, e não em D−1, porque o sync diário completa D−1 e esconderia o tempo real parado. O `calendar` traz `silencedAgencies` e `resumedAgencies` do snapshot de atividade, que é o mesmo cache usado por `gobus_detect_anomalies` e `gobus_forecast_trends`.
+O atraso de indexação é medido no dia D, e não em D−1, porque o sync diário completa D−1 e esconderia o tempo real parado. O `calendar` traz `silencedAgencies` e `resumedAgencies` do snapshot de atividade, que é o mesmo cache usado por `gobus_detect_anomalies` e `gobus_forecast_trends`. `resumedAgencies` conta só as retomadas **depois do defeso** (`afterBlackout`), as mesmas que explicam sinais de entidade na recuperação; fora da recuperação vale 0.
