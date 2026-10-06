@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 import gobus_mcp
-from gobus_mcp.ui import MAX_HTML_BYTES, AppAssetError, assemble_app, render_app
+from gobus_mcp.ui import APPS, MAX_HTML_BYTES, AppAssetError, assemble_app, render_app
 
 COMMON_ASSETS = ["_base.html", "_tokens.css", "_bridge.js", "_dom.js", "_svg.js"]
 PYPROJECT = Path(__file__).parents[2] / "pyproject.toml"
@@ -186,3 +186,40 @@ def test_teto_de_60_kb():
 def test_render_app_de_app_desconhecido():
     with pytest.raises(KeyError):
         render_app("nao_existe")
+
+
+# ── apps registrados ────────────────────────────────────────────────────────
+
+# app → (URI estável, tool, kind do payload)
+EXPECTED_APPS = {
+    "readability_dashboard": (
+        "ui://readability-dashboard",
+        "gobus_get_readability_recommendations",
+        "gobus.readability",
+    ),
+    "article_scorecard": ("ui://article-scorecard", "gobus_score_article", "gobus.scorecard"),
+    "anomaly_radar": ("ui://anomaly-radar", "gobus_detect_anomalies", "gobus.anomalies"),
+}
+
+
+@pytest.mark.parametrize("name", list(EXPECTED_APPS))
+def test_app_registrado_com_uri_tool_e_kind(name):
+    spec = APPS[name]
+    assert (spec.uri, spec.tool, spec.kind) == EXPECTED_APPS[name]
+
+
+@pytest.mark.parametrize("name", list(EXPECTED_APPS))
+def test_app_renderiza_dentro_do_orcamento_com_o_proprio_kind(name):
+    html = render_app(name)
+
+    assert len(html.encode()) <= MAX_HTML_BYTES
+    assert f'"gobus-{name.replace("_", "-")}"' in html  # appInfo.name
+    assert f'kind: "{EXPECTED_APPS[name][2]}"' in html  # o app recusa outro kind
+
+
+def test_rotulos_das_flags_do_markdown_tambem_no_radar():
+    from gobus_mcp.analytics.render import FLAG_PT
+
+    js = (files("gobus_mcp.ui") / "assets" / "anomaly_radar.js").read_text()
+    for label in FLAG_PT.values():
+        assert label in js, label

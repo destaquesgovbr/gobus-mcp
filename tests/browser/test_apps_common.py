@@ -15,6 +15,7 @@ pytestmark = [pytest.mark.ui, pytest.mark.asyncio(loop_scope="session")]
 APPS = {
     "readability_dashboard": "ok",
     "article_scorecard": "scored",
+    "anomaly_radar": "ok",
 }
 
 

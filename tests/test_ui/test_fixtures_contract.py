@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from gobus_mcp.analytics.render import fit_summary
+from gobus_mcp.payloads.anomalies import AnomalyReport
 from gobus_mcp.payloads.readability import ReadabilityReport
 from gobus_mcp.payloads.scorecard import ScoreReport
 from tests.fixtures.ui.build import FIXTURES_DIR, build_all, dumps
@@ -13,6 +15,7 @@ from tests.fixtures.ui.build import FIXTURES_DIR, build_all, dumps
 MODELS = {
     "gobus.readability": ReadabilityReport,
     "gobus.scorecard": ScoreReport,
+    "gobus.anomalies": AnomalyReport,
 }
 FILES = sorted(FIXTURES_DIR.glob("*/*.json"))
 
@@ -36,7 +39,9 @@ def test_fixture_valida_no_pydantic_e_cabe_no_orcamento(path: Path):
         sc = result["structuredContent"]
         assert result["isError"] is False
         assert next(iter(sc)) == "summary"
-        assert result["content"] == [{"type": "text", "text": sc["summary"]}]
+        (block,) = result["content"]
+        assert block["type"] == "text"
+        assert sc["summary"] == fit_summary(block["text"])  # content = Markdown completo
         assert len(sc["summary"].encode()) <= 6 * 1024
         assert len(json.dumps(sc, ensure_ascii=False).encode()) <= 20_000
         MODELS[sc["kind"]].model_validate(sc)

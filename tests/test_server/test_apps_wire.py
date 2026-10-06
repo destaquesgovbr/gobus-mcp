@@ -4,8 +4,10 @@
   chave legada ``_meta["ui/resourceUri"]``; nenhuma tem ``outputSchema``;
 - ``resources/list`` e ``resources/read``: MIME ``text/html;profile=mcp-app``,
   ``prefersBorder``, HTML estático (o handshake está no JS) e **zero** chamadas GraphQL;
-- ``tools/call``: ``content`` = ``summary`` (≤ 6 KB, primeiro campo do
-  ``structuredContent``), payload válido no pydantic e ≤ 20 KB;
+- ``tools/call``: ``content`` = o Markdown completo e ``summary`` = o mesmo texto até 6 KB
+  (primeiro campo do ``structuredContent``; idênticos quando cabe), payload válido no
+  pydantic e ≤ 20 KB;
+- os radares degradam por bloco: GraphQL fora do ar dá ``status: unavailable``, não erro;
 - a extensão ``io.modelcontextprotocol/ui`` é anunciada.
 """
 
@@ -16,10 +18,21 @@ from fastmcp import Client
 
 from gobus_mcp import server
 from gobus_mcp.agency_catalog import AgencyCatalog
+from gobus_mcp.analytics.render import fit_summary
 from gobus_mcp.client import GobusGraphQLError
+from gobus_mcp.payloads.anomalies import AnomalyReport
 from gobus_mcp.payloads.readability import ReadabilityReport
 from gobus_mcp.payloads.scorecard import ScoreReport
 from tests.conftest import FakeGraphQLClient
+from tests.fixtures.g2 import (
+    ACTIVITY_0510,
+    NOW_0510,
+    many_candidates,
+    route_g2,
+    scenario_0510,
+    theme_ranges_0510,
+    trending_rows_0510,
+)
 from tests.fixtures.ui.build import (
     READABILITY_BASE,
     readability_articles,
@@ -37,11 +50,23 @@ HTML_MAX = 60 * 1024
 APP_TOOLS = {
     "gobus_get_readability_recommendations": ("ui://readability-dashboard", ReadabilityReport),
     "gobus_score_article": ("ui://article-scorecard", ScoreReport),
+    "gobus_detect_anomalies": ("ui://anomaly-radar", AnomalyReport),
 }
+# tools de app cujo builder propaga a falha da GraphQL (os radares degradam por bloco)
+RAISING_TOOLS = ("gobus_get_readability_recommendations", "gobus_score_article")
 
 
 def _route_readability(client):
     route_readability(client, readability_rows(READABILITY_BASE), articles=readability_articles())
+
+
+def _route_anomalies(client):
+    rows, contexts = scenario_0510()
+    route_g2(client, trending=rows, contexts=contexts, activity=ACTIVITY_0510)
+
+
+def _route_anomalies_0510(client):
+    route_g2(client, themes=theme_ranges_0510(), trending=trending_rows_0510())
 
 
 # cenários de chamada: (argumentos, rotas do fake)
@@ -62,6 +87,11 @@ APP_CALLS = {
         ),
         ({"unique_id": "pf-operacao-outubro"}, route_score),
     ],
+    "gobus_detect_anomalies": [
+        ({}, _route_anomalies),
+        ({"sensitivity": "high", "domain_filter": "saude"}, _route_anomalies),
+        ({}, _route_anomalies_0510),
+    ],
 }
 CALL_CASES = [
     pytest.param(name, args, route, id=f"{name}-{i}")
@@ -75,6 +105,8 @@ def deps(monkeypatch):
     fake = FakeGraphQLClient()
     container = server.Deps(client=fake, catalog=AgencyCatalog(fake))
     monkeypatch.setattr(server, "_deps", container)
+    # relógio dos radares no dia dos cenários do G2 (as janelas dependem de "agora")
+    monkeypatch.setattr("gobus_mcp.tools.detect_anomalies.now_brt", lambda: NOW_0510)
     return container
 
 
@@ -151,7 +183,7 @@ async def test_call_tool_devolve_summary_e_payload_valido(deps, name, args, rout
     sc = result.structuredContent
     (block,) = result.content
     assert block.type == "text"
-    assert block.text == sc["summary"]
+    assert sc["summary"] == fit_summary(block.text)  # idênticos quando cabe em 6 KB
     assert next(iter(sc)) == "summary"  # o Claude Code mostra o structuredContent
     assert len(sc["summary"].encode()) <= SUMMARY_MAX
     assert len(json.dumps(sc, ensure_ascii=False).encode()) <= PAYLOAD_MAX
@@ -161,7 +193,7 @@ async def test_call_tool_devolve_summary_e_payload_valido(deps, name, args, rout
     assert sc["schemaVersion"] == 1 and sc["tool"] == name
 
 
-@pytest.mark.parametrize("name", list(APP_TOOLS))
+@pytest.mark.parametrize("name", RAISING_TOOLS)
 async def test_call_tool_com_graphql_falhando_devolve_is_error(deps, name):
     deps.client.execute.side_effect = GobusGraphQLError([{"message": "graphql-api fora do ar"}])
     args = APP_CALLS[name][0][0]
@@ -197,3 +229,50 @@ async def test_servidor_anuncia_a_extensao_ui():
         capabilities = client.initialize_result.capabilities
 
     assert "io.modelcontextprotocol/ui" in (capabilities.extensions or {})
+
+
+# ── radares ─────────────────────────────────────────────────────────────────
+
+RADARS = [name for name in APP_TOOLS if name not in RAISING_TOOLS]
+
+
+@pytest.mark.parametrize("name", RADARS)
+async def test_radar_com_graphql_fora_do_ar_devolve_unavailable(deps, name):
+    deps.client.execute.side_effect = GobusGraphQLError([{"message": "graphql-api fora do ar"}])
+
+    async with Client(server.mcp) as client:
+        result = await client.call_tool_mcp(name, {})
+
+    assert result.isError is False
+    sc = result.structuredContent
+    assert sc["status"] == "unavailable"
+    _, model = APP_TOOLS[name]
+    model.model_validate(sc)
+    assert "fora do ar" in result.content[0].text
+
+
+async def test_detect_anomalies_com_30_candidatos_content_completo_e_payload_compacto(deps):
+    rows, contexts = many_candidates()
+    route_g2(deps.client, trending=rows, contexts=contexts, activity=ACTIVITY_0510)
+
+    async with Client(server.mcp) as client:
+        result = await client.call_tool_mcp("gobus_detect_anomalies", {})
+
+    content = result.content[0].text
+    sc = result.structuredContent
+    assert "truncado" not in content and "### Metodologia" in content
+    assert len(content.encode()) > SUMMARY_MAX  # o Markdown inteiro passa de 6 KB
+    assert sc["summary"] == fit_summary(content)
+    assert len(sc["summary"].encode()) <= SUMMARY_MAX
+    assert len(json.dumps(sc, ensure_ascii=False).encode()) <= PAYLOAD_MAX
+    assert sum(sc["entities"]["omitted"].values()) == 30 - len(sc["entities"]["signals"])
+
+
+async def test_detect_anomalies_com_parametro_invalido_devolve_so_texto(deps):
+    async with Client(server.mcp) as client:
+        result = await client.call_tool_mcp("gobus_detect_anomalies", {"sensitivity": "maxima"})
+
+    assert result.isError is False
+    assert result.structuredContent is None  # o app mostra o texto com as opções
+    assert "inválido" in result.content[0].text
+    assert deps.client.execute.await_count == 0

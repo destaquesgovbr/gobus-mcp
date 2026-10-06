@@ -27,10 +27,21 @@ from pathlib import Path
 
 from gobus_mcp import ui
 from gobus_mcp.calendario import BRT
+from gobus_mcp.client import GobusGraphQLError
 from gobus_mcp.readability import period_range
 from gobus_mcp.tools.get_readability_recommendations import build_readability_payload
 from gobus_mcp.tools.score_article import build_score_payload
 from tests.conftest import CATALOG_AGENCIES, FakeGraphQLClient, route_catalog
+from tests.fixtures.g2 import (
+    ACTIVITY_0510,
+    NOW_0510,
+    many_candidates,
+    ranges_from_daily,
+    route_g2,
+    scenario_0510,
+    theme_ranges_0510,
+    trending_rows_0510,
+)
 
 FIXTURES_DIR = Path(__file__).parent
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=BRT)
@@ -450,11 +461,180 @@ async def scorecard_fixtures() -> dict[str, dict]:
     }
 
 
+# ── anomaly radar ───────────────────────────────────────────────────────────
+
+ANOMALY_TOOL = "gobus_detect_anomalies"
+RECOVERY_NOW = datetime(2026, 11, 3, 12, 0, tzinfo=BRT)
+
+
+def flat_theme_ranges() -> dict[int, dict]:
+    """Temas 95% classificados e estáveis: nenhum pico nem queda."""
+    rates = {"Saúde": 20, "Educação": 15, "Economia e Finanças": 25, "Cultura": 6}
+
+    def total(i: int) -> int:
+        return round(sum(rates.values()) / 0.95)
+
+    return ranges_from_daily(lambda label, i: rates[label], total, list(rates))
+
+
+def xss_theme_ranges() -> dict[int, dict]:
+    """Temas com HTML no rótulo: um pico e uma queda sustentados."""
+    rates = {
+        XSS_IMG: lambda i: 40 if i < 3 else 30 if i < 7 else 10,
+        XSS_SCRIPT: lambda i: 4 if i < 3 else 8 if i < 7 else 15,
+        "Economia e Finanças": lambda i: 25,
+    }
+
+    def total(i: int) -> int:
+        return round(sum(f(i) for f in rates.values()) / 0.95)
+
+    return ranges_from_daily(lambda label, i: rates[label](i), total, list(rates))
+
+
+def route_anomaly_scenario(
+    client: FakeGraphQLClient, *, names: dict[str, str] | None = None, **overrides
+) -> FakeGraphQLClient:
+    """Cenário de 05/10 do G2 (rajada, entidade nova, concentrada, silêncio, calendário e
+    normais) com temas saudáveis; ``names`` troca o nome canônico de entidades."""
+    rows, contexts = scenario_0510()
+    for entity_id, name in (names or {}).items():
+        rows = [{**r, "canonicalName": name} if r["entityId"] == entity_id else r for r in rows]
+        ctx = contexts[entity_id]
+        contexts[entity_id] = {**ctx, "entity": {**ctx["entity"], "canonicalName": name}}
+    params = {"trending": rows, "contexts": contexts, "activity": ACTIVITY_0510}
+    params.update(overrides)
+    return route_g2(client, **params)
+
+
+def route_graphql_down(client: FakeGraphQLClient) -> FakeGraphQLClient:
+    """Toda consulta falha (a graphql-api fora do ar)."""
+    client.execute.side_effect = GobusGraphQLError([{"message": "graphql-api fora do ar"}])
+    return client
+
+
+async def _anomalies(client: FakeGraphQLClient, now: datetime = NOW_0510, **kwargs) -> dict:
+    from gobus_mcp.tools.detect_anomalies import build_anomaly_output
+
+    report, markdown = await build_anomaly_output(client, now=now, **kwargs)
+    return call_result(ui.app_result(report, content=markdown))
+
+
+def anomaly_args(sensitivity: str = "medium", domain_filter: str = "") -> dict:
+    """Argumentos do ``tools/call`` do app (``domain_filter`` só quando definido)."""
+    return {
+        "sensitivity": sensitivity,
+        **({"domain_filter": domain_filter} if domain_filter else {}),
+    }
+
+
+async def anomaly_fixtures() -> dict[str, dict]:
+    def scenario(**kw) -> FakeGraphQLClient:
+        return route_anomaly_scenario(FakeGraphQLClient(), **kw)
+
+    ok = await _anomalies(scenario())
+    high = await _anomalies(scenario(), sensitivity="high")
+    low = await _anomalies(scenario(), sensitivity="low")
+    health = await _anomalies(scenario(), domain_filter="HEALTH")
+    partial = await _anomalies(
+        route_g2(
+            FakeGraphQLClient(),
+            themes=theme_ranges_0510(),
+            trending=trending_rows_0510(),
+            activity=ACTIVITY_0510,
+        )
+    )
+    unavailable = await _anomalies(route_graphql_down(FakeGraphQLClient()))
+    rows, contexts = scenario_0510()
+    normal_only = {
+        "trending": [r for r in rows if r["entityId"] == "dgb_normal"],
+        "contexts": contexts,
+        "activity": ACTIVITY_0510,
+        "themes": flat_theme_ranges(),
+    }
+    quiet = await _anomalies(route_g2(FakeGraphQLClient(), **normal_only))
+    empty = await _anomalies(
+        route_g2(FakeGraphQLClient(), **normal_only), domain_filter="ENVIRONMENT"
+    )
+    recovery = await _anomalies(scenario(), now=RECOVERY_NOW)
+    xss = await _anomalies(
+        scenario(
+            names={"dgb_concentrada": XSS_IMG, "dgb_silencio": XSS_SCRIPT, "dgb_normal": XSS_IMG},
+            themes=xss_theme_ranges(),
+        )
+    )
+    many_rows, many_contexts = many_candidates()
+    max_ = await _anomalies(
+        route_g2(
+            FakeGraphQLClient(), trending=many_rows, contexts=many_contexts, activity=ACTIVITY_0510
+        )
+    )
+
+    def fixture(state, description, tool_input, result, tool_calls=()):
+        return {
+            "app": "anomaly_radar",
+            "state": state,
+            "description": f"{DEV_NOTE}: {description}",
+            "toolName": ANOMALY_TOOL,
+            "toolInput": tool_input,
+            "result": result,
+            "toolCalls": [
+                {"name": ANOMALY_TOOL, "arguments": args, "result": res} for args, res in tool_calls
+            ],
+        }
+
+    return {
+        "ok": fixture(
+            "ok",
+            "05/10 com temas saudáveis: pico e queda de tema, silêncio coordenado, concentrada, "
+            "rajada, entidade nova, explicado pelo calendário e normais",
+            {},
+            ok,
+            [
+                (anomaly_args("high"), high),
+                (anomaly_args("low"), low),
+                (anomaly_args("medium", "HEALTH"), health),
+                (anomaly_args("medium"), ok),
+            ],
+        ),
+        "partial": fixture(
+            "partial",
+            "estado medido em 05/10: temas sem classificação desde 26/09 e ranking só com "
+            "linhas do piso antigo (nenhum candidato)",
+            {},
+            partial,
+        ),
+        "unavailable": fixture("unavailable", "graphql-api fora do ar", {}, unavailable),
+        "quiet": fixture(
+            "quiet", "temas estáveis e uma entidade sem anomalia (status ok)", {}, quiet
+        ),
+        "empty": fixture(
+            "empty",
+            "domínio Meio ambiente sem nenhum sinal (status empty)",
+            anomaly_args("medium", "ENVIRONMENT"),
+            empty,
+        ),
+        "recovery": fixture(
+            "recovery",
+            "03/11/2026, recuperação pós-defeso: baselines pré-defeso e ranking envelhecido",
+            {},
+            recovery,
+        ),
+        "xss": fixture("xss", "nomes de entidade e rótulos de tema com HTML e </script>", {}, xss),
+        "max": fixture(
+            "max",
+            "30 candidatos com nomes longos: payload compactado (omitidos) e Markdown completo",
+            {},
+            max_,
+        ),
+    }
+
+
 # ── geração ─────────────────────────────────────────────────────────────────
 
 BUILDERS: dict[str, Callable[[], Awaitable[dict[str, dict]]]] = {
     "readability_dashboard": readability_fixtures,
     "article_scorecard": scorecard_fixtures,
+    "anomaly_radar": anomaly_fixtures,
 }
 
 

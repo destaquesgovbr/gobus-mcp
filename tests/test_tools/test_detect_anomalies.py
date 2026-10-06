@@ -10,6 +10,7 @@ import pytest
 
 from gobus_mcp.agency_activity import AgencyActivityService
 from gobus_mcp.agency_catalog import AgencyCatalog
+from gobus_mcp.analytics.render import fit_summary
 from gobus_mcp.cache import TTLCache
 from gobus_mcp.calendario import BRT
 from gobus_mcp.domains import Domain
@@ -460,7 +461,7 @@ async def test_fases_do_calendario_nas_fronteiras(fake_client, today, phase, cod
 # ── payload e orçamento ─────────────────────────────────────────────────────
 
 
-async def test_payload_valida_cabe_em_20kb_e_summary_e_o_markdown(fake_client):
+async def test_payload_valida_cabe_em_20kb_e_summary_e_o_markdown_ate_6kb(fake_client):
     rows, contexts = many_candidates()
     route_g2(fake_client, trending=rows, contexts=contexts, activity=ACTIVITY_0510)
 
@@ -470,8 +471,10 @@ async def test_payload_valida_cabe_em_20kb_e_summary_e_o_markdown(fake_client):
     assert report.entities.candidates == 30
     AnomalyReport.model_validate(report.model_dump(mode="json"))
     assert payload_size(report) <= MAX_PAYLOAD_BYTES
-    assert report.summary == markdown
-    assert len(markdown.encode()) <= 6_144
+    # a tool devolve o Markdown completo; o summary é o mesmo texto cortado em 6 KB
+    assert "truncado" not in markdown and "### Metodologia" in markdown
+    assert report.summary == fit_summary(markdown)
+    assert len(report.summary.encode()) <= 6_144
     assert [d.domain for d in report.domains] == list(Domain)
 
 
