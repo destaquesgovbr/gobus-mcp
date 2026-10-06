@@ -135,10 +135,10 @@ function appRender(sc, view) {
     ? domButton("Comparar", () => appCompare(view, sc, suggestions[0]), "action-compare", { title: suggestions[0].title })
     : null;
   const rewrite = bridgeCan("message") && sc.scoreStatus !== "refused"
-    ? domButton("Pedir reescrita", () => bridgeSendMessage(appRewrite(sc)).catch(bridgeFail), "action-rewrite")
+    ? domAction("Pedir reescrita", () => bridgeSendMessage(appRewrite(sc)), "action-rewrite")
     : null;
   const expand = !full && bridgeCanDisplay("fullscreen")
-    ? domButton("Expandir", () => bridgeRequestDisplayMode("fullscreen").then(() => view.refresh()).catch(bridgeFail), "action-expand")
+    ? domAction("Expandir", () => bridgeRequestDisplayMode("fullscreen").then(() => view.refresh()), "action-expand")
     : null;
   const actions = [compare, rewrite, expand].filter(Boolean);
   if (actions.length) nodes.push(h("div", { class: "gb-actions" }, actions));

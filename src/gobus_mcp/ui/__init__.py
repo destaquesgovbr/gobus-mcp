@@ -33,7 +33,6 @@ from gobus_mcp.payloads.common import MAX_PAYLOAD_BYTES, ReportBase
 
 logger = logging.getLogger(__name__)
 
-PROTOCOL_VERSION = "2026-01-26"
 MAX_HTML_BYTES = 60 * 1024  # teto por app (meta: 25 KB)
 COMMON_CSS = ("_tokens.css",)
 COMMON_JS = ("_bridge.js", "_dom.js", "_svg.js")
@@ -223,10 +222,6 @@ def _resource_fn(spec: AppSpec):
     return resource
 
 
-def payload_bytes(data: dict) -> int:
-    return len(json.dumps(data, ensure_ascii=False).encode("utf-8"))
-
-
 def app_result(report: ReportBase) -> ToolResult:
     """Resultado de uma tool de app: ``content`` = ``summary`` (Markdown ≤ 6 KB) e
     ``structuredContent`` = payload em camelCase com ``summary`` como **primeiro** campo
@@ -234,7 +229,7 @@ def app_result(report: ReportBase) -> ToolResult:
     summary = fit_summary(report.summary, SUMMARY_MAX_BYTES)
     data = report.model_copy(update={"summary": summary}).model_dump(mode="json", by_alias=True)
     data = {"summary": data.pop("summary"), **data}
-    size = payload_bytes(data)
+    size = len(json.dumps(data, ensure_ascii=False).encode("utf-8"))
     if size > MAX_PAYLOAD_BYTES:
         logger.warning(
             "payload de %s com %d bytes (orçamento %d)", report.tool, size, MAX_PAYLOAD_BYTES

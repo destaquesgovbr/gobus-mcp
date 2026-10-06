@@ -66,7 +66,7 @@ function appActions(nodes) {
 
 function appExpandButton(view) {
   if (document.documentElement.dataset.mode === "fullscreen" || !bridgeCanDisplay("fullscreen")) return null;
-  return domButton("Expandir", () => bridgeRequestDisplayMode("fullscreen").then(() => view.refresh()).catch(bridgeFail), "action-expand");
+  return domAction("Expandir", () => bridgeRequestDisplayMode("fullscreen").then(() => view.refresh()), "action-expand");
 }
 
 async function appOpenAgency(view, sc, row) {
@@ -164,9 +164,9 @@ function appAgency(sc, view) {
   nodes.push(section, domNotices(sc.notices));
   const back = appMemory.ranking ? domButton("Voltar ao ranking", () => view.render(appMemory.ranking), "action-back") : null;
   const ask = bridgeCan("message") && a.flesch !== null
-    ? domButton("Pedir reescrita ao chat", () => {
+    ? domAction("Pedir reescrita ao chat", () => {
       const worst = sc.worstArticle ? " Comece pela abertura do artigo \"" + sc.worstArticle.title + "\"." : "";
-      bridgeSendMessage("Ajude a melhorar a legibilidade dos textos de " + a.agencyName + ": o Flesch médio é " + appFlesch(a) + " (" + a.bandLabel + "), e a meta para serviço ao cidadão é ≥" + domInt(sc.targetService) + ". Reescreva com frases curtas e palavras simples." + worst).catch(bridgeFail);
+      return bridgeSendMessage("Ajude a melhorar a legibilidade dos textos de " + a.agencyName + ": o Flesch médio é " + appFlesch(a) + " (" + a.bandLabel + "), e a meta para serviço ao cidadão é ≥" + domInt(sc.targetService) + ". Reescreva com frases curtas e palavras simples." + worst);
     }, "action-ask")
     : null;
   nodes.push(appActions([back, ask, appExpandButton(view)]));

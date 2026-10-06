@@ -97,10 +97,21 @@ function domButton(label, onClick, testid, extra) {
   return h("button", Object.assign({ type: "button", class: "gb-btn", "data-testid": testid || null, onclick: onClick }, extra || {}), label);
 }
 
+// Botão de ação pelo host (ui/message, display mode…): se o host recusar, o botão some.
+function domAction(label, run, testid) {
+  const button = domButton(label, () => {
+    Promise.resolve().then(run).catch((err) => {
+      bridgeWarn(err);
+      button.hidden = true;
+    });
+  }, testid);
+  return button;
+}
+
 // Link de artigo: abre pelo host (ui/open-link) quando ele permite; senão, só o texto.
 function domArticleLink(title, url, testid) {
   if (url && domIsHttps(url) && bridgeCan("openLinks")) {
-    return h("button", { type: "button", class: "gb-link", "data-testid": testid || null, title: url, onclick: () => bridgeOpenLink(url).catch(bridgeFail) }, title);
+    return h("button", { type: "button", class: "gb-link", "data-testid": testid || null, title: url, onclick: () => bridgeOpenLink(url).catch(bridgeWarn) }, title);
   }
   return h("span", { "data-testid": testid || null }, title);
 }

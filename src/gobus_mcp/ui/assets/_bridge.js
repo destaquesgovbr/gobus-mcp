@@ -40,6 +40,11 @@ function bridgeFail(err) {
   }
 }
 
+// Falha de uma ação (o host recusou ui/message, open-link…): não derruba a tela.
+function bridgeWarn(err) {
+  console.warn("gobus-app:", err && err.message ? err.message : err);
+}
+
 function bridgeDispatch(name, arg) {
   const fn = bridgeState.handlers[name];
   if (!fn) return;
