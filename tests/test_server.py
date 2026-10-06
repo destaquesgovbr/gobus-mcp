@@ -8,8 +8,11 @@ import pytest
 from fastmcp import Client
 
 from gobus_mcp import server
+from gobus_mcp.agency_activity import AgencyActivityService
 from gobus_mcp.agency_catalog import AgencyCatalog
+from gobus_mcp.cache import TTLCache
 from tests.conftest import FakeGraphQLClient
+from tests.fixtures.g2 import route_g2
 
 TOOL_ARGS = {
     "gobus_search_news": {"query": "vacina"},
@@ -45,7 +48,18 @@ def test_deps_padrao_compartilha_um_cliente():
     assert isinstance(deps, server.Deps)
     assert isinstance(deps.catalog, AgencyCatalog)
     assert deps.catalog._client is deps.client
-    assert deps.activity is None  # AgencyActivityService entra no G2
+    # G2: snapshot de atividade e cache compartilhados pelas tools de anomalia e forecast
+    assert isinstance(deps.activity, AgencyActivityService)
+    assert deps.activity._client is deps.client
+    assert deps.activity._catalog is deps.catalog
+    assert isinstance(deps.cache, TTLCache)
+
+
+def test_deps_sem_activity_cria_o_servico_com_o_cliente_e_o_catalogo():
+    fake = FakeGraphQLClient()
+    deps = server.Deps(client=fake, catalog=AgencyCatalog(fake))
+    assert isinstance(deps.activity, AgencyActivityService)
+    assert deps.activity._client is fake
 
 
 def test_get_deps_le_o_conteiner_trocado_pelos_testes(deps):
@@ -136,3 +150,74 @@ async def test_readability_report_declara_mime_json():
         resources = {str(r.uri): r for r in await client.list_resources()}
 
     assert resources["gobus://readability-report"].mimeType == "application/json"
+
+
+async def test_detect_anomalies_aceita_domain_filter_e_documenta_dominios_e_classes():
+    async with Client(server.mcp) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+
+    tool = tools["gobus_detect_anomalies"]
+    assert set(tool.inputSchema["properties"]) == {"sensitivity", "domain_filter"}
+    description = tool.description or ""
+    for text in ("HEALTH", "OTHER", "saude", "defeso", "silêncio coordenado", "rajada",
+                 "share-of-voice", "entityCoverage"):  # fmt: skip
+        assert text in description, text
+    assert "volumeRatio" not in description or "nunca" in description
+
+
+async def test_forecast_documenta_horizonte_efetivo_e_share_of_voice():
+    async with Client(server.mcp) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+
+    description = tools["gobus_forecast_trends"].description or ""
+    for text in ("1–28", "share-of-voice", "feriado", "recuperação"):
+        assert text in description, text
+    assert "informativo" not in description
+
+
+async def test_tools_g2_usam_o_cache_e_o_snapshot_do_conteiner(deps):
+    route_g2(deps.client)
+
+    async with Client(server.mcp) as client:
+        first = await client.call_tool_mcp("gobus_detect_anomalies", {"domain_filter": "saude"})
+        await client.call_tool_mcp("gobus_forecast_trends", {"horizon_days": 7})
+        await client.call_tool_mcp("gobus_detect_anomalies", {})
+
+    assert "Detector de Anomalias" in first.content[0].text
+    assert "**Domínio:** Saúde" in first.content[0].text
+    # o snapshot de atividade é um só (cache de 6 h do serviço do contêiner)
+    assert len(deps.client.calls("AgencyActivitySnapshot")) == 1
+    # temas: 4 ranges das anomalias + 2 novos do forecast (14 e 84); a 2ª chamada usa o cache
+    assert sorted(v["days"] for v in deps.client.calls("ThemeRangeCounts")) == [
+        3,
+        7,
+        14,
+        21,
+        28,
+        84,
+    ]
+
+
+async def test_detect_anomalies_com_dominio_invalido_devolve_opcoes(deps):
+    route_g2(deps.client)
+
+    async with Client(server.mcp) as client:
+        result = await client.call_tool_mcp("gobus_detect_anomalies", {"domain_filter": "xyz"})
+
+    assert not result.isError
+    assert "inválido" in result.content[0].text
+    assert "HEALTH" in result.content[0].text
+
+
+async def test_health_usa_o_snapshot_de_atividade_do_conteiner(deps):
+    route_g2(deps.client)
+
+    async with Client(server.mcp) as client:
+        await client.call_tool_mcp("gobus_forecast_trends", {})
+        contents = await client.read_resource("gobus://health/pipelines")
+
+    import json
+
+    data = json.loads(contents[0].text)
+    assert data["pipelines"]["agency_activity"]["status"] == "ok"
+    assert len(deps.client.calls("AgencyActivitySnapshot")) == 1
