@@ -1,9 +1,11 @@
 """Ciclo de vida comunicacional de uma política pública.
 
 O ``entityCoverage(MONTH)`` devolve uma linha por **mês × agência**. A série do ciclo de
-vida é mensal: as agências de cada mês são somadas, os meses sem artigos entre o primeiro
-e o último entram com 0, e o pico é o mês de maior total. Os artigos representativos
-vêm da janela do mês de pico (filtro de entidade e de data).
+vida é mensal: as agências de cada mês são somadas e os meses sem artigos, do primeiro mês
+com cobertura até o mês de referência (o de hoje, em BRT), entram com 0. O mês de
+referência é **parcial**: aparece na tabela, mas fica fora da classificação, e a fase
+atual é a do último mês fechado. O pico é o mês fechado de maior total. Os artigos
+representativos vêm da janela do mês de pico (filtro de entidade e de data).
 """
 
 from __future__ import annotations
@@ -13,6 +15,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
 
+from gobus_mcp.calendario import reference_date
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.readability import period_start
 
@@ -88,12 +91,17 @@ class MonthPoint:
     month: date  # primeiro dia do mês
     article_count: int = 0
     by_agency: dict[str, int] = field(default_factory=dict)  # nome → artigos
-    phase: str = "ROUTINE"
+    phase: str | None = None  # None = não classificado (mês corrente parcial)
     ratio: float = 0.0
+    partial: bool = False  # mês de referência, ainda em curso
 
     @property
     def label(self) -> str:
         return self.month.strftime("%Y-%m")
+
+    @property
+    def table_label(self) -> str:
+        return f"{self.label} (parcial)" if self.partial else self.label
 
     @property
     def dominant(self) -> str | None:
@@ -106,8 +114,14 @@ def _next_month(day: date) -> date:
     return date(day.year + (day.month == 12), day.month % 12 + 1, 1)
 
 
-def monthly_series(coverage: list[dict]) -> list[MonthPoint]:
-    """Soma as agências por mês e preenche com 0 os meses sem cobertura no intervalo."""
+def _months_between(start: date, end: date) -> int:
+    return (end.year - start.year) * 12 + end.month - start.month
+
+
+def monthly_series(coverage: list[dict], until: date | None = None) -> list[MonthPoint]:
+    """Soma as agências por mês e preenche com 0 os meses sem cobertura, do primeiro mês
+    com cobertura até ``until`` (mês de referência, marcado como parcial) ou até o último
+    mês com cobertura, o que vier depois."""
     by_month: dict[date, MonthPoint] = {}
     for point in coverage:
         try:
@@ -123,8 +137,13 @@ def monthly_series(coverage: list[dict]) -> list[MonthPoint]:
         return []
     series = []
     month, last = min(by_month), max(by_month)
+    if until is not None:
+        until = until.replace(day=1)
+        last = max(last, until)
     while month <= last:
-        series.append(by_month.get(month) or MonthPoint(month))
+        point = by_month.get(month) or MonthPoint(month)
+        point.partial = month == until
+        series.append(point)
         month = _next_month(month)
     return series
 
@@ -154,6 +173,8 @@ def narrative_anchors(series: list[MonthPoint]) -> dict[str, str]:
     """Agência dominante (soma de artigos) em cada fase — âncora narrativa."""
     totals: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for point in series:
+        if point.phase is None:  # mês parcial, fora da classificação
+            continue
         for agency, count in point.by_agency.items():
             totals[point.phase][agency] += count
     return {
@@ -203,17 +224,22 @@ async def get_policy_lifecycle(
     policy_name: str,
     client: GobusGraphQLClient,
     date_from: str = "2024-01-01",
+    *,
+    today: date | None = None,
 ) -> str:
     """Ciclo de vida comunicacional de uma política pública no portal Gov.BR.
 
-    Resolve o nome da política, obtém a cobertura mensal (somando as agências) e
-    classifica cada mês em ANNOUNCED (pico), IMPLEMENTATION (≥40% do pico) ou ROUTINE.
-    Identifica a agência dominante por mês e por fase e lista artigos do mês de pico.
+    Resolve o nome da política, obtém a cobertura mensal (somando as agências) até o mês
+    de referência e classifica cada mês fechado em ANNOUNCED (pico), IMPLEMENTATION (≥40%
+    do pico) ou ROUTINE. A fase atual é a do último mês fechado; o mês corrente aparece
+    como parcial. Identifica a agência dominante por mês e por fase e lista artigos do
+    mês de pico.
 
     Args:
         policy_name: Nome ou alias da política (ex: "Pé-de-Meia").
         client: Cliente GraphQL.
         date_from: Data de início da série temporal (ISO). Padrão: "2024-01-01".
+        today: D, dia de referência em BRT (injetável; padrão: hoje).
 
     Returns:
         Markdown com fases mensais, âncoras narrativos e perspectiva da fase atual.
@@ -237,7 +263,8 @@ async def get_policy_lifecycle(
         ),
         _optional(client.execute(_POLICY_DETAILS_QUERY, {"entityId": entity_id})),
     )
-    series = monthly_series(coverage_data.get("entityCoverage") or [])
+    today = today or reference_date()
+    series = monthly_series(coverage_data.get("entityCoverage") or [], until=today)
     if not series:
         return (
             f"**{canonical_name}**: dados insuficientes de cobertura para análise do "
@@ -245,19 +272,39 @@ async def get_policy_lifecycle(
         )
     pd = (policy_data or {}).get("policyDetails")
 
-    peak = classify_phases(series)
+    # o mês corrente é parcial: fica fora da classificação, salvo se for o único mês
+    closed = [p for p in series if not p.partial]
+    partial = next((p for p in series if p.partial), None)
+    peak = classify_phases(closed or series)
     anchors = narrative_anchors(series)
-    current = series[-1]
+    current = (closed or series)[-1]
+    current_txt = "parcial" if current.partial else "último mês fechado"
     last_with_data = next((p for p in reversed(series) if p.article_count), current)
     articles = await _peak_articles(client, entity_id, canonical_name, peak)
 
     lines = [f"# Ciclo de Vida: {canonical_name}"]
-    lines.append(f"\n**ID:** `{entity_id}` · **Fase atual:** {current.phase}")
+    lines.append(
+        f"\n**ID:** `{entity_id}` · **Fase atual:** {current.phase} "
+        f"({current.label}, {current_txt})"
+    )
     lines.append(
         f"**Pico:** {peak.label} ({peak.article_count} artigos) · "
-        f"**Último mês com cobertura:** {last_with_data.label} · "
+        f"**Último mês com cobertura:** {last_with_data.table_label} · "
         f"**Total no período:** {sum(p.article_count for p in series)} artigos"
     )
+    notices = []
+    gap = _months_between(last_with_data.month, current.month)
+    if gap > 0:
+        months_txt = "1 mês fechado" if gap == 1 else f"{gap} meses fechados"
+        notices.append(
+            f"Sem cobertura desde {last_with_data.label}: {months_txt} sem artigos "
+            f"(até {current.label})."
+        )
+    if partial is not None and partial is not peak and partial.article_count > peak.article_count:
+        notices.append(
+            f"O mês corrente (parcial) já supera o pico dos meses fechados: "
+            f"{partial.article_count} artigos em {partial.label}."
+        )
     if pd:
         if pd.get("domain"):
             lines.append(f"**Domínio:** {pd['domain']}")
@@ -265,13 +312,16 @@ async def get_policy_lifecycle(
             lines.append(f"**População-alvo:** {', '.join(pd['targetPopulation'])}")
         if pd.get("responsibleAgencies"):
             lines.append(f"**Agências responsáveis:** {', '.join(pd['responsibleAgencies'])}")
+    for notice in notices:
+        lines.append(f"\n> {notice}")
 
     lines.append("\n## Fases Identificadas (por mês, somando as agências)\n")
     lines.append("| Mês | Artigos | Fase | Agência Dominante |")
     lines.append("|-----|---------|------|-------------------|")
     for point in series:
         lines.append(
-            f"| {point.label} | {point.article_count} | {point.phase} | {point.dominant or '—'} |"
+            f"| {point.table_label} | {point.article_count} | {point.phase or '—'} "
+            f"| {point.dominant or '—'} |"
         )
 
     lines.append("\n## Âncoras Narrativos por Fase\n")
@@ -282,9 +332,14 @@ async def get_policy_lifecycle(
     lines.append("\n## Perspectiva Atual\n")
     lines.append(
         f"A política **{canonical_name}** está na fase **{current.phase}** "
-        f"(último mês da série: {current.label}, {current.article_count} artigos)."
+        f"({current_txt}: {current.label}, {current.article_count} artigos)."
     )
     lines.append(PHASE_DESCRIPTIONS[current.phase])
+    if partial is not None and partial is not current:
+        lines.append(
+            f"Mês corrente ({partial.label}, parcial): {partial.article_count} artigos, "
+            "fora da classificação."
+        )
 
     if articles:
         lines.append(f"\n## Artigos Representativos (pico: {peak.label})\n")
