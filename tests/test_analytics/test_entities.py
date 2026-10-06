@@ -420,3 +420,13 @@ def test_entity_signal_sem_snapshot_de_atividade_e_sem_dona():
     assert signal.kind == "new_entity"
     assert signal.domain is Domain.OTHER
     assert "blackout_baseline" in signal.flags
+
+
+def test_sem_mencoes_proprias_na_janela_nao_e_entidade_nova():
+    # só republicadoras cobriram (ou a janela do upstream era outra): nada a sinalizar
+    w = entity_windows(NORMAL_DAY)
+    s = _stats(_cov("agencia_brasil", _spread(w.window, 9)))
+    assert s.window_count == 0 and s.baseline_count == 0
+    a = classify(s)
+    assert a.kind == "normal"
+    assert "republishers_excluded" in a.flags
