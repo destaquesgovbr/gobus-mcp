@@ -16,11 +16,15 @@ from gobus_mcp.domains import Domain
 from gobus_mcp.payloads.anomalies import MAX_PAYLOAD_BYTES, AnomalyReport, payload_size
 from gobus_mcp.tools.detect_anomalies import build_anomaly_report, detect_anomalies
 from tests.fixtures.g2 import (
+    ACTIVITY_0510,
     NOW_0510,
     busy,
     context,
     coverage_rows,
+    many_candidates,
+    resumed_on_26_10,
     route_g2,
+    scenario_0510,
     spread,
     theme_ranges_0510,
     trending_row,
@@ -28,26 +32,6 @@ from tests.fixtures.g2 import (
 )
 
 D = date
-RUN_0510 = "2026-10-05 21:00:00+00"
-
-
-def silent_since_blackout(day: date) -> int:
-    """Agência que parou de publicar no início do defeso (04/07)."""
-    return busy(day) if day < D(2026, 7, 4) else 0
-
-
-def resumed_on_26_10(day: date) -> int:
-    """Agência calada no defeso que voltou a publicar em 26/10."""
-    return busy(day) if day < D(2026, 7, 4) or day >= D(2026, 10, 26) else 0
-
-
-ACTIVITY_0510 = {
-    "saude": busy,
-    "mec": busy,
-    "pf": busy,
-    "cgu": busy,
-    "secom": silent_since_blackout,
-}
 
 
 def _section(md: str, header: str) -> str:
@@ -59,107 +43,6 @@ def _section(md: str, header: str) -> str:
 
 def _by_id(report: AnomalyReport) -> dict:
     return {s.entity_id: s for s in report.entities.signals}
-
-
-def scenario_0510() -> tuple[list[dict], dict[str, dict]]:
-    """Ranking já corrigido (uma execução, Laplace) e a cobertura de cada candidato em
-    05/10: janela 28/09–04/10 e baseline 31/08–27/09."""
-    rows = [
-        trending_row("dgb_novo", "Programa Novo", vr=32.0, wc=7, run=RUN_0510),
-        trending_row(
-            "dgb_censo-escolar-2025",
-            "Censo Escolar 2025",
-            type_="EVENT",
-            vr=4321.0,
-            wc=60,
-            run=RUN_0510,
-        ),  # fmt: skip
-        trending_row("dgb_concentrada", "Pauta Concentrada", vr=10.4, wc=12, run=RUN_0510),
-        trending_row("dgb_silencio", "Tema Calado", vr=13.0, wc=9, run=RUN_0510),
-        trending_row("dgb_secom", "Pauta da Secom", vr=7.0, wc=6, run=RUN_0510),
-        trending_row("dgb_normal", "Assunto Comum", vr=1.06, wc=12, run=RUN_0510),
-        trending_row("dgb_pe-de-meia", "Pé-de-Meia", type_="POLICY", vr=1.14, wc=5, run=RUN_0510),
-        trending_row("dgb_republicada", "Só Republicada", vr=2.0, wc=5, run=RUN_0510),
-    ]
-    normal_rows = []
-    for agency in ("saude", "mec", "pf", "cgu", "defesa", "trabalho-e-emprego"):
-        normal_rows += coverage_rows(
-            agency,
-            {**spread(D(2026, 8, 31), D(2026, 9, 27), 8), **spread(D(2026, 9, 28), D(2026, 10, 4), 2)},
-        )  # fmt: skip
-    contexts = {
-        # baseline zero com padrão de concentrada (2 agências, 3 dias): é entidade nova
-        "dgb_novo": context(
-            "dgb_novo",
-            "Programa Novo",
-            rows=coverage_rows("mec", {D(2026, 9, 29): 3, D(2026, 10, 1): 2})
-            + coverage_rows("cgu", {D(2026, 10, 2): 2}),
-        ),  # fmt: skip
-        # caso Censo: 57 de 60 artigos num dia
-        "dgb_censo-escolar-2025": context(
-            "dgb_censo-escolar-2025",
-            "Censo Escolar 2025",
-            type_="EVENT",
-            rows=coverage_rows("inep", {D(2026, 9, 10): 2, D(2026, 10, 1): 57, D(2026, 10, 2): 3}),
-        ),  # fmt: skip
-        "dgb_concentrada": context(
-            "dgb_concentrada",
-            "Pauta Concentrada",
-            rows=coverage_rows(
-                "mec",
-                {
-                    **spread(D(2026, 9, 1), D(2026, 9, 20), 4),
-                    **spread(D(2026, 9, 29), D(2026, 10, 2), 8),
-                },
-            )
-            + coverage_rows("saude", spread(D(2026, 9, 29), D(2026, 10, 2), 4)),
-        ),  # fmt: skip
-        "dgb_silencio": context(
-            "dgb_silencio",
-            "Tema Calado",
-            agency_key="saude",
-            rows=coverage_rows("saude", spread(D(2026, 9, 1), D(2026, 9, 25), 6))
-            + coverage_rows(
-                "mec",
-                {
-                    **spread(D(2026, 9, 2), D(2026, 9, 20), 2),
-                    **spread(D(2026, 9, 28), D(2026, 10, 3), 4),
-                },
-            )
-            + coverage_rows("pf", spread(D(2026, 9, 29), D(2026, 10, 2), 3))
-            + coverage_rows("cgu", {D(2026, 9, 30): 1, D(2026, 10, 1): 1}),
-        ),  # fmt: skip
-        "dgb_secom": context(
-            "dgb_secom",
-            "Pauta da Secom",
-            agency_key="secom",
-            rows=coverage_rows("mec", {D(2026, 9, 5): 2, D(2026, 9, 29): 2, D(2026, 9, 30): 1})
-            + coverage_rows("pf", {D(2026, 10, 1): 2, D(2026, 10, 2): 1}),
-        ),  # fmt: skip
-        "dgb_normal": context("dgb_normal", "Assunto Comum", rows=normal_rows),
-        "dgb_pe-de-meia": context(
-            "dgb_pe-de-meia",
-            "Pé-de-Meia",
-            type_="POLICY",
-            domain="EDUCATION",
-            rows=coverage_rows(
-                "mec",
-                {
-                    **spread(D(2026, 8, 31), D(2026, 9, 27), 20),
-                    **spread(D(2026, 9, 28), D(2026, 10, 4), 5),
-                },
-            ),
-        ),  # fmt: skip
-        "dgb_republicada": context(
-            "dgb_republicada",
-            "Só Republicada",
-            rows=coverage_rows(
-                "agencia_brasil",
-                {D(2026, 9, 10): 3, **spread(D(2026, 9, 28), D(2026, 10, 2), 5)},
-            ),
-        ),  # fmt: skip
-    }
-    return rows, contexts
 
 
 def _route_scenario(fake_client, **overrides):
@@ -577,26 +460,8 @@ async def test_fases_do_calendario_nas_fronteiras(fake_client, today, phase, cod
 # ── payload e orçamento ─────────────────────────────────────────────────────
 
 
-def _many_candidates(n: int = 30) -> tuple[list[dict], dict[str, dict]]:
-    rows, contexts = [], {}
-    agencies = ("saude", "mec", "pf", "cgu", "defesa", "trabalho-e-emprego", "mds")
-    for i in range(n):
-        entity_id = f"dgb_entidade-com-nome-longo-{i:02d}"
-        name = f"Entidade com um nome canônico razoavelmente longo número {i:02d}"
-        rows.append(trending_row(entity_id, name, vr=2.0 + i, wc=20 + i, run=RUN_0510))
-        cov = []
-        for k, agency in enumerate(agencies):
-            cov += coverage_rows(
-                agency,
-                {**spread(D(2026, 7, 7), D(2026, 9, 27), 20 + k),
-                 **spread(D(2026, 9, 28), D(2026, 10, 4), 3 + (i + k) % 4)},
-            )  # fmt: skip
-        contexts[entity_id] = context(entity_id, name, agency_key="saude", rows=cov)
-    return rows, contexts
-
-
 async def test_payload_valida_cabe_em_20kb_e_summary_e_o_markdown(fake_client):
-    rows, contexts = _many_candidates()
+    rows, contexts = many_candidates()
     route_g2(fake_client, trending=rows, contexts=contexts, activity=ACTIVITY_0510)
 
     report = await build_anomaly_report(fake_client, now=NOW_0510)
@@ -639,7 +504,7 @@ class _SlowClient:
 
 
 async def test_latencia_no_orcamento_com_cache_e_semaforo_de_8(fake_client):
-    rows, contexts = _many_candidates()
+    rows, contexts = many_candidates()
     route_g2(fake_client, trending=rows, contexts=contexts, activity=ACTIVITY_0510)
     # escala 1/10: chamada comum 0,3 s → 0,03 s; snapshot de atividade 3 s → 0,3 s
     client = _SlowClient(fake_client, 0.03, {"AgencyActivitySnapshot": 0.3})
