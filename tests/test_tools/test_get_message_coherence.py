@@ -368,6 +368,18 @@ async def test_found_0_retorna_cedo_com_dica(fake_client):
     assert not fake_client.calls("CoherenceCounts")
 
 
+@pytest.mark.parametrize("window_pg", [(), ((22, 10),)], ids=["sem-artigos", "lacuna-do-indice"])
+async def test_sem_amostra_o_cabecalho_nao_mostra_emissores_nem_republicadoras(
+    fake_client, window_pg
+):
+    scenario(fake_client, articles=[], window_pg=list(window_pg))
+    _, markdown = await run(fake_client, entity_id="Q575545")
+
+    header = markdown.split("###")[0]
+    assert "**Janela:** 22/09–05/10/2026" in header
+    assert "Emissores" not in header and "Republicadoras" not in header
+
+
 async def test_entidade_inexistente(fake_client):
     scenario(fake_client, articles=[])
     fake_client.route("CoherenceEntity", {"entity": None})
