@@ -7,7 +7,8 @@ A detecção é sempre dinâmica, na própria resposta da API:
 - ``sentiment_analytics``: nulidade de ``avgSentimentScore``; ``pctPositive`` é fração
   0..1 e pode vir 0.0 sem dado, então só entra como métrica;
 - ``entity_ranking``: linhas no piso antigo (``volumeRatio/windowCount ≥ 100``), execuções
-  misturadas (``computedAt`` espalhado) e idade da última execução;
+  misturadas (``computedAt`` espalhado) e idade da última execução; com o GA-1, a fração
+  de ``isNew`` no top-50 vai em ``metric.isNewShare`` (integration §5.4);
 - ``indexing_lag`` (G2): artigos do dia D (UTC) no Typesense (``articles{found}``) contra
   o Postgres (soma do ``agencyAnalytics`` DAY de todas as agências do catálogo, sem
   duplicatas). Medido em D, não em D−1, porque o sync diário completa D−1 e esconderia o
@@ -77,6 +78,7 @@ query HealthTrendingEntities {
     volumeRatio
     windowCount
     computedAt
+    isNew
   }
 }
 """
