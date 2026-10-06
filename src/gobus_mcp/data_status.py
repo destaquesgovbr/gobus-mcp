@@ -1,5 +1,7 @@
 """Saúde das fontes de dados: avaliadores puros, compartilhados pelo health e pelas tools.
 
+Só ``theme_coverage`` faz I/O (uma query nomeada); os demais avaliadores são puros.
+
 A **detecção é sempre dinâmica** (cobertura medida na própria resposta da API). As datas
 de ``SINCE_HINTS`` só servem para redigir "desde dd/mm" quando o avaliador já disse que
 o dado não está ok — nunca para decidir o status.
@@ -13,6 +15,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from datetime import UTC, date, datetime
 
+from gobus_mcp.cache import TTLCache
+from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.payloads.common import DataKey, DataStatus, Notice, NoticeCode, Status
 
 # Rótulos PT das fontes (só texto; os enums ficam em inglês).
@@ -135,6 +139,42 @@ def theme_coverage_status(classified: int, total: int, *, days: int) -> DataStat
     )
     metric = {"classified": classified, "total": total, "ratio": ratio, "days": days}
     return _make("themes", status, detail, since=None, metric=metric)
+
+
+_THEME_COVERAGE_QUERY = """
+query ThemeCoverage($days: Int!) {
+  topThemes(range: {days: $days}, limit: 100) {
+    label
+    count
+  }
+  analyticsKpis(range: {days: $days}) {
+    total
+  }
+}
+"""
+
+THEME_COVERAGE_TTL = 600.0  # 10 min
+
+
+async def theme_coverage(
+    client: GobusGraphQLClient, days: int, *, cache: TTLCache | None = None
+) -> DataStatus:
+    """Cobertura de classificação de temas dos últimos ``days`` dias (janela móvel UTC).
+
+    ``Σ topThemes.count / analyticsKpis.total`` — os dois leem o Typesense, então o
+    atraso de indexação afeta numerador e denominador igualmente.
+    """
+
+    async def load() -> dict:
+        return await client.execute(_THEME_COVERAGE_QUERY, {"days": days})
+
+    if cache is None:
+        data = await load()
+    else:
+        data = await cache.get_or_load(("theme_coverage", days), load, THEME_COVERAGE_TTL)
+    classified = sum(t.get("count") or 0 for t in data.get("topThemes") or [])
+    total = (data.get("analyticsKpis") or {}).get("total") or 0
+    return theme_coverage_status(classified, total, days=days)
 
 
 def metric_coverage_status(
