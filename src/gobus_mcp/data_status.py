@@ -89,6 +89,18 @@ def _make(
     return DataStatus(key=key, status=status, since=since, message=message, metric=metric)
 
 
+def data_status_for(
+    key: DataKey,
+    status: Status,
+    detail: str,
+    *,
+    since: date | None = None,
+    metric: dict[str, float | int | None] | None = None,
+) -> DataStatus:
+    """``DataStatus`` com a redação padrão ("Rótulo: status — detalhe (desde dd/mm/aaaa)")."""
+    return _make(key, status, detail, since=since, metric=metric or {})
+
+
 def _status_for_ratio(ratio: float | None, *, dead: float, degraded: float) -> Status:
     if ratio is None or ratio < dead:
         return "unavailable"
