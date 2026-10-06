@@ -8,7 +8,7 @@ Retorna métricas de publicação de uma ou mais agências num período: volume 
 |-----------|------|-------------|---------|-----------|
 | `agencies` | `list[str]` | Sim | — | Lista de agency_keys (ex: `["mec", "saude"]`) |
 | `date_from` | `str` | Sim | — | Data de início ISO (ex: `"2024-01-01"`) |
-| `date_to` | `str` | Sim | — | Data de fim ISO (ex: `"2024-12-31"`) |
+| `date_to` | `str` | Sim | — | Data de fim ISO, inclusiva (ex: `"2024-12-31"`) |
 | `granularity` | `str` | Não | `"MONTH"` | Granularidade — `DAY`, `WEEK` ou `MONTH` |
 
 ## Retorno
@@ -45,7 +45,7 @@ Retorna Markdown com um cabeçalho do período e granularidade, avisos de cobert
 
 ## Notas
 
-- As datas devem estar no formato ISO `"YYYY-MM-DD"`.
+- As datas devem estar no formato ISO `"YYYY-MM-DD"`. O `date_to` é inclusivo em toda granularidade: em `MONTH`/`WEEK` a API trata o `dateTo` como exclusivo (00:00 do dia), e a tool envia o dia seguinte. Os dias são UTC, como na API.
 - Granularidades válidas: `DAY`, `WEEK`, `MONTH` (convertidas para maiúsculas automaticamente).
 - A legibilidade usa o índice Flesch limitado a 0–100, com as faixas únicas 0–25 muito difícil · 25–50 difícil · 50–75 médio · 75–100 fácil (o valor bruto aparece quando foi limitado).
 - **Nulo não é zero:** métrica sem dado aparece como "indisponível". Sem `avgSentimentScore`, o `pctPositive` 0.0 da API é artefato e não é exibido. Um aviso no topo mostra a cobertura de legibilidade e de sentimento no período.

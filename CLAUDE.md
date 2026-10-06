@@ -122,7 +122,7 @@ Gotchas conhecidos do schema atual:
 - `relatedEntities` e `entityNetwork` usam argumento `id:` (não `entityId:`)
 - `RelatedEntity` retorna `canonicalId` (não `entityId`)
 - Agências: `agencies { code label isRepublisher }` — `label == code` (156/156); o nome humano vem de `agencyAnalytics.agencyName` (use o `AgencyCatalog`)
-- `agencyAnalytics`: datas devem ser `datetime.date` no lado da graphql-api (strings ISO são rejeitadas pelo asyncpg); `dateTo` inclusivo; `metrics:` é ignorado pelo resolver
+- `agencyAnalytics`: datas devem ser `datetime.date` no lado da graphql-api (strings ISO são rejeitadas pelo asyncpg); `metrics:` é ignorado pelo resolver. **`dateTo` depende da granularidade:** `DAY` é inclusivo (`published_at::date BETWEEN`); `MONTH`/`WEEK` é exclusivo na prática (`published_at BETWEEN …::timestamptz`, e o asyncpg converte a data em 00:00). Monte as datas com `calendario.agency_analytics_bounds(r, granularity)`
 - `search()`: **não tem `limit`** e rejeita `query:""`; filtro de agência via `filter: {agencies: [...]}`. Para listar, use `articles(page, limit ≤ 250, filter, sort)`
 - `articles.filter.startDate/endDate` aceitam offset (`-03:00`); `endDate` exclusivo. Dias da API em UTC
 - `trendingThemes`: `TrendingThemeResult { themeLabel themeCode windowCount baselineDailyAvg growthScore topArticles }` — **`baselineDailyAvg`** (não `baseDailyAvg`, nem `baselineCount`); `themeCode` sempre `null`; o baseline **inclui a janela**: converta o limiar do usuário com `analytics.ratios.overlap_growth_threshold` e nunca envie `growthThreshold: 0` (dispara N+1 de `topArticles`)

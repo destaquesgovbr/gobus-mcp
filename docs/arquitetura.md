@@ -126,7 +126,7 @@ Gotchas conhecidos do schema atual:
 | Limite em `search()` | `limit:` | `search` não tem `limit`; use `articles(page, limit ≤ 250, filter, sort)` |
 | `themeCode` em `trendingThemes` | — | sempre `null`; use `themeLabel` |
 | `agencies { label }` | nome humano | `label == code`; o nome vem de `agencyAnalytics.agencyName` (catálogo) |
-| `endDate` / `dateTo` | — | `articles.filter.endDate` e `entityCoverage.dateTo` são exclusivos; `agencyAnalytics.dateTo` é inclusivo; dias da API em UTC |
+| `endDate` / `dateTo` | — | `articles.filter.endDate` e `entityCoverage.dateTo` são exclusivos; `agencyAnalytics.dateTo` é inclusivo em `DAY` e exclusivo na prática em `MONTH`/`WEEK` (00:00 do dia; use `calendario.agency_analytics_bounds`); dias da API em UTC |
 
 !!! warning "Mantenha as queries alinhadas ao SDL"
     O teste de contrato (`tests/test_graphql_contract.py`) valida as queries contra o snapshot do SDL. Para atualizar o snapshot depois de mudanças na `graphql-api`: `python tests/fixtures/refresh_schema.py` (introspecção, só leitura). A variante `pytest -m live` compara o snapshot com a API de produção.
