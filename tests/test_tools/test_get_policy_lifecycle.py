@@ -292,3 +292,24 @@ async def test_cobertura_so_no_mes_corrente(fake_client):
     header = next(line for line in result.splitlines() if "**Fase atual:**" in line)
     assert "**Fase atual:** ANNOUNCED" in header and "parcial" in header
     assert "| 2026-10 (parcial) | 12 | ANNOUNCED | MEC |" in result
+
+
+async def test_mes_utc_depois_da_referencia_tambem_e_parcial(fake_client):
+    # entityCoverage agrupa em mês UTC: das 21h às 24h BRT do último dia do mês, o artigo
+    # já cai no mês seguinte, depois do mês de referência (BRT)
+    coverage = {
+        "entityCoverage": [
+            _point("2026-07", "mec", "MEC", 50),
+            _point("2026-08", "mec", "MEC", 30),
+            _point("2026-09", "mec", "MEC", 10),
+            _point("2026-10", "mec", "MEC", 1),
+        ]
+    }
+    _route(fake_client, coverage=coverage)
+
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=date(2026, 9, 30))
+
+    assert "**Fase atual:** IMPLEMENTATION (2026-08, último mês fechado)" in result
+    assert "| 2026-09 (parcial) | 10 | — | MEC |" in result
+    assert "| 2026-10 (parcial) | 1 | — | MEC |" in result
+    assert "Mês corrente (2026-09, parcial): 11 artigos" in result
