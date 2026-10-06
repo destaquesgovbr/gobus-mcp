@@ -563,6 +563,25 @@ def test_cobertura_concentrada_exige_o_volume_minimo():
     assert a.kind == "normal"
 
 
+def test_concentrada_com_baseline_abaixo_do_minimo_fica_em_atencao():
+    # 5 artigos de 2 agências em 3 dias contra 1 no baseline: Laplace dá 12×, mas um
+    # baseline de 1 artigo é o mesmo artefato de contagem pequena que o bc=0 (caso CICCN)
+    w = entity_windows(NORMAL_DAY)
+    days = list(w.window)
+    window_rows = _cov("saude", {days[0]: 2, days[2]: 1}) + _cov("mec", {days[4]: 2})
+    thin = classify(_stats(window_rows + _cov("saude", {w.baseline.start: 1})), _owner("cgu"),
+                    activity=1.0)  # fmt: skip
+    assert thin.kind == "concentrated_coverage" and thin.ratio == pytest.approx(12.0)
+    assert band(thin.severity) == "watch"
+    assert "thin_baseline" in thin.flags
+    # com o baseline no volume mínimo da sensibilidade (5), a faixa volta a seguir a razão
+    enough = classify(_stats(window_rows + _cov("saude", _spread(w.baseline, MEDIUM.min_count))),
+                      _owner("cgu"), activity=1.0)  # fmt: skip
+    assert enough.kind == "concentrated_coverage"
+    assert band(enough.severity) == "alert"
+    assert "thin_baseline" not in enough.flags
+
+
 def test_silencio_coordenado_exige_o_volume_minimo_das_outras_agencias():
     w = entity_windows(NORMAL_DAY)
     few = _stats(_silence_rows(w, others_w=4, others_b=2))  # outras: 4 artigos na janela

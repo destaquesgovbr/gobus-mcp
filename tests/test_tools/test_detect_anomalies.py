@@ -261,6 +261,20 @@ async def test_rajada_com_max_day_share_acima_de_0_8(fake_client):
         assert "alerta" not in line and "(atenção)" in line
 
 
+async def test_concentrada_com_baseline_pequeno_nao_e_alerta(fake_client):
+    _route_scenario(fake_client)
+
+    report = await build_anomaly_report(fake_client, now=NOW_0510)
+    concentrada = _by_id(report)["dgb_concentrada"]
+
+    # 12 artigos na janela contra 4 no baseline (abaixo do min_count 5): razão 10,4×
+    assert concentrada.kind == "concentrated_coverage" and concentrada.baseline_count == 4
+    assert concentrada.band == "watch"
+    assert "thin_baseline" in concentrada.flags
+    line = next(ln for ln in report.summary.splitlines() if "Pauta Concentrada" in ln)
+    assert "(atenção)" in line and "baseline pequeno" in line
+
+
 async def test_classes_recalculadas_pela_cobertura(fake_client):
     _route_scenario(fake_client)
 
