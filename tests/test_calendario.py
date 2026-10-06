@@ -291,3 +291,15 @@ def test_calendar_notices_classifier_changed_enquanto_baseline_cruza_o_corte():
 
     assert _codes(calendar_notices(D(2026, 11, 30), baselines=[clean])) == []
     assert calendar_notices(D(2026, 11, 30), baselines=[crossing], cutoff=None) == []
+
+
+@pytest.mark.parametrize(
+    ("today", "codes"),
+    [(D(2026, 7, 3), []), (D(2026, 7, 4), ["ELECTORAL_BLACKOUT"]),
+     (D(2026, 10, 25), ["ELECTORAL_BLACKOUT"]), (D(2026, 10, 26), ["POST_BLACKOUT_RECOVERY"]),
+     (D(2026, 11, 29), ["POST_BLACKOUT_RECOVERY"]), (D(2026, 11, 30), [])],
+)  # fmt: skip
+def test_calendar_notices_nas_fronteiras_do_contrato_entre_repos(today, codes):
+    assert _codes(calendar_notices(today)) == codes
+    if today == D(2026, 10, 25):
+        assert "faltam 0 dias" in calendar_notices(today)[0].message
