@@ -14,16 +14,17 @@ Precedência das classes (``classify_entity``):
    produção < 0,2× do baseline; na recuperação, ≥ 50% da janela vindo de agências
    retomadas **e** o sinal não se sustenta sem elas (se sustenta, segue com a flag
    ``resumed_agencies``);
-4. ``coordinated_silence``: outras agências com razão ≥ ``silence_ratio``; dona com 0
-   menções ou ≤ 25% do próprio normal; dona ativa no geral (produção ≥ 0,5× do baseline);
-   dona com baseline ≥ 3;
-5. ``concentrated_coverage``: razão ≥ ``ratio``, menos de ``window_agencies`` agências e
-   ≥ 2 dias distintos;
+4. ``coordinated_silence``: outras agências com razão ≥ ``silence_ratio`` e ao menos
+   ``min_count`` artigos na janela; dona com 0 menções ou ≤ 25% do próprio normal; dona
+   ativa no geral (produção ≥ 0,5× do baseline); dona com baseline ≥ 3;
+5. ``concentrated_coverage``: razão ≥ ``ratio``, ao menos ``min_count`` artigos, menos de
+   ``window_agencies`` agências e ≥ 2 dias distintos;
 6. ``normal``.
 
 Severidade (0–1): pela razão contra ``sens.ratio`` (no silêncio, pelo ``silence_score``
 contra ``sens.silence_ratio``); zero sem menções próprias na janela e em
-``calendar_explained`` (explicado não é anomalia).
+``calendar_explained`` (explicado não é anomalia); abaixo de ``min_count`` artigos,
+proporcional ao volume (``× w/min_count``).
 
 O ``volumeRatio`` do upstream só é repassado ao payload; nunca decide nada aqui.
 """
@@ -308,13 +309,15 @@ def classify_entity(
     owner_key = owner.agency_key if owner else None
     owner_name = (owner.agency_name or owner.agency_key) if owner else None
     owner_w = owner_b = None
+    others_w = 0
     others_ratio = owner_entity_ratio = owner_rel = score = None
     if owner_key is not None:
         owner_w = stats.agency_count(owner_key, stats.window)
         owner_b = stats.agency_count(owner_key, stats.baseline)
         own_in_w = owner_w if owner_key not in stats.republishers else 0
         own_in_b = owner_b if owner_key not in stats.republishers else 0
-        others_ratio = laplace_ratio(wc - own_in_w, W, bc - own_in_b, B)
+        others_w = wc - own_in_w
+        others_ratio = laplace_ratio(others_w, W, bc - own_in_b, B)
         owner_entity_ratio = laplace_ratio(owner_w, W, owner_b, B)
         owner_rel = (owner_w / W) / (owner_b / B) if owner_b else None
         score = silence_score(others_ratio, owner_entity_ratio, owner_activity_ratio)
@@ -366,6 +369,7 @@ def classify_entity(
         owner_active = owner_activity_ratio is None or owner_activity_ratio >= OWNER_ACTIVE_RATIO
         if (
             others_ratio >= sens.silence_ratio
+            and others_w >= sens.min_count
             and owner_quiet
             and owner_active
             and owner_b >= OWNER_MIN_BASELINE
@@ -388,6 +392,7 @@ def classify_entity(
     if kind is None:
         if (
             ratio >= sens.ratio
+            and wc >= sens.min_count
             and stats.window_agencies < sens.window_agencies
             and stats.distinct_days >= 2
         ):
@@ -405,8 +410,12 @@ def classify_entity(
 
     # Sem menções próprias, a razão de Laplace (w=b=0 → B/W) não mede nada; e o que o
     # calendário explica não é anomalia. Nos dois casos, severidade zero (faixa normal).
+    # Abaixo do volume mínimo da sensibilidade, a severidade é proporcional ao volume
+    # (1 artigo é "rajada" por definição, mas não é alerta).
     if wc == 0 or kind == "calendar_explained":
         sev = 0.0
+    elif wc < sens.min_count:
+        sev *= wc / sens.min_count
 
     def _r(value: float | None) -> float | None:
         return None if value is None else round(value, 3)

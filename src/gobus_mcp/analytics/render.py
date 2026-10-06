@@ -145,6 +145,12 @@ def _theme_line(t: ThemeSignal, short_days: int, long_days: int) -> str:
 
 
 def _entity_line(e: EntitySignal, window_days: int) -> str:
+    if e.window_count == 0:
+        # só republicadoras na janela: a razão de Laplace (w=b=0) não mede nada
+        return (
+            f"- **{e.name}** ({e.type}, {DOMAIN_LABELS[e.domain]}) · sem menções próprias "
+            f"em {window_days}d (só republicadoras){_flags(e.flags)}"
+        )
     line = (
         f"- **{e.name}** ({e.type}, {DOMAIN_LABELS[e.domain]}) · {e.window_count} artigos/"
         f"{window_days}d em {e.window_agencies} agência(s) e {e.distinct_days} dia(s) · "
