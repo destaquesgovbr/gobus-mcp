@@ -49,7 +49,7 @@
     "found": 107,
     "republisher_share": 0.1028,
     "hhi": 0.1521,
-    "seconds": 1.78,
+    "seconds": 1.84,
     "markdown_bytes": 3875,
     "notices": []
   },
@@ -76,7 +76,7 @@
     "found": 225,
     "republisher_share": 0.5333,
     "hhi": 0.2428,
-    "seconds": 2.12,
+    "seconds": 2.03,
     "markdown_bytes": 3382,
     "notices": []
   },
@@ -103,7 +103,7 @@
     "found": 58,
     "republisher_share": 0.6897,
     "hhi": 0.645,
-    "seconds": 0.81,
+    "seconds": 0.77,
     "markdown_bytes": 2330,
     "notices": [
       "ELECTORAL_BLACKOUT"
@@ -132,7 +132,7 @@
     "found": 81,
     "republisher_share": 0.1111,
     "hhi": 0.6133,
-    "seconds": 1.1,
+    "seconds": 1.03,
     "markdown_bytes": 3142,
     "notices": []
   },
@@ -159,7 +159,7 @@
     "found": 130,
     "republisher_share": 0.0923,
     "hhi": 0.422,
-    "seconds": 1.44,
+    "seconds": 1.15,
     "markdown_bytes": 2800,
     "notices": []
   },
@@ -186,8 +186,8 @@
     "found": 0,
     "republisher_share": null,
     "hhi": null,
-    "seconds": 0.28,
-    "markdown_bytes": 617,
+    "seconds": 0.27,
+    "markdown_bytes": 518,
     "notices": [
       "INDEXING_LAG"
     ]
@@ -215,7 +215,7 @@
     "found": 93,
     "republisher_share": 0.2151,
     "hhi": 0.3453,
-    "seconds": 1.36,
+    "seconds": 1.45,
     "markdown_bytes": 3567,
     "notices": [
       "CLASSIFIER_CHANGED",

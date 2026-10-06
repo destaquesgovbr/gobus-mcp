@@ -459,9 +459,10 @@ def _coherence_header(report: CoherenceReport) -> list[str]:
         lines.append(f'_Tema "{subject.query}" → label L1 "{subject.label}"._')
     start, end = _days(report.window)
     s, rep = report.sample, report.republishers
-    line = (
-        f"**Janela:** {_span(start, end)} ({report.window.days} dias, BRT) · **Artigos:** {s.found}"
-    )
+    window = f"**Janela:** {_span(start, end)} ({report.window.days} dias, BRT)"
+    if report.index_status in ("unavailable", "no_articles"):
+        return [*lines, window, ""]  # sem amostra: nada de emissores nem republicadoras
+    line = f"{window} · **Artigos:** {s.found}"
     if s.fetched < s.found:
         line += f" (amostra de {s.fetched})"
     line += (
