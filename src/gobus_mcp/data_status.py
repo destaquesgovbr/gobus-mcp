@@ -125,17 +125,21 @@ def share_status(
     )
 
 
-def theme_coverage_status(classified: int, total: int, *, days: int) -> DataStatus:
+def theme_coverage_status(
+    classified: int, total: int, *, days: int, scope: str | None = None
+) -> DataStatus:
     """Cobertura de classificação de temas na janela (Σ topThemes / analyticsKpis.total).
 
     Abaixo de 50% o bloco de temas fica indisponível; abaixo de 80%, degradado.
+    ``scope`` troca o "dos últimos N dias" do texto (ex.: o baseline anterior à janela).
     """
     ratio = classified / total if total > 0 else None
     status = _status_for_ratio(ratio, dead=0.5, degraded=0.8)
+    where = scope or f"dos últimos {days} dias"
     detail = (
-        f"{_pct(ratio)} dos artigos dos últimos {days} dias com tema ({classified} de {total})"
+        f"{_pct(ratio)} dos artigos {where} com tema ({classified} de {total})"
         if total > 0
-        else f"sem artigos nos últimos {days} dias"
+        else f"sem artigos {where}"
     )
     metric = {"classified": classified, "total": total, "ratio": ratio, "days": days}
     return _make("themes", status, detail, since=None, metric=metric)
