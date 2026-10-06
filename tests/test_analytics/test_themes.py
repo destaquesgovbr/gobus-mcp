@@ -220,3 +220,12 @@ def test_bloco_na_recuperacao_rebaixa_a_confianca():
     spike = next(s for s in block.signals if s.kind == "sustained_spike")
     assert "recovery" in spike.flags
     assert spike.confidence == "medium"
+
+
+def test_confianca_da_queda_usa_o_volume_esperado_pelo_baseline():
+    # Educação: 150 artigos nos 21 dias anteriores → ~50 esperados em 7 dias; vieram 10.
+    # A confiança mede o volume que sustentaria o sinal, não os poucos que sobraram.
+    signals = classify_sustained(SHORT.stats(), LONG.stats(), sens=MEDIUM, k_themes=3)
+    drop = next(s for s in signals if s.kind == "sustained_drop")
+    assert drop.label == "Educação" and drop.count_long == 10
+    assert drop.confidence == "high"
