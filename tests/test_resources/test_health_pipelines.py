@@ -5,8 +5,11 @@ como dado e pctPositive como fração 0..1."""
 import json
 from datetime import date, datetime
 
+import pytest
+from graphql import OperationDefinitionNode, parse
+
 from gobus_mcp.calendario import BRT
-from gobus_mcp.resources.health_pipelines import fetch_health_pipelines
+from gobus_mcp.resources.health_pipelines import _RANKING_QUERY, fetch_health_pipelines
 from tests.conftest import CATALOG_AGENCIES, route_catalog
 from tests.fixtures.g2 import activity_route, busy
 
@@ -334,3 +337,21 @@ async def test_falha_da_consulta_de_indexacao_deixa_so_o_atraso_indisponivel(fak
     assert data["pipelines"]["indexing_lag"]["status"] == "unavailable"
     assert "503" in data["pipelines"]["indexing_lag"]["message"]
     assert data["pipelines"]["agency_activity"]["status"] == "ok"
+
+
+def _selected_fields(query: str, root: str) -> set[str]:
+    (op,) = [d for d in parse(query).definitions if isinstance(d, OperationDefinitionNode)]
+    field = next(f for f in op.selection_set.selections if f.name.value == root)
+    return {f.name.value for f in field.selection_set.selections}
+
+
+async def test_ranking_pede_is_new_e_reporta_a_fracao(fake_client):
+    # integration §5.4: idade de max(computedAt) mais a fração de isNew no top-50 (GA-1).
+    # O fake não filtra a seleção: sem o campo na query, a fração nunca aparece ao vivo.
+    assert "isNew" in _selected_fields(_RANKING_QUERY, "trendingEntities")
+    ranking = [dict(row, isNew=i < 2) for i, row in enumerate(FRESH)]
+    _route(fake_client, ranking=ranking)
+
+    data = await _health(fake_client)
+
+    assert data["pipelines"]["entity_ranking"]["metric"]["isNewShare"] == pytest.approx(0.4)
