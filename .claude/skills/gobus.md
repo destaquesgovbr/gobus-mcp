@@ -17,10 +17,10 @@ description: >
 | UC-03 | "Quem é [entidade] no gov.br?" | `gobus_resolve_entity` → `gobus_get_entity_profile` | `gobus_get_entity_network` (em paralelo com perfil) |
 | UC-04 | "Quais temas estão crescendo?" | `gobus_detect_trends` | `gobus_search_news` por tema (paralelo entre temas) |
 | UC-05 | "Com quem [entidade] aparece associada?" | `gobus_resolve_entity` → `gobus_get_entity_network` | — |
-| UC-06 | "Faça um boletim semanal" | prompt `weekly_digest` | — |
-| UC-07 | "Escreva um release sobre [tema]" | prompt `draft_press_release` | — |
+| UC-06 | "Faça um boletim semanal" | prompt `prompt_weekly_digest` | — |
+| UC-07 | "Escreva um release sobre [tema]" | prompt `prompt_draft_press_release` | — |
 | UC-08 | "Compare MEC e Saúde no último mês" | `gobus_get_agency_analytics` (agencies=[...]) | — |
-| UC-09 | "Trace a trajetória de [entidade]" | prompt `trace_entity` | — |
+| UC-09 | "Trace a trajetória de [entidade]" | prompt `prompt_trace_entity` | — |
 | UC-10 | "Resumo rápido da agência X" | `gobus_get_agency_summary` | — |
 | UC-11 | "Os textos da agência X são fáceis de ler?" | `gobus_get_readability_recommendations` | `gobus_score_article` (um artigo) |
 | UC-12 | "Em que fase está a política X?" | `gobus_get_policy_lifecycle` | `gobus_resolve_entity` (entity_type="POLICY") |
