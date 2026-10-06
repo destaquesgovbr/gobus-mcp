@@ -199,7 +199,8 @@ def theme_confidence(
     recovery: bool = False,
     classifier_changed: bool = False,
 ) -> Confidence:
-    """``high`` com ≥ 3×``min_count`` artigos na janela longa, ``medium`` com ≥ ``min_count``;
+    """``high`` com ≥ 3×``min_count`` artigos na janela longa (numa queda, os que a fatia do
+    baseline previa), ``medium`` com ≥ ``min_count``;
     cobertura degradada limita a ``low``; recuperação e troca de classificador tiram um
     nível cada."""
     level = 2 if count_long >= 3 * min_count else 1 if count_long >= min_count else 0
@@ -229,12 +230,15 @@ def classify_sustained(
         r_long = share_of_voice_ratio(lg, k_themes=k_themes)
         if r_short >= sens.ratio and r_long >= sens.ratio and s.w >= sens.min_count:
             kind, sev = "sustained_spike", severity(min(r_short, r_long), sens.ratio)
+            volume = lg.w
         elif (
             r_short <= 1 / sens.ratio
             and r_long <= 1 / sens.ratio
             and min(s.b_prev, lg.b_prev) >= sens.min_count
         ):
             kind, sev = "sustained_drop", severity(1 / max(r_short, r_long), sens.ratio)
+            # numa queda, o volume que sustenta o sinal é o que a fatia do baseline previa
+            volume = round(lg.b_prev * lg.total_w / lg.total_prev) if lg.total_prev else lg.w
         else:
             continue
         signals.append(
@@ -250,7 +254,7 @@ def classify_sustained(
                 severity=round(sev, 3),
                 band=band(sev),
                 confidence=theme_confidence(
-                    lg.w,
+                    volume,
                     sens.min_count,
                     degraded=degraded,
                     recovery=recovery,
