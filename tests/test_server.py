@@ -105,3 +105,12 @@ async def test_readability_aceita_date_to_e_nao_fixa_benchmark():
     tool = tools["gobus_get_readability_recommendations"]
     assert "date_to" in tool.inputSchema["properties"]
     assert "~33" not in (tool.description or "")
+
+
+async def test_score_article_documenta_recusa_e_benchmark_ancorado():
+    async with Client(server.mcp) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+
+    description = tools["gobus_score_article"].description or ""
+    assert "indisponível" in description
+    assert "90 dias antes" in description
