@@ -24,6 +24,7 @@ description: >
 | UC-10 | "Resumo rápido da agência X" | `gobus_get_agency_summary` | — |
 | UC-11 | "Os textos da agência X são fáceis de ler?" | `gobus_get_readability_recommendations` | `gobus_score_article` (um artigo) |
 | UC-12 | "Em que fase está a política X?" | `gobus_get_policy_lifecycle` | `gobus_resolve_entity` (entity_type="POLICY") |
+| UC-13 | "As agências falam em sintonia sobre X?" | `gobus_get_message_coherence` (entity_id ou theme) | `gobus_resolve_entity` (entityId), `gobus_search_news` (artigos de um par divergente) |
 
 ## Regras de Orquestração
 

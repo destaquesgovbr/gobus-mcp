@@ -10,6 +10,11 @@ Todas as configurações usam o prefixo `GOBUS_` e são lidas por `Settings` (py
 | `GOBUS_GRAPHQL_API_KEY` | `""` | Chave de API (opcional, enviada como header `X-API-Key`) |
 | `GOBUS_REQUEST_TIMEOUT` | `10.0` | Timeout do httpx, em segundos |
 | `GOBUS_LOG_LEVEL` | `INFO` | Nível de log |
+| `GOBUS_DEV_PREVIEW` | `false` | **Só desenvolvimento.** `1` registra as tools `gobus_dev_preview_*` (fixtures "DEV — dados fictícios") |
+| `GOBUS_DEV_FIXTURES` | `""` | **Só desenvolvimento.** Diretório das fixtures das previews (padrão: `tests/fixtures/ui` do clone) |
+| `GOBUS_CORS_ORIGINS` | `""` | **Só desenvolvimento.** Origens liberadas por CORS no HTTP (ex.: `http://localhost:8080` para o basic-host) |
+
+As três variáveis de desenvolvimento nunca vão para o Cloud Run; ver [Desenvolvimento e validação dos MCP Apps](apps/desenvolvimento.md).
 
 Além dessas, o servidor lê `PORT` (injetada pelo Cloud Run) para decidir o transport — veja [Arquitetura → Transport](arquitetura.md#transport).
 

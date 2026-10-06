@@ -1,0 +1,198 @@
+{
+  "app": "article_scorecard",
+  "state": "xss",
+  "description": "DEV — dados fictícios: título e agência com HTML e </script>",
+  "toolName": "gobus_score_article",
+  "toolInput": {
+    "unique_id": "xss-artigo"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Score Editorial: </script><script>alert(2)</script> Título <img src=x onerror=alert(1)>\n**<img src=x onerror=alert(1)>** (`xss-img`) · 10/06/2026 · `xss-artigo`\n\n## Nota Geral: 6.7/10\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 7.0/10 — Flesch 35.0 (difícil)\n- **Concisão (peso 30%):** 8.0/10 — 500 palavras (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** 4.0/10 — 3 entidades (0.6 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | <img src=x onerror=alert(1)> | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `xss-img-amostra-38` — Notícia 39 da amostra de xss-img (maior Flesch da amostra de <img src=x onerror=alert(1)> nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)"
+      }
+    ],
+    "structuredContent": {
+      "summary": "# Score Editorial: </script><script>alert(2)</script> Título <img src=x onerror=alert(1)>\n**<img src=x onerror=alert(1)>** (`xss-img`) · 10/06/2026 · `xss-artigo`\n\n## Nota Geral: 6.7/10\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 7.0/10 — Flesch 35.0 (difícil)\n- **Concisão (peso 30%):** 8.0/10 — 500 palavras (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** 4.0/10 — 3 entidades (0.6 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | <img src=x onerror=alert(1)> | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `xss-img-amostra-38` — Notícia 39 da amostra de xss-img (maior Flesch da amostra de <img src=x onerror=alert(1)> nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)",
+      "schemaVersion": 1,
+      "kind": "gobus.scorecard",
+      "tool": "gobus_score_article",
+      "status": "ok",
+      "generatedAt": "2026-10-05T12:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "unique_id": "xss-artigo",
+        "compare_with": null
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": null,
+        "resumedAgencies": null
+      },
+      "dataStatus": [
+        {
+          "key": "readability",
+          "status": "ok",
+          "since": null,
+          "message": "Legibilidade (Flesch): ok — 40 de 40 artigos com dado (100%)",
+          "metric": {
+            "covered": 40,
+            "total": 40,
+            "ratio": 1.0
+          }
+        },
+        {
+          "key": "word_count",
+          "status": "ok",
+          "since": null,
+          "message": "Contagem de palavras: ok — 40 de 40 artigos com dado (100%)",
+          "metric": {
+            "covered": 40,
+            "total": 40,
+            "ratio": 1.0
+          }
+        }
+      ],
+      "notices": [],
+      "scoreStatus": "scored",
+      "overall": 6.7,
+      "refusalReason": null,
+      "scale": "flesch_en_textstat",
+      "bands": [
+        {
+          "key": "very_hard",
+          "label": "muito difícil",
+          "lower": 0.0,
+          "upper": 25.0
+        },
+        {
+          "key": "hard",
+          "label": "difícil",
+          "lower": 25.0,
+          "upper": 50.0
+        },
+        {
+          "key": "medium",
+          "label": "médio",
+          "lower": 50.0,
+          "upper": 75.0
+        },
+        {
+          "key": "easy",
+          "label": "fácil",
+          "lower": 75.0,
+          "upper": 100.0
+        }
+      ],
+      "targetService": 50.0,
+      "targetInstitutional": 30.0,
+      "article": {
+        "uniqueId": "xss-artigo",
+        "title": "</script><script>alert(2)</script> Título <img src=x onerror=alert(1)>",
+        "url": "https://www.gov.br/xss-img/pt-br/assuntos/noticias/2026/xss-artigo",
+        "agencyKey": "xss-img",
+        "agencyName": "<img src=x onerror=alert(1)>",
+        "publishedAt": "2026-06-10T13:00:00+00:00",
+        "flesch": 35.0,
+        "fleschRaw": 35.0,
+        "wordCount": 500,
+        "entityCount": 3
+      },
+      "dimensions": [
+        {
+          "key": "readability",
+          "label": "Legibilidade",
+          "weight": 0.5,
+          "effectiveWeight": 0.5,
+          "score": 7.0,
+          "value": 35.0,
+          "reference": null,
+          "detail": "Flesch 35.0 (difícil)",
+          "light": "green"
+        },
+        {
+          "key": "conciseness",
+          "label": "Concisão",
+          "weight": 0.3,
+          "effectiveWeight": 0.3,
+          "score": 8.0,
+          "value": 500.0,
+          "reference": 546.0,
+          "detail": "500 palavras (mediana da agência: 546)",
+          "light": "green"
+        },
+        {
+          "key": "entity_density",
+          "label": "Densidade de entidades",
+          "weight": 0.2,
+          "effectiveWeight": 0.2,
+          "score": 4.0,
+          "value": 0.6,
+          "reference": null,
+          "detail": "3 entidades (0.6 por 100 palavras)",
+          "light": "yellow"
+        }
+      ],
+      "benchmark": {
+        "agencyKey": "xss-img",
+        "agencyName": "<img src=x onerror=alert(1)>",
+        "found": 120,
+        "sampleSize": 40,
+        "fleschSampleSize": 40,
+        "medianWordCount": 546.0,
+        "medianFlesch": 33.5,
+        "window": {
+          "start": "2026-05-01",
+          "end": "2026-05-28",
+          "days": 28
+        }
+      },
+      "referenceBenchmark": {
+        "agencyKey": "agencia_brasil",
+        "agencyName": "Agência Brasil",
+        "found": 180,
+        "sampleSize": 60,
+        "fleschSampleSize": 60,
+        "medianWordCount": 472.0,
+        "medianFlesch": 39.9,
+        "window": {
+          "start": "2026-05-01",
+          "end": "2026-05-28",
+          "days": 28
+        }
+      },
+      "flags": [],
+      "overallLight": "yellow",
+      "suggestedComparisons": [
+        {
+          "uniqueId": "xss-img-amostra-38",
+          "title": "Notícia 39 da amostra de xss-img",
+          "agencyKey": "xss-img",
+          "agencyName": "<img src=x onerror=alert(1)>",
+          "flesch": 52.4,
+          "wordCount": 606,
+          "reason": "maior Flesch da amostra de <img src=x onerror=alert(1)> nos 90 dias antes"
+        },
+        {
+          "uniqueId": "agencia_brasil-amostra-49",
+          "title": "Notícia 50 da amostra de agencia_brasil",
+          "agencyKey": "agencia_brasil",
+          "agencyName": "Agência Brasil",
+          "flesch": 58.7,
+          "wordCount": 343,
+          "reason": "maior Flesch de Agência Brasil (referência) na mesma janela"
+        }
+      ],
+      "comparison": null,
+      "comparisonError": null
+    },
+    "isError": false
+  },
+  "toolCalls": []
+}

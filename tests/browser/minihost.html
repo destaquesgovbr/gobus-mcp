@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>gobus mini-host</title>
+<style>
+  html, body { margin: 0; padding: 0; }
+  iframe { display: block; width: 100%; height: 120px; border: 0; }
+</style>
+</head>
+<body>
+<iframe id="app" title="app" sandbox="allow-scripts"></iframe>
+<script>
+// Mini-host MCP Apps (SEP-1865, protocolo 2026-01-26) para os testes headless.
+// Faz o papel do host: iframe sandbox com a CSP padrão da spec, responde ui/initialize
+// e, só depois de ui/notifications/initialized, envia tool-input e tool-result da fixture.
+// Tudo o que o app pede fica em window.__gb para os asserts.
+(function () {
+  const frame = document.getElementById("app");
+  const gb = (window.__gb = {
+    log: [], init: null, initialized: false, sent: [], toolCalls: [], messages: [],
+    links: [], ctx: [], sizes: [], displayModes: [], responses: [], hostRequests: {},
+  });
+  let cfg = null;
+  let seq = 1000;
+
+  function post(msg) {
+    gb.sent.push(msg.method || "response:" + msg.id);
+    frame.contentWindow.postMessage(Object.assign({ jsonrpc: "2.0" }, msg), "*");
+  }
+  function reply(id, result) { post({ id: id, result: result }); }
+  function fail(id, code, message) { post({ id: id, error: { code: code, message: message } }); }
+
+  function canonical(value) {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (value && typeof value === "object") {
+      const out = {};
+      Object.keys(value).sort().forEach(function (k) { out[k] = canonical(value[k]); });
+      return out;
+    }
+    return value;
+  }
+  function sameArgs(a, b) { return JSON.stringify(canonical(a || {})) === JSON.stringify(canonical(b || {})); }
+
+  function toolCallResult(params) {
+    const calls = (cfg.fixture && cfg.fixture.toolCalls) || [];
+    for (const c of calls) {
+      if (c.name === params.name && sameArgs(c.arguments, params.arguments)) return c.result;
+    }
+    return { content: [{ type: "text", text: "mini-host: sem fixture para " + params.name }], isError: true };
+  }
+
+  function deliverFixture() {
+    const fx = cfg.fixture;
+    if (!fx) return;
+    post({ method: "ui/notifications/tool-input", params: { arguments: fx.toolInput || {} } });
+    if (fx.result) post({ method: "ui/notifications/tool-result", params: fx.result });
+  }
+
+  window.addEventListener("message", function (event) {
+    if (event.source !== frame.contentWindow) return;
+    const m = event.data;
+    if (!m || m.jsonrpc !== "2.0") return;
+    const isResponse = m.method === undefined;
+    gb.log.push(isResponse ? "response:" + m.id : m.method);
+    if (isResponse) { gb.responses.push(m); return; }
+    if (m.id !== undefined && (cfg.failMethods || []).indexOf(m.method) >= 0) {
+      fail(m.id, -32000, "mini-host: recusado pelo host");
+      return;
+    }
+    switch (m.method) {
+      case "ui/initialize":
+        gb.init = m.params;
+        reply(m.id, {
+          protocolVersion: "2026-01-26",
+          hostInfo: { name: "gobus-minihost", version: "1.0.0" },
+          hostCapabilities: cfg.hostCapabilities,
+          hostContext: cfg.hostContext,
+        });
+        return;
+      case "ui/notifications/initialized":
+        gb.initialized = true;
+        deliverFixture();
+        return;
+      case "ui/notifications/size-changed":
+        gb.sizes.push(m.params);
+        if (m.params && m.params.height) frame.style.height = m.params.height + "px";
+        return;
+      case "tools/call":
+        gb.toolCalls.push(m.params);
+        reply(m.id, toolCallResult(m.params));
+        return;
+      case "ui/message":
+        gb.messages.push(m.params);
+        reply(m.id, {});
+        return;
+      case "ui/open-link":
+        gb.links.push(m.params && m.params.url);
+        reply(m.id, {});
+        return;
+      case "ui/update-model-context":
+        gb.ctx.push(m.params);
+        reply(m.id, {});
+        return;
+      case "ui/request-display-mode": {
+        const mode = m.params && m.params.mode;
+        gb.displayModes.push(mode);
+        const available = cfg.hostContext.availableDisplayModes || [];
+        const granted = available.indexOf(mode) >= 0 ? mode : cfg.hostContext.displayMode;
+        reply(m.id, { mode: granted });
+        post({ method: "ui/notifications/host-context-changed", params: { displayMode: granted } });
+        return;
+      }
+      default:
+        if (m.id !== undefined) fail(m.id, -32601, "mini-host: método não suportado");
+    }
+  });
+
+  // Inicia o app: injeta a CSP (meta logo após <head>) e carrega o HTML via srcdoc.
+  window.__gbStart = function (config) {
+    cfg = config;
+    const meta = '<meta http-equiv="Content-Security-Policy" content="' + cfg.csp + '">';
+    const html = /<head[^>]*>/i.test(cfg.html)
+      ? cfg.html.replace(/<head[^>]*>/i, function (h) { return h + meta; })
+      : meta + cfg.html;
+    frame.srcdoc = html;
+  };
+
+  // Host → app a qualquer momento (testes de teardown, cancelamento, troca de contexto).
+  window.__gbNotify = function (method, params) { post({ method: method, params: params || {} }); };
+  window.__gbRequest = function (method, params) {
+    const id = ++seq;
+    gb.hostRequests[id] = method;
+    post({ id: id, method: method, params: params || {} });
+    return id;
+  };
+})();
+</script>
+</body>
+</html>

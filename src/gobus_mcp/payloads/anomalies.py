@@ -9,22 +9,35 @@ Blocos:
   upstream só aparece aqui (``upstream_volume_ratio``), nunca no Markdown;
 - ``domains``: 8 gauges em ordem fixa (``DOMAIN_ORDER``).
 
-``severity`` (0–1) e ``band`` são calculados no gobus; o app não reimplementa limiares.
-O ``summary`` (Markdown, ≤ 6 KB) entra no orçamento de 20 KB do ``structuredContent``.
+``severity`` (0–1) e ``band`` são calculados no gobus; o app não reimplementa limiares
+(``severity_bands`` traz as marcas dos gauges e ``sensitivity_options`` as opções).
+O ``summary`` (Markdown, ≤ 6 KB) entra no orçamento de 20 KB do ``structuredContent``; o
+Markdown completo vai no ``content`` da tool. ``compact_anomaly_payload`` deixa no payload
+só o que o app desenha (séries nos sinais anômalos, teto de tendências normais) e conta o
+resto em ``entities.omitted``.
 """
 
 from __future__ import annotations
 
-import json
+from collections import Counter
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
-from gobus_mcp.analytics.ratios import band
+from gobus_mcp.analytics.ratios import BAND_ALERT, BAND_WATCH, band
 from gobus_mcp.domains import DOMAIN_LABELS, DOMAIN_ORDER, Domain
-from gobus_mcp.payloads.common import Band, Confidence, Payload, ReportBase, Status, Window
+from gobus_mcp.payloads.common import (
+    MAX_PAYLOAD_BYTES,
+    Band,
+    Confidence,
+    Payload,
+    ReportBase,
+    Status,
+    Window,
+    payload_size,
+)
 
 ThemeSignalKind = Literal["sustained_spike", "sustained_drop"]
 EntitySignalKind = Literal[
@@ -38,8 +51,11 @@ EntitySignalKind = Literal[
 OwnerMethod = Literal["agency_key", "coverage"]
 
 MAX_DAILY_POINTS = 28
-MAX_PAYLOAD_BYTES = 20_000  # structuredContent (meta: 10 KB)
-
+# Payload do app: sinais de entidade anômalos (com séries) e tendências normais (sem série).
+MAX_PAYLOAD_SIGNALS = 6
+MAX_PAYLOAD_NORMALS = 3
+# Opções de sensibilidade, na ordem do controle do app (= ``analytics.themes.SENSITIVITY``).
+SENSITIVITY_OPTIONS = ("high", "medium", "low")
 # Classes que alimentam os gauges de cada domínio.
 SPIKE_ENTITY_KINDS = frozenset({"concentrated_coverage"})
 SILENCE_ENTITY_KINDS = frozenset({"coordinated_silence"})
@@ -154,6 +170,8 @@ class EntitiesBlock(Payload):
     candidates: int
     upstream: UpstreamInfo
     signals: list[EntitySignal]
+    # sinais fora do payload, por classe (estão no Markdown do ``content``)
+    omitted: dict[EntitySignalKind, int] = {}
 
 
 class DomainSummary(Payload):
@@ -172,6 +190,13 @@ class DomainSummary(Payload):
     silence_band: Band
 
 
+class SeverityBands(Payload):
+    """Início das faixas ``watch`` e ``alert`` da severidade (marcas dos gauges)."""
+
+    watch: float = BAND_WATCH
+    alert: float = BAND_ALERT
+
+
 class AnomalyReport(ReportBase):
     kind: Literal["gobus.anomalies"] = "gobus.anomalies"
     tool: Literal["gobus_detect_anomalies"] = "gobus_detect_anomalies"
@@ -179,6 +204,8 @@ class AnomalyReport(ReportBase):
     themes: ThemesBlock
     entities: EntitiesBlock
     domains: list[DomainSummary]
+    severity_bands: SeverityBands = Field(default_factory=SeverityBands)
+    sensitivity_options: list[str] = Field(default_factory=lambda: list(SENSITIVITY_OPTIONS))
 
     @field_validator("domains")
     @classmethod
@@ -239,12 +266,22 @@ def summarize_domains(
     ]
 
 
-def payload_size(report: BaseModel) -> int:
-    """Bytes do ``structuredContent`` (JSON UTF-8, camelCase)."""
-    return len(json.dumps(report.model_dump(mode="json"), ensure_ascii=False).encode())
-
-
 _TRIM_NOTE = "lista de entidades reduzida para caber no orçamento do payload"
+
+
+def _with_signals(report: AnomalyReport, kept: list[EntitySignal], *, note: str | None = None):
+    """``report`` com ``kept`` como sinais de entidade e os de fora somados em ``omitted``."""
+    entities = report.entities
+    dropped = Counter(s.kind for s in entities.signals) - Counter(s.kind for s in kept)
+    omitted = Counter(entities.omitted) + dropped
+    update = {"signals": list(kept), "omitted": dict(sorted(omitted.items()))}
+    if note is not None:
+        update["note"] = note
+    return report.model_copy(update={"entities": entities.model_copy(update=update)})
+
+
+def _strip_series(s: EntitySignal) -> EntitySignal:
+    return s.model_copy(update={"daily": [], "owner_daily": None})
 
 
 def fit_anomaly_budget(report: AnomalyReport, max_bytes: int = MAX_PAYLOAD_BYTES) -> AnomalyReport:
@@ -255,19 +292,17 @@ def fit_anomaly_budget(report: AnomalyReport, max_bytes: int = MAX_PAYLOAD_BYTES
     3. séries diárias dos demais sinais;
     4. demais sinais de entidade, da menor severidade para a maior.
 
-    Os sinais de tema e o ``summary`` ficam intactos.
+    Os sinais de tema e o ``summary`` ficam intactos; os sinais cortados entram em
+    ``entities.omitted``.
     """
     if payload_size(report) <= max_bytes:
         return report
 
-    def build(items: list[EntitySignal]) -> AnomalyReport:
-        note = report.entities.note
-        note = f"{note}; {_TRIM_NOTE}" if note else _TRIM_NOTE
-        entities = report.entities.model_copy(update={"signals": list(items), "note": note})
-        return report.model_copy(update={"entities": entities})
+    note = report.entities.note
+    note = f"{note}; {_TRIM_NOTE}" if note else _TRIM_NOTE
 
-    def strip(s: EntitySignal) -> EntitySignal:
-        return s.model_copy(update={"daily": [], "owner_daily": None})
+    def build(items: list[EntitySignal]) -> AnomalyReport:
+        return _with_signals(report, items, note=note)
 
     def drop_weakest(items: list[EntitySignal], removable) -> tuple[list, AnomalyReport]:
         candidate = build(items)
@@ -278,10 +313,36 @@ def fit_anomaly_budget(report: AnomalyReport, max_bytes: int = MAX_PAYLOAD_BYTES
             candidate = build(items)
         return items, candidate
 
-    signals = [strip(s) if s.kind == "normal" else s for s in report.entities.signals]
+    signals = [_strip_series(s) if s.kind == "normal" else s for s in report.entities.signals]
     signals, candidate = drop_weakest(signals, lambda s: s.kind == "normal")
     if payload_size(candidate) <= max_bytes:
         return candidate
-    signals = [strip(s) for s in signals]
+    signals = [_strip_series(s) for s in signals]
     _, candidate = drop_weakest(signals, lambda s: True)
     return candidate
+
+
+def compact_anomaly_payload(
+    report: AnomalyReport,
+    *,
+    max_signals: int = MAX_PAYLOAD_SIGNALS,
+    max_normals: int = MAX_PAYLOAD_NORMALS,
+    max_bytes: int = MAX_PAYLOAD_BYTES,
+) -> AnomalyReport:
+    """Payload do app ``ui://anomaly-radar``: só o que ele desenha.
+
+    - sinais de entidade anômalos (não ``normal``): os ``max_signals`` de maior severidade,
+      com as séries diárias (a sparkline da lista);
+    - tendências ``normal``: as ``max_normals`` de maior severidade, sem série;
+    - o resto vai para ``entities.omitted`` (por classe); o Markdown do ``content`` tem tudo;
+    - temas, gauges e ``summary`` intactos; ``fit_anomaly_budget`` fica como rede de
+      segurança do orçamento.
+
+    A ordem relativa dos sinais (severidade decrescente) é mantida.
+    """
+    signals = report.entities.signals
+    anomalous = [s for s in signals if s.kind != "normal"][:max_signals]
+    normals = [s for s in signals if s.kind == "normal"][:max_normals]
+    chosen = {id(s) for s in anomalous + normals}
+    kept = [s if s.kind != "normal" else _strip_series(s) for s in signals if id(s) in chosen]
+    return fit_anomaly_budget(_with_signals(report, kept), max_bytes)

@@ -1,0 +1,265 @@
+{
+  "app": "article_scorecard",
+  "state": "compare",
+  "description": "DEV — dados fictícios: dois artigos lado a lado (PF contra Ministério da Saúde)",
+  "toolName": "gobus_score_article",
+  "toolInput": {
+    "unique_id": "pf-operacao-desarticula-quadrilha",
+    "compare_with": "saude-campanha-gripe"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Score Editorial: Operação desarticula quadrilha que fraudava benefícios\n**Polícia Federal** (`pf`) · 10/06/2026 · `pf-operacao-desarticula-quadrilha`\n\n## Nota Geral: 9.0/10\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 9.6/10 — Flesch 48.2 (difícil)\n- **Concisão (peso 30%):** 10.0/10 — 420 palavras (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** 6.0/10 — 6 entidades (1.4 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Comparação: Campanha de vacinação contra a gripe começa na segunda\n**Ministério da Saúde** (`saude`) · 05/06/2026 · `saude-campanha-gripe`\n\n| | Este artigo | Comparado |\n|---|---|---|\n| Nota | 9.0/10 | 4.8/10 |\n| Legibilidade | 9.6 | 4.4 |\n| Concisão | 10.0 | 6.0 |\n| Densidade de entidades | 6.0 | 4.0 |\n| Flesch | 48.2 (difícil) | 22.0 (muito difícil) |\n| Palavras | 420 | 700 |\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-38` — Notícia 39 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)"
+      }
+    ],
+    "structuredContent": {
+      "summary": "# Score Editorial: Operação desarticula quadrilha que fraudava benefícios\n**Polícia Federal** (`pf`) · 10/06/2026 · `pf-operacao-desarticula-quadrilha`\n\n## Nota Geral: 9.0/10\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 9.6/10 — Flesch 48.2 (difícil)\n- **Concisão (peso 30%):** 10.0/10 — 420 palavras (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** 6.0/10 — 6 entidades (1.4 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Comparação: Campanha de vacinação contra a gripe começa na segunda\n**Ministério da Saúde** (`saude`) · 05/06/2026 · `saude-campanha-gripe`\n\n| | Este artigo | Comparado |\n|---|---|---|\n| Nota | 9.0/10 | 4.8/10 |\n| Legibilidade | 9.6 | 4.4 |\n| Concisão | 10.0 | 6.0 |\n| Densidade de entidades | 6.0 | 4.0 |\n| Flesch | 48.2 (difícil) | 22.0 (muito difícil) |\n| Palavras | 420 | 700 |\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-38` — Notícia 39 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)",
+      "schemaVersion": 1,
+      "kind": "gobus.scorecard",
+      "tool": "gobus_score_article",
+      "status": "ok",
+      "generatedAt": "2026-10-05T12:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "unique_id": "pf-operacao-desarticula-quadrilha",
+        "compare_with": "saude-campanha-gripe"
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": null,
+        "resumedAgencies": null
+      },
+      "dataStatus": [
+        {
+          "key": "readability",
+          "status": "ok",
+          "since": null,
+          "message": "Legibilidade (Flesch): ok — 40 de 40 artigos com dado (100%)",
+          "metric": {
+            "covered": 40,
+            "total": 40,
+            "ratio": 1.0
+          }
+        },
+        {
+          "key": "word_count",
+          "status": "ok",
+          "since": null,
+          "message": "Contagem de palavras: ok — 40 de 40 artigos com dado (100%)",
+          "metric": {
+            "covered": 40,
+            "total": 40,
+            "ratio": 1.0
+          }
+        }
+      ],
+      "notices": [],
+      "scoreStatus": "scored",
+      "overall": 9.0,
+      "refusalReason": null,
+      "scale": "flesch_en_textstat",
+      "bands": [
+        {
+          "key": "very_hard",
+          "label": "muito difícil",
+          "lower": 0.0,
+          "upper": 25.0
+        },
+        {
+          "key": "hard",
+          "label": "difícil",
+          "lower": 25.0,
+          "upper": 50.0
+        },
+        {
+          "key": "medium",
+          "label": "médio",
+          "lower": 50.0,
+          "upper": 75.0
+        },
+        {
+          "key": "easy",
+          "label": "fácil",
+          "lower": 75.0,
+          "upper": 100.0
+        }
+      ],
+      "targetService": 50.0,
+      "targetInstitutional": 30.0,
+      "article": {
+        "uniqueId": "pf-operacao-desarticula-quadrilha",
+        "title": "Operação desarticula quadrilha que fraudava benefícios",
+        "url": "https://www.gov.br/pf/pt-br/assuntos/noticias/2026/pf-operacao-desarticula-quadrilha",
+        "agencyKey": "pf",
+        "agencyName": "Polícia Federal",
+        "publishedAt": "2026-06-10T13:00:00+00:00",
+        "flesch": 48.2,
+        "fleschRaw": 48.2,
+        "wordCount": 420,
+        "entityCount": 6
+      },
+      "dimensions": [
+        {
+          "key": "readability",
+          "label": "Legibilidade",
+          "weight": 0.5,
+          "effectiveWeight": 0.5,
+          "score": 9.6,
+          "value": 48.2,
+          "reference": null,
+          "detail": "Flesch 48.2 (difícil)",
+          "light": "green"
+        },
+        {
+          "key": "conciseness",
+          "label": "Concisão",
+          "weight": 0.3,
+          "effectiveWeight": 0.3,
+          "score": 10.0,
+          "value": 420.0,
+          "reference": 546.0,
+          "detail": "420 palavras (mediana da agência: 546)",
+          "light": "green"
+        },
+        {
+          "key": "entity_density",
+          "label": "Densidade de entidades",
+          "weight": 0.2,
+          "effectiveWeight": 0.2,
+          "score": 6.0,
+          "value": 1.43,
+          "reference": null,
+          "detail": "6 entidades (1.4 por 100 palavras)",
+          "light": "yellow"
+        }
+      ],
+      "benchmark": {
+        "agencyKey": "pf",
+        "agencyName": "Polícia Federal",
+        "found": 120,
+        "sampleSize": 40,
+        "fleschSampleSize": 40,
+        "medianWordCount": 546.0,
+        "medianFlesch": 33.5,
+        "window": {
+          "start": "2026-05-01",
+          "end": "2026-05-28",
+          "days": 28
+        }
+      },
+      "referenceBenchmark": {
+        "agencyKey": "agencia_brasil",
+        "agencyName": "Agência Brasil",
+        "found": 180,
+        "sampleSize": 60,
+        "fleschSampleSize": 60,
+        "medianWordCount": 472.0,
+        "medianFlesch": 39.9,
+        "window": {
+          "start": "2026-05-01",
+          "end": "2026-05-28",
+          "days": 28
+        }
+      },
+      "flags": [],
+      "overallLight": "green",
+      "suggestedComparisons": [
+        {
+          "uniqueId": "pf-amostra-38",
+          "title": "Notícia 39 da amostra de pf",
+          "agencyKey": "pf",
+          "agencyName": "Polícia Federal",
+          "flesch": 52.4,
+          "wordCount": 606,
+          "reason": "maior Flesch da amostra de Polícia Federal nos 90 dias antes"
+        },
+        {
+          "uniqueId": "agencia_brasil-amostra-49",
+          "title": "Notícia 50 da amostra de agencia_brasil",
+          "agencyKey": "agencia_brasil",
+          "agencyName": "Agência Brasil",
+          "flesch": 58.7,
+          "wordCount": 343,
+          "reason": "maior Flesch de Agência Brasil (referência) na mesma janela"
+        }
+      ],
+      "comparison": {
+        "scoreStatus": "scored",
+        "overall": 4.8,
+        "overallLight": "yellow",
+        "refusalReason": null,
+        "article": {
+          "uniqueId": "saude-campanha-gripe",
+          "title": "Campanha de vacinação contra a gripe começa na segunda",
+          "url": "https://www.gov.br/saude/pt-br/assuntos/noticias/2026/saude-campanha-gripe",
+          "agencyKey": "saude",
+          "agencyName": "Ministério da Saúde",
+          "publishedAt": "2026-06-05T12:00:00+00:00",
+          "flesch": 22.0,
+          "fleschRaw": 22.0,
+          "wordCount": 700,
+          "entityCount": 4
+        },
+        "dimensions": [
+          {
+            "key": "readability",
+            "label": "Legibilidade",
+            "weight": 0.5,
+            "effectiveWeight": 0.5,
+            "score": 4.4,
+            "value": 22.0,
+            "reference": null,
+            "detail": "Flesch 22.0 (muito difícil)",
+            "light": "yellow"
+          },
+          {
+            "key": "conciseness",
+            "label": "Concisão",
+            "weight": 0.3,
+            "effectiveWeight": 0.3,
+            "score": 6.0,
+            "value": 700.0,
+            "reference": 546.0,
+            "detail": "700 palavras (mediana da agência: 546)",
+            "light": "yellow"
+          },
+          {
+            "key": "entity_density",
+            "label": "Densidade de entidades",
+            "weight": 0.2,
+            "effectiveWeight": 0.2,
+            "score": 4.0,
+            "value": 0.57,
+            "reference": null,
+            "detail": "4 entidades (0.6 por 100 palavras)",
+            "light": "yellow"
+          }
+        ],
+        "benchmark": {
+          "agencyKey": "saude",
+          "agencyName": "Ministério da Saúde",
+          "found": 120,
+          "sampleSize": 40,
+          "fleschSampleSize": 40,
+          "medianWordCount": 546.0,
+          "medianFlesch": 33.5,
+          "window": {
+            "start": "2026-05-01",
+            "end": "2026-05-28",
+            "days": 28
+          }
+        }
+      },
+      "comparisonError": null
+    },
+    "isError": false
+  },
+  "toolCalls": []
+}

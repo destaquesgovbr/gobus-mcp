@@ -13,7 +13,7 @@ from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.cache import TTLCache
 from gobus_mcp.calendario import BRT
 from gobus_mcp.payloads.anomalies import MAX_PAYLOAD_BYTES, payload_size
-from gobus_mcp.payloads.forecast import ForecastReport
+from gobus_mcp.payloads.forecast import MAX_THEMES, ForecastReport
 from gobus_mcp.tools.forecast_trends import build_forecast_report, forecast_trends
 from tests.fixtures.g2 import NOW_0510, busy, route_g2, theme_ranges_0510
 
@@ -186,7 +186,10 @@ async def test_calendario_conta_so_as_retomadas_pos_defeso(fake_client):
 async def test_horizonte_que_cruza_o_fim_do_defeso_usa_o_nivel_normal(fake_client):
     route_g2(fake_client, activity={"saude": busy, "secom": blackout_drop})
 
-    report = await build_forecast_report(fake_client, horizon_days=28, now=NOW_0510)
+    # série diária de todos os temas (o payload do app só leva a do top-3)
+    report = await build_forecast_report(
+        fake_client, horizon_days=28, now=NOW_0510, series_themes=MAX_THEMES
+    )
     daily = _daily(_theme(report, "Economia e Finanças"))
     levels = report.platform.level_by_phase
 

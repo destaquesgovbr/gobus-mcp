@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 from fastmcp import FastMCP
 from fastmcp.server.http import Mount, Request, Response, SseServerTransport
+from fastmcp.tools import ToolResult
 
 from gobus_mcp.agency_activity import AgencyActivityService
 from gobus_mcp.agency_catalog import AgencyCatalog
@@ -16,23 +17,25 @@ from gobus_mcp.prompts.weekly_digest import weekly_digest_prompt
 from gobus_mcp.resources.agencies import fetch_agencies
 from gobus_mcp.resources.health_pipelines import fetch_health_pipelines
 from gobus_mcp.resources.platform_stats import fetch_platform_stats
-from gobus_mcp.resources.readability_dashboard import fetch_readability_dashboard
 from gobus_mcp.resources.readability_report import fetch_readability_report
 from gobus_mcp.resources.taxonomy_queries import fetch_taxonomy_queries
 from gobus_mcp.resources.themes import fetch_themes
-from gobus_mcp.tools.detect_anomalies import detect_anomalies
+from gobus_mcp.tools.detect_anomalies import build_anomaly_output, invalid_params
 from gobus_mcp.tools.detect_trends import detect_trends
-from gobus_mcp.tools.forecast_trends import forecast_trends
+from gobus_mcp.tools.forecast_trends import build_forecast_output
 from gobus_mcp.tools.get_agency_analytics import get_agency_analytics
 from gobus_mcp.tools.get_agency_summary import get_agency_summary
 from gobus_mcp.tools.get_article import get_article
 from gobus_mcp.tools.get_entity_network import get_entity_network
 from gobus_mcp.tools.get_entity_profile import get_entity_profile
+from gobus_mcp.tools.get_message_coherence import get_message_coherence
 from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
-from gobus_mcp.tools.get_readability_recommendations import get_readability_recommendations
+from gobus_mcp.tools.get_readability_recommendations import build_readability_payload
 from gobus_mcp.tools.resolve_entity import resolve_entity
-from gobus_mcp.tools.score_article import score_article
+from gobus_mcp.tools.score_article import build_score_payload
 from gobus_mcp.tools.search_news import search_news
+from gobus_mcp.ui import app_result, app_tool_kwargs, register_ui_resources
+from gobus_mcp.ui.preview import fixtures_dir, register_dev_previews
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
@@ -330,13 +333,13 @@ async def gobus_get_agency_summary(agency_key: str, days: int = 30) -> str:
     return await get_agency_summary(agency_key, deps.client, days, catalog=deps.catalog)
 
 
-@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
+@mcp.tool(**app_tool_kwargs("readability_dashboard"))
 async def gobus_get_readability_recommendations(
     agency_key: str = "",
     days: int = 90,
     limit: int = 10,
     date_to: str = "",
-) -> str:
+) -> ToolResult:
     """Diagnóstico de legibilidade (índice Flesch) por agência com recomendações de estilo.
 
     Parâmetros:
@@ -355,16 +358,20 @@ async def gobus_get_readability_recommendations(
     parou antes do fim da janela, a análise usa a janela efetiva (mesmo tamanho, até o
     último mês com dado) e avisa "dados até MM/AAAA". Escala: fórmula inglesa do textstat,
     limitada a 0–100.
+
+    MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o painel
+    ui://readability-dashboard; o texto devolvido é o mesmo resumo em Markdown.
     """
     deps = get_deps()
-    return await get_readability_recommendations(
-        agency_key or None,
+    report = await build_readability_payload(
         deps.client,
-        days,
-        limit,
+        agency_key=agency_key or None,
+        days=days,
+        limit=limit,
         date_to=date_to or None,
         catalog=deps.catalog,
     )
+    return app_result(report)
 
 
 @mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
@@ -394,8 +401,10 @@ async def gobus_get_policy_lifecycle(
     return await get_policy_lifecycle(policy_name, get_deps().client, date_from)
 
 
-@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
-async def gobus_detect_anomalies(sensitivity: str = "medium", domain_filter: str = "") -> str:
+@mcp.tool(**app_tool_kwargs("anomaly_radar"))
+async def gobus_detect_anomalies(
+    sensitivity: str = "medium", domain_filter: str = ""
+) -> ToolResult:
     """Detecta anomalias comunicacionais de temas e de entidades, ciente do defeso eleitoral.
 
     Temas (janelas móveis de 3 e 7 dias, UTC): share-of-voice — a fatia do tema entre os
@@ -424,20 +433,28 @@ async def gobus_detect_anomalies(sensitivity: str = "medium", domain_filter: str
     Quedas Sustentadas, Silêncio Coordenado, Cobertura Concentrada, Explicado pelo
     Calendário, Rajadas e Entidades Novas e Tendências Normais, com severidade 0–1,
     faixa (normal/atenção/alerta) e confiança.
+
+    MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o radar
+    ui://anomaly-radar (8 gauges por domínio; no fullscreen, a lista de sinais com
+    sensibilidade e domínio); o texto devolvido é o Markdown completo.
     """
+    invalid = invalid_params(sensitivity, domain_filter)
+    if invalid is not None:
+        return ToolResult(content=invalid)
     deps = get_deps()
-    return await detect_anomalies(
+    report, markdown = await build_anomaly_output(
         deps.client,
-        sensitivity,
-        domain_filter,
+        sensitivity=sensitivity,
+        domain_filter=domain_filter,
         catalog=deps.catalog,
         activity=deps.activity,
         cache=deps.cache,
     )
+    return app_result(report, content=markdown)
 
 
-@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
-async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> str:
+@mcp.tool(**app_tool_kwargs("forecast_radar"))
+async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> ToolResult:
     """Projeta tendências de temas por share-of-voice em três janelas (3, 7 e 21 dias).
 
     Para cada tema: razão da fatia entre os artigos classificados na janela contra o
@@ -455,20 +472,26 @@ async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> str:
     Retorna: Markdown com a tabela Tema | Ritmo (×/semana) | Momentum | Confiança |
     Artigos esperados no horizonte (intervalo de 95%) | Razão por janela, mais os avisos
     de cobertura de classificação e de calendário.
+
+    MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o radar
+    ui://forecast-radar (ritmo semanal em escala log2 com o anel 1× e o top-3 com
+    momentum; no fullscreen, o horizonte 7/14/21/28); o texto devolvido é o Markdown
+    completo.
     """
     deps = get_deps()
-    return await forecast_trends(
+    report, markdown = await build_forecast_output(
         deps.client,
-        horizon_days,
-        limit,
+        horizon_days=horizon_days,
+        limit=limit,
         catalog=deps.catalog,
         activity=deps.activity,
         cache=deps.cache,
     )
+    return app_result(report, content=markdown)
 
 
-@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
-async def gobus_score_article(unique_id: str) -> str:
+@mcp.tool(**app_tool_kwargs("article_scorecard"))
+async def gobus_score_article(unique_id: str, compare_with: str = "") -> ToolResult:
     """Atribui uma nota editorial (0-10) a um artigo comparando-o ao benchmark da agência.
 
     Combina legibilidade (Flesch limitado a 0–100), concisão (palavras contra a mediana
@@ -484,11 +507,71 @@ async def gobus_score_article(unique_id: str) -> str:
 
     Parâmetros:
     - unique_id: ID único do artigo (obtido via gobus_search_news)
+    - compare_with: unique_id de outro artigo para comparar lado a lado (opcional; a
+      resposta sugere até 2 artigos da amostra do benchmark para isso)
 
-    Retorna: Markdown com nota geral, notas por dimensão e benchmark da agência.
+    Retorna: Markdown com nota geral, notas por dimensão, benchmark da agência e, com
+    compare_with, a tabela de comparação. MCP App: em hosts com suporte (Claude Desktop,
+    claude.ai) abre o painel ui://article-scorecard com semáforos e o lado a lado.
     """
     deps = get_deps()
-    return await score_article(unique_id, deps.client, catalog=deps.catalog)
+    report = await build_score_payload(
+        deps.client, unique_id, compare_with=compare_with or None, catalog=deps.catalog
+    )
+    if report is None:
+        return ToolResult(content=f"Artigo não encontrado: `{unique_id}`")
+    return app_result(report)
+
+
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
+async def gobus_get_message_coherence(
+    entity_id: str = "",
+    theme: str = "",
+    agencies: list[str] | None = None,
+    date_from: str = "",
+    date_to: str = "",
+) -> str:
+    """Coerência de mensagem entre agências sobre uma entidade ou um tema: as agências falam
+    em sintonia (mesmas entidades, mesmo momento, mesmo enquadramento e tom)?
+
+    Informe exatamente um entre entity_id e theme. Republicadoras (Agência Brasil, TV
+    Brasil, EBC, Radioagência) ficam sempre fora do índice, numa seção separada; o índice
+    compara as agências não republicadoras com 2 ou mais artigos (com menos de 2, "voz
+    única", sem índice).
+
+    Parâmetros:
+    - entity_id: entityId canônico (ex: "Q575545" = Bolsa Família, "dgb_pe-de-meia") ou um
+      nome (resolvido por busca: fica a entidade de maior volume e as outras viram
+      alternativas). Prefira entidade quando a classificação de temas está incompleta.
+    - theme: label L1 de tema (ex: "Saúde", "Defesa e Forças Armadas"; aceita sem acento e
+      prefixo único) — ver gobus://themes
+    - agencies: restringe às agências listadas (códigos, ex: ["mds", "saude"]); código
+      inválido devolve sugestões (ex: "ms" → "saude")
+    - date_from / date_to: janela ISO em dias BRT (padrão: os últimos 14 dias fechados,
+      D−14..D−1; só date_from = 14 dias a partir dele); máximo de 92 dias
+
+    Índice 1–5 = média das dimensões disponíveis com pesos renormalizados:
+    entidades 0,35 (cosseno salience×idf, sem a própria entidade nem as das agências),
+    timing BRT 0,25 (1º artigo em até 48 h + Jaccard dos dias), enquadramento 0,25 (léxico
+    anúncio/resultado/desafio/serviço/agenda; resumos [MOCK] ignorados) e tom 0,15 (só com
+    cobertura de sentimento ≥ 50%). Cortes provisórios.
+
+    Retorna: Markdown com o índice e a tabela de dimensões, uma linha por agência (1ª
+    publicação, atraso, enquadramento dominante, âncoras exclusivas), âncoras
+    compartilhadas, pares mais divergentes, republicadoras e avisos de dados (defeso,
+    classificação de temas, amostra truncada acima de 1000 artigos, início truncado).
+    """
+    deps = get_deps()
+    return await get_message_coherence(
+        deps.client,
+        entity_id,
+        theme,
+        agencies,
+        date_from,
+        date_to,
+        catalog=deps.catalog,
+        cache=deps.cache,
+    )
 
 
 # ── Resources ────────────────────────────────────────────────────────────────
@@ -519,13 +602,6 @@ async def taxonomy_queries_resource() -> str:
     return await fetch_taxonomy_queries()
 
 
-@mcp.resource("ui://readability-dashboard")
-async def readability_dashboard_resource() -> str:
-    """Dashboard interativo de legibilidade por agência (HTML/JS auto-contido)."""
-    deps = get_deps()
-    return await fetch_readability_dashboard(deps.client, catalog=deps.catalog)
-
-
 @mcp.resource("gobus://readability-report", mime_type="application/json")
 async def readability_report_resource() -> str:
     """Relatório JSON de legibilidade das agências ativas, com gap até a meta (Flesch 50),
@@ -541,6 +617,14 @@ async def health_pipelines_resource() -> str:
     cada uma ok | degraded | unavailable, com avisos."""
     deps = get_deps()
     return await fetch_health_pipelines(deps.client, catalog=deps.catalog, activity=deps.activity)
+
+
+# MCP Apps: um resource ui:// por app (HTML estático, sem I/O; os dados vêm da tool).
+register_ui_resources(mcp)
+
+# Só em desenvolvimento: gobus_dev_preview_<app> com as fixtures (DEV — dados fictícios).
+if settings.dev_preview:
+    register_dev_previews(mcp, fixtures_dir(settings.dev_fixtures))
 
 
 # ── Prompts ──────────────────────────────────────────────────────────────────
@@ -572,6 +656,26 @@ def prompt_weekly_digest() -> list[dict]:
     return weekly_digest_prompt()
 
 
+def http_middleware(origins: str) -> list:
+    """Middleware do servidor HTTP: CORS só quando ``GOBUS_CORS_ORIGINS`` traz origens
+    (desenvolvimento: o basic-host conecta do navegador). Vazio = nenhum middleware."""
+    allowed = [o.strip() for o in origins.split(",") if o.strip()]
+    if not allowed:
+        return []
+    from starlette.middleware import Middleware
+    from starlette.middleware.cors import CORSMiddleware
+
+    return [
+        Middleware(
+            CORSMiddleware,
+            allow_origins=allowed,
+            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_headers=["*"],
+            expose_headers=["mcp-session-id", "mcp-protocol-version"],
+        )
+    ]
+
+
 def main():
     import os
 
@@ -592,7 +696,16 @@ def main():
                 "Transport: http stateless em 0.0.0.0:%d — /mcp (2025-03-26) + /sse (2024-11-05)",
                 port,
             )
-            mcp.run(transport="http", host="0.0.0.0", port=port, stateless_http=True)
+            middleware = http_middleware(settings.cors_origins)
+            if middleware:
+                logger.warning("CORS de desenvolvimento ligado: %s", settings.cors_origins)
+            mcp.run(
+                transport="http",
+                host="0.0.0.0",
+                port=port,
+                stateless_http=True,
+                middleware=middleware or None,
+            )
     except KeyboardInterrupt:
         logger.info("Servidor interrompido pelo usuário")
     except Exception as e:

@@ -6,7 +6,10 @@
 - ``themes``: sensibilidade, cobertura de classificação e picos/quedas sustentados;
 - ``entities``: cobertura sem republicadoras, agência dona, silêncio e classes de sinal;
 - ``forecast``: composto, momentum, confiança e projeção amortecida;
-- ``render``: Markdown de anomalias e forecast a partir dos modelos de ``payloads``.
+- ``render``: Markdown de anomalias, forecast e coerência a partir dos modelos de ``payloads``;
+- ``framing``: léxico pt-BR de enquadramento (anúncio, resultado, desafio, serviço, agenda);
+- ``coherence``: coerência de mensagem entre agências (entidades, timing BRT, enquadramento
+  e tom; índice 1–5 com pesos renormalizados).
 
 Todas recebem ``today``/``now`` injetados; o I/O fica nos builders das tools.
 """

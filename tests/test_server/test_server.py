@@ -1,7 +1,9 @@
 """Servidor MCP em memória (fastmcp.Client): registro das tools e formato da resposta.
 
-Toda tool é ``-> str`` sem ``outputSchema``: o host recebe o Markdown cru em ``content``
-e nenhum ``structuredContent`` (antes, o fastmcp 3.4 embrulhava em ``{"result": …}``).
+Toda tool fica sem ``outputSchema``. As tools sem app são ``-> str``: o host recebe o
+Markdown cru em ``content`` e nenhum ``structuredContent`` (antes, o fastmcp 3.4 embrulhava
+em ``{"result": …}``). As tools de MCP App (``APP_TOOLS``) devolvem ``summary`` + payload:
+o formato delas é coberto por ``test_apps_wire.py``.
 """
 
 import pytest
@@ -11,8 +13,9 @@ from gobus_mcp import server
 from gobus_mcp.agency_activity import AgencyActivityService
 from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.cache import TTLCache
-from tests.conftest import FakeGraphQLClient
+from tests.conftest import FakeGraphQLClient, route_catalog
 from tests.fixtures.g2 import route_g2
+from tests.test_server.test_apps_wire import APP_TOOLS
 
 TOOL_ARGS = {
     "gobus_search_news": {"query": "vacina"},
@@ -32,6 +35,7 @@ TOOL_ARGS = {
     "gobus_detect_anomalies": {},
     "gobus_forecast_trends": {},
     "gobus_score_article": {"unique_id": "abc"},
+    "gobus_get_message_coherence": {"entity_id": "Q575545"},
 }
 
 
@@ -66,7 +70,7 @@ def test_get_deps_le_o_conteiner_trocado_pelos_testes(deps):
     assert server.get_deps() is deps
 
 
-async def test_lista_13_tools_sem_output_schema_e_somente_leitura():
+async def test_lista_14_tools_sem_output_schema_e_somente_leitura():
     async with Client(server.mcp) as client:
         tools = await client.list_tools()
 
@@ -77,7 +81,10 @@ async def test_lista_13_tools_sem_output_schema_e_somente_leitura():
         assert tool.annotations.readOnlyHint is True, tool.name
 
 
-@pytest.mark.parametrize(("name", "args"), list(TOOL_ARGS.items()), ids=list(TOOL_ARGS))
+TEXT_TOOLS = {name: args for name, args in TOOL_ARGS.items() if name not in APP_TOOLS}
+
+
+@pytest.mark.parametrize(("name", "args"), list(TEXT_TOOLS.items()), ids=list(TEXT_TOOLS))
 async def test_call_tool_devolve_markdown_sem_structured_content(deps, name, args):
     async with Client(server.mcp) as client:
         result = await client.call_tool_mcp(name, args)
@@ -136,6 +143,40 @@ async def test_detect_trends_documenta_razao_sem_sobreposicao():
 
     description = tools["gobus_detect_trends"].description or ""
     assert "sem sobreposição" in description
+
+
+async def test_message_coherence_documenta_entradas_dimensoes_e_republicadoras():
+    async with Client(server.mcp) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+
+    tool = tools["gobus_get_message_coherence"]
+    assert set(tool.inputSchema["properties"]) == {
+        "entity_id",
+        "theme",
+        "agencies",
+        "date_from",
+        "date_to",
+    }
+    description = tool.description or ""
+    for text in ("exatamente um", "92 dias", "1–5", "republicadoras", "BRT", "[MOCK]",
+                 "50%", "renormaliz"):  # fmt: skip
+        assert text in description, text
+
+
+async def test_message_coherence_usa_o_catalogo_do_conteiner(deps):
+    route_catalog(deps.client)
+    deps.client.route("CoherenceEntity", {"entity": None})
+    deps.client.route("CoherenceArticles", {"articles": {"found": 0, "page": 1, "articles": []}})
+    deps.client.route("CoherenceCoverage", {"entityCoverage": []})
+
+    async with Client(server.mcp) as client:
+        result = await client.call_tool_mcp(
+            "gobus_get_message_coherence", {"entity_id": "Q1", "agencies": ["ms"]}
+        )
+
+    assert not result.isError
+    assert "saude" in result.content[0].text  # alias do catálogo: ms → saude
+    assert not deps.client.calls("CoherenceArticles")
 
 
 async def test_resources_json_declaram_mime_application_json():

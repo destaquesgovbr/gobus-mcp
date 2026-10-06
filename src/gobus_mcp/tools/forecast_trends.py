@@ -10,7 +10,9 @@ Fluxo de ``build_forecast_report`` (I/O aqui; a análise fica em ``analytics/for
 3. Composto, momentum, confiança (−1 nível na recuperação) e projeção amortecida
    (φ = 0,9) com ``horizon_days`` efetivo (1–28), perfil de dia útil e feriados, nível
    da fase do calendário em cada dia e intervalo de Poisson.
-4. ``ForecastReport`` → Markdown (``summary``) → corte de orçamento do payload (20 KB).
+4. ``ForecastReport`` → Markdown completo (``content`` da tool de app) → ``summary`` = o
+   mesmo texto até 6 KB → payload compacto do app (série diária da projeção só no top-3;
+   ≤ 20 KB).
 
 Falha do snapshot de atividade: perfil semanal e níveis padrão (``profile_source:
 "default"``), com aviso; a tool não cai. Orçamento: ≤ 2 s com cache quente.
@@ -29,7 +31,7 @@ from gobus_mcp.analytics.forecast import (
     clamp_horizon,
     forecast_themes,
 )
-from gobus_mcp.analytics.render import render_forecast_markdown
+from gobus_mcp.analytics.render import fit_summary, render_forecast_markdown
 from gobus_mcp.analytics.weekday import (
     DEFAULT_LEVEL_BY_PHASE,
     DEFAULT_WEEKDAY_PROFILE,
@@ -48,11 +50,12 @@ from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import failed_status, notices_for, worst_data_status
 from gobus_mcp.payloads.common import DataStatus, ReportStatus
 from gobus_mcp.payloads.forecast import (
+    MAX_SERIES_THEMES,
     MAX_THEMES,
     ForecastReport,
     ForecastWindow,
     PlatformInfo,
-    fit_forecast_budget,
+    compact_forecast_payload,
 )
 from gobus_mcp.theme_data import ThemeRangeFetch, fetch_theme_ranges
 
@@ -71,7 +74,7 @@ def _report_status(
     return "ok"
 
 
-async def build_forecast_report(
+async def build_forecast_output(
     client: GobusGraphQLClient,
     *,
     horizon_days: int = DEFAULT_HORIZON,
@@ -80,9 +83,12 @@ async def build_forecast_report(
     activity: AgencyActivityService | None = None,
     now=None,
     cache: TTLCache | None = None,
-) -> ForecastReport:
-    """``ForecastReport`` completo (``summary`` = Markdown). ``horizon_days`` fora de 1–28 é
-    ajustado (com aviso no Markdown); ``limit`` fica entre 1 e 10."""
+    series_themes: int = MAX_SERIES_THEMES,
+) -> tuple[ForecastReport, str]:
+    """``(payload do app, Markdown completo)``. ``horizon_days`` fora de 1–28 é ajustado
+    (com aviso no Markdown); ``limit`` fica entre 1 e 10. O payload traz o Markdown até
+    6 KB em ``summary`` e a série diária da projeção só nos ``series_themes`` primeiros
+    temas (o top-3 do app)."""
     now = now or now_brt()
     today = reference_date(now)
     catalog = catalog or AgencyCatalog(client)
@@ -168,8 +174,16 @@ async def build_forecast_report(
         ),
         themes=themes,
     )
-    report = report.model_copy(update={"summary": render_forecast_markdown(report)})
-    return fit_forecast_budget(report)
+    markdown = render_forecast_markdown(report, max_bytes=None)
+    report = report.model_copy(update={"summary": fit_summary(markdown)})
+    return compact_forecast_payload(report, series_themes=series_themes), markdown
+
+
+async def build_forecast_report(client: GobusGraphQLClient, **kwargs) -> ForecastReport:
+    """O payload do app (``ForecastReport`` compacto, ``summary`` ≤ 6 KB); mesmos parâmetros
+    de ``build_forecast_output``."""
+    report, _ = await build_forecast_output(client, **kwargs)
+    return report
 
 
 async def forecast_trends(
@@ -182,8 +196,9 @@ async def forecast_trends(
     now=None,
     cache: TTLCache | None = None,
 ) -> str:
-    """Markdown do forecast de tendências (o ``summary`` do ``ForecastReport``)."""
-    report = await build_forecast_report(
+    """Markdown completo do forecast de tendências (o ``content`` da tool de app; o
+    ``summary`` do payload é o mesmo texto até 6 KB)."""
+    _, markdown = await build_forecast_output(
         client,
         horizon_days=horizon_days,
         limit=limit,
@@ -192,4 +207,4 @@ async def forecast_trends(
         now=now,
         cache=cache,
     )
-    return report.summary
+    return markdown

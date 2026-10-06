@@ -1,0 +1,2577 @@
+{
+  "app": "anomaly_radar",
+  "state": "ok",
+  "description": "DEV — dados fictícios: 05/10 com temas saudáveis: pico e queda de tema, silêncio coordenado, concentrada, rajada, entidade nova, explicado pelo calendário e normais",
+  "toolName": "gobus_detect_anomalies",
+  "toolInput": {},
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** medium · **Domínio:** todos\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias · 1 agências sem publicar há ≥14 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n### Picos Sustentados\n- **Saúde** (Saúde) · fatia 2,3× em 3 dias e 2,8× em 7 · 120 artigos em 3 dias, 240 em 7 · severidade 0,68 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Quedas Sustentadas\n- **Educação** (Educação) · fatia 0,3× em 3 dias e 0,4× em 7 · 12 artigos em 3 dias, 44 em 7 · severidade 0,85 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Silêncio Coordenado\n- **Tema Calado** (ORG, Saúde) · 9 artigos/7d em 3 agência(s) e 4 dia(s) · razão 4,4× · dona: SAUDE (0 menções; produção total 1,0× do baseline) · score 23,3 · severidade 1,00 (alerta) · confiança média\n\n### Cobertura Concentrada\n- **Pauta Concentrada** (ORG, Educação) · 12 artigos/7d em 2 agência(s) e 4 dia(s) · razão 10,4× · dona: MEC · severidade 0,65 (atenção) · confiança média · _baseline pequeno_\n\n### Explicado pelo Calendário\n- **Pauta da Secom** (ORG, Governança) · 6 artigos/7d em 2 agência(s) e 4 dia(s) · razão 9,3× · dona: SECOM · severidade 0,00 (normal) · confiança média\n  A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.\n\n### Rajadas e Entidades Novas\n- **Censo Escolar 2025** (EVENT, Outros) · 60 artigos/7d em 1 agência(s) e 2 dia(s) · razão 81,3× · 95% num único dia · severidade 0,65 (atenção) · confiança alta\n- **Programa Novo** (ORG, Outros) · 7 artigos/7d em 2 agência(s) e 3 dia(s) · razão 32,0× · sem menções no baseline · severidade 0,65 (atenção) · confiança média\n\n### Tendências Normais\n- **Pé-de-Meia** (POLICY, Educação) · 5 artigos/7d em 1 agência(s) e 5 dia(s) · razão 1,1× · dona: MEC · confiança média\n- **Assunto Comum** (ORG, Outros) · 12 artigos/7d em 6 agência(s) e 2 dia(s) · razão 1,1× · confiança média\n- **Só Republicada** (ORG, Outros) · sem menções próprias em 7d (só republicadoras) · _republicadoras excluídas_\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção."
+      }
+    ],
+    "structuredContent": {
+      "summary": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** medium · **Domínio:** todos\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias · 1 agências sem publicar há ≥14 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n### Picos Sustentados\n- **Saúde** (Saúde) · fatia 2,3× em 3 dias e 2,8× em 7 · 120 artigos em 3 dias, 240 em 7 · severidade 0,68 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Quedas Sustentadas\n- **Educação** (Educação) · fatia 0,3× em 3 dias e 0,4× em 7 · 12 artigos em 3 dias, 44 em 7 · severidade 0,85 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Silêncio Coordenado\n- **Tema Calado** (ORG, Saúde) · 9 artigos/7d em 3 agência(s) e 4 dia(s) · razão 4,4× · dona: SAUDE (0 menções; produção total 1,0× do baseline) · score 23,3 · severidade 1,00 (alerta) · confiança média\n\n### Cobertura Concentrada\n- **Pauta Concentrada** (ORG, Educação) · 12 artigos/7d em 2 agência(s) e 4 dia(s) · razão 10,4× · dona: MEC · severidade 0,65 (atenção) · confiança média · _baseline pequeno_\n\n### Explicado pelo Calendário\n- **Pauta da Secom** (ORG, Governança) · 6 artigos/7d em 2 agência(s) e 4 dia(s) · razão 9,3× · dona: SECOM · severidade 0,00 (normal) · confiança média\n  A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.\n\n### Rajadas e Entidades Novas\n- **Censo Escolar 2025** (EVENT, Outros) · 60 artigos/7d em 1 agência(s) e 2 dia(s) · razão 81,3× · 95% num único dia · severidade 0,65 (atenção) · confiança alta\n- **Programa Novo** (ORG, Outros) · 7 artigos/7d em 2 agência(s) e 3 dia(s) · razão 32,0× · sem menções no baseline · severidade 0,65 (atenção) · confiança média\n\n### Tendências Normais\n- **Pé-de-Meia** (POLICY, Educação) · 5 artigos/7d em 1 agência(s) e 5 dia(s) · razão 1,1× · dona: MEC · confiança média\n- **Assunto Comum** (ORG, Outros) · 12 artigos/7d em 6 agência(s) e 2 dia(s) · razão 1,1× · confiança média\n- **Só Republicada** (ORG, Outros) · sem menções próprias em 7d (só republicadoras) · _republicadoras excluídas_\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção.",
+      "schemaVersion": 1,
+      "kind": "gobus.anomalies",
+      "tool": "gobus_detect_anomalies",
+      "status": "ok",
+      "generatedAt": "2026-10-05T22:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "sensitivity": "medium",
+        "domain_filter": null
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": 1,
+        "resumedAgencies": 0
+      },
+      "dataStatus": [
+        {
+          "key": "themes",
+          "status": "ok",
+          "since": null,
+          "message": "Temas: ok — 95% dos artigos dos últimos 7 dias com tema (662 de 697)",
+          "metric": {
+            "classified": 662,
+            "total": 697,
+            "ratio": 0.9497847919655668,
+            "days": 7
+          }
+        },
+        {
+          "key": "entity_ranking",
+          "status": "ok",
+          "since": null,
+          "message": "Ranking de entidades em alta: ok — execução única de 05/10/2026 21:00 UTC (há 4 h)",
+          "metric": {
+            "rowsTotal": 8,
+            "rowsLastRun": 8,
+            "rowsLegacyFloor": 0,
+            "distinctRuns": 1,
+            "ageHours": 4.0
+          }
+        },
+        {
+          "key": "agency_activity",
+          "status": "ok",
+          "since": null,
+          "message": "Atividade das agências: ok — 5 agências de 06/06/2026 a 04/10/2026; 1 sem publicar há ≥14 dias; 0 retomadas (0 depois do defeso)",
+          "metric": {
+            "agencies": 5,
+            "silenced": 1,
+            "resumed": 0,
+            "resumedAfterBlackout": 0,
+            "days": 121
+          }
+        }
+      ],
+      "notices": [
+        {
+          "code": "ELECTORAL_BLACKOUT",
+          "severity": "info",
+          "message": "Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.",
+          "since": "2026-07-04",
+          "affects": [
+            "themes",
+            "entities"
+          ]
+        },
+        {
+          "code": "CLASSIFIER_CHANGED",
+          "severity": "warn",
+          "message": "Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.",
+          "since": "2026-09-25",
+          "affects": [
+            "themes"
+          ]
+        }
+      ],
+      "thresholds": {
+        "ratio": 1.5,
+        "windowAgencies": 5,
+        "silenceRatio": 2.0,
+        "minCount": 5
+      },
+      "themes": {
+        "status": "ok",
+        "note": null,
+        "windows": {
+          "short": {
+            "kind": "rolling",
+            "start": "2026-10-03T01:00:00Z",
+            "end": "2026-10-06T01:00:00Z",
+            "days": 3,
+            "bucketTz": "UTC",
+            "baselineOverlapsBlackout": true
+          },
+          "long": {
+            "kind": "rolling",
+            "start": "2026-09-29T01:00:00Z",
+            "end": "2026-10-06T01:00:00Z",
+            "days": 7,
+            "bucketTz": "UTC",
+            "baselineOverlapsBlackout": true
+          }
+        },
+        "classifiedCoverage": {
+          "short": 0.9515,
+          "long": 0.9498
+        },
+        "signals": [
+          {
+            "label": "Educação",
+            "domain": "EDUCATION",
+            "kind": "sustained_drop",
+            "ratioShort": 0.264,
+            "ratioLong": 0.355,
+            "countShort": 12,
+            "countLong": 44,
+            "shareLong": 0.0665,
+            "severity": 0.852,
+            "band": "alert",
+            "confidence": "medium",
+            "flags": [
+              "classifier_changed",
+              "blackout_baseline"
+            ],
+            "daily": null
+          },
+          {
+            "label": "Saúde",
+            "domain": "HEALTH",
+            "kind": "sustained_spike",
+            "ratioShort": 2.287,
+            "ratioLong": 2.847,
+            "countShort": 120,
+            "countLong": 240,
+            "shareLong": 0.3625,
+            "severity": 0.68,
+            "band": "alert",
+            "confidence": "medium",
+            "flags": [
+              "classifier_changed",
+              "blackout_baseline"
+            ],
+            "daily": null
+          }
+        ]
+      },
+      "entities": {
+        "status": "ok",
+        "note": null,
+        "window": {
+          "kind": "closed",
+          "start": "2026-09-28T00:00:00-03:00",
+          "end": "2026-10-05T00:00:00-03:00",
+          "days": 7,
+          "bucketTz": "UTC",
+          "baselineOverlapsBlackout": false
+        },
+        "baseline": {
+          "kind": "closed",
+          "start": "2026-08-31T00:00:00-03:00",
+          "end": "2026-09-28T00:00:00-03:00",
+          "days": 28,
+          "bucketTz": "UTC",
+          "baselineOverlapsBlackout": true
+        },
+        "candidates": 8,
+        "upstream": {
+          "lastRunAt": "2026-10-05T21:00:00Z",
+          "rowsTotal": 8,
+          "rowsLastRun": 8,
+          "rowsLegacyFloor": 0
+        },
+        "signals": [
+          {
+            "entityId": "dgb_silencio",
+            "name": "Tema Calado",
+            "type": "ORG",
+            "domain": "HEALTH",
+            "kind": "coordinated_silence",
+            "windowCount": 9,
+            "baselineCount": 8,
+            "windowAgencies": 3,
+            "distinctDays": 4,
+            "maxDayShare": 0.333,
+            "ratio": 4.444,
+            "upstreamVolumeRatio": 13.0,
+            "upstreamComputedAt": "2026-10-05T21:00:00Z",
+            "owner": {
+              "agencyKey": "saude",
+              "agencyName": "SAUDE",
+              "method": "agency_key",
+              "share": 0.75
+            },
+            "ownerWindowCount": 0,
+            "ownerActivityRatio": 1.0,
+            "silenceScore": 23.333,
+            "severity": 1.0,
+            "band": "alert",
+            "confidence": "medium",
+            "explanation": "Outras agências 13,3× acima do baseline; a dona (SAUDE) com 0 menções na janela contra 6 no baseline (produção total 1,0× do baseline).",
+            "flags": [
+              "blackout_baseline"
+            ],
+            "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 3, 0, 0, 0],
+            "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "samples": []
+          },
+          {
+            "entityId": "dgb_censo-escolar-2025",
+            "name": "Censo Escolar 2025",
+            "type": "EVENT",
+            "domain": "OTHER",
+            "kind": "burst",
+            "windowCount": 60,
+            "baselineCount": 2,
+            "windowAgencies": 1,
+            "distinctDays": 2,
+            "maxDayShare": 0.95,
+            "ratio": 81.333,
+            "upstreamVolumeRatio": 4321.0,
+            "upstreamComputedAt": "2026-10-05T21:00:00Z",
+            "owner": null,
+            "ownerWindowCount": null,
+            "ownerActivityRatio": null,
+            "silenceScore": null,
+            "severity": 0.65,
+            "band": "watch",
+            "confidence": "high",
+            "explanation": "95% das menções da janela num único dia: rajada pontual, não tendência sustentada.",
+            "flags": [
+              "blackout_baseline"
+            ],
+            "daily": [0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 57, 3, 0, 0],
+            "ownerDaily": null,
+            "samples": []
+          },
+          {
+            "entityId": "dgb_concentrada",
+            "name": "Pauta Concentrada",
+            "type": "ORG",
+            "domain": "EDUCATION",
+            "kind": "concentrated_coverage",
+            "windowCount": 12,
+            "baselineCount": 4,
+            "windowAgencies": 2,
+            "distinctDays": 4,
+            "maxDayShare": 0.25,
+            "ratio": 10.4,
+            "upstreamVolumeRatio": 10.4,
+            "upstreamComputedAt": "2026-10-05T21:00:00Z",
+            "owner": {
+              "agencyKey": "mec",
+              "agencyName": "MEC",
+              "method": "coverage",
+              "share": 1.0
+            },
+            "ownerWindowCount": 8,
+            "ownerActivityRatio": 1.0,
+            "silenceScore": 2.778,
+            "severity": 0.65,
+            "band": "watch",
+            "confidence": "medium",
+            "explanation": "Cobertura 10,4× acima do baseline concentrada em 2 agência(s) e 4 dias.",
+            "flags": [
+              "owner_by_coverage",
+              "thin_baseline",
+              "blackout_baseline"
+            ],
+            "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0],
+            "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0],
+            "samples": []
+          },
+          {
+            "entityId": "dgb_novo",
+            "name": "Programa Novo",
+            "type": "ORG",
+            "domain": "OTHER",
+            "kind": "new_entity",
+            "windowCount": 7,
+            "baselineCount": 0,
+            "windowAgencies": 2,
+            "distinctDays": 3,
+            "maxDayShare": 0.429,
+            "ratio": 32.0,
+            "upstreamVolumeRatio": 32.0,
+            "upstreamComputedAt": "2026-10-05T21:00:00Z",
+            "owner": null,
+            "ownerWindowCount": null,
+            "ownerActivityRatio": null,
+            "silenceScore": null,
+            "severity": 0.65,
+            "band": "watch",
+            "confidence": "medium",
+            "explanation": "Sem menções no baseline (28 dias); 7 artigos na janela.",
+            "flags": [
+              "blackout_baseline"
+            ],
+            "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 2, 2, 0, 0],
+            "ownerDaily": null,
+            "samples": []
+          },
+          {
+            "entityId": "dgb_pe-de-meia",
+            "name": "Pé-de-Meia",
+            "type": "POLICY",
+            "domain": "EDUCATION",
+            "kind": "normal",
+            "windowCount": 5,
+            "baselineCount": 20,
+            "windowAgencies": 1,
+            "distinctDays": 5,
+            "maxDayShare": 0.2,
+            "ratio": 1.143,
+            "upstreamVolumeRatio": 1.14,
+            "upstreamComputedAt": "2026-10-05T21:00:00Z",
+            "owner": {
+              "agencyKey": "mec",
+              "agencyName": "MEC",
+              "method": "coverage",
+              "share": 1.0
+            },
+            "ownerWindowCount": 5,
+            "ownerActivityRatio": 1.0,
+            "silenceScore": 3.5,
+            "severity": 0.11,
+            "band": "normal",
+            "confidence": "medium",
+            "explanation": "Razão 1,1× em 1 agência(s).",
+            "flags": [
+              "owner_by_coverage",
+              "blackout_baseline"
+            ],
+            "daily": [],
+            "ownerDaily": null,
+            "samples": []
+          },
+          {
+            "entityId": "dgb_normal",
+            "name": "Assunto Comum",
+            "type": "ORG",
+            "domain": "OTHER",
+            "kind": "normal",
+            "windowCount": 12,
+            "baselineCount": 48,
+            "windowAgencies": 6,
+            "distinctDays": 2,
+            "maxDayShare": 0.5,
+            "ratio": 1.061,
+            "upstreamVolumeRatio": 1.06,
+            "upstreamComputedAt": "2026-10-05T21:00:00Z",
+            "owner": null,
+            "ownerWindowCount": null,
+            "ownerActivityRatio": null,
+            "silenceScore": null,
+            "severity": 0.049,
+            "band": "normal",
+            "confidence": "medium",
+            "explanation": "Razão 1,1× em 6 agência(s).",
+            "flags": [
+              "blackout_baseline"
+            ],
+            "daily": [],
+            "ownerDaily": null,
+            "samples": []
+          },
+          {
+            "entityId": "dgb_secom",
+            "name": "Pauta da Secom",
+            "type": "ORG",
+            "domain": "GOVERNANCE",
+            "kind": "calendar_explained",
+            "windowCount": 6,
+            "baselineCount": 2,
+            "windowAgencies": 2,
+            "distinctDays": 4,
+            "maxDayShare": 0.333,
+            "ratio": 9.333,
+            "upstreamVolumeRatio": 7.0,
+            "upstreamComputedAt": "2026-10-05T21:00:00Z",
+            "owner": {
+              "agencyKey": "secom",
+              "agencyName": "SECOM",
+              "method": "agency_key",
+              "share": 0.0
+            },
+            "ownerWindowCount": 0,
+            "ownerActivityRatio": null,
+            "silenceScore": 2.333,
+            "severity": 0.0,
+            "band": "normal",
+            "confidence": "medium",
+            "explanation": "A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.",
+            "flags": [
+              "owner_silenced",
+              "blackout_baseline"
+            ],
+            "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2, 1, 0, 0],
+            "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "samples": []
+          },
+          {
+            "entityId": "dgb_republicada",
+            "name": "Só Republicada",
+            "type": "ORG",
+            "domain": "OTHER",
+            "kind": "normal",
+            "windowCount": 0,
+            "baselineCount": 0,
+            "windowAgencies": 0,
+            "distinctDays": 0,
+            "maxDayShare": 0.0,
+            "ratio": 4.0,
+            "upstreamVolumeRatio": 2.0,
+            "upstreamComputedAt": "2026-10-05T21:00:00Z",
+            "owner": null,
+            "ownerWindowCount": null,
+            "ownerActivityRatio": null,
+            "silenceScore": null,
+            "severity": 0.0,
+            "band": "normal",
+            "confidence": "low",
+            "explanation": "Sem menções próprias na janela (republicadoras não contam).",
+            "flags": [
+              "republishers_excluded",
+              "blackout_baseline"
+            ],
+            "daily": [],
+            "ownerDaily": null,
+            "samples": []
+          }
+        ],
+        "omitted": {}
+      },
+      "domains": [
+        {
+          "domain": "HEALTH",
+          "label": "Saúde",
+          "spikes": 1,
+          "silences": 1,
+          "concentrated": 0,
+          "maxSeverity": 1.0,
+          "spikeLevel": 0.68,
+          "silenceLevel": 1.0,
+          "spikeBand": "alert",
+          "silenceBand": "alert"
+        },
+        {
+          "domain": "EDUCATION",
+          "label": "Educação",
+          "spikes": 0,
+          "silences": 1,
+          "concentrated": 1,
+          "maxSeverity": 0.852,
+          "spikeLevel": 0.65,
+          "silenceLevel": 0.852,
+          "spikeBand": "watch",
+          "silenceBand": "alert"
+        },
+        {
+          "domain": "SOCIAL",
+          "label": "Social",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "ECONOMIC",
+          "label": "Economia",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "SECURITY",
+          "label": "Segurança",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "ENVIRONMENT",
+          "label": "Meio ambiente",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "GOVERNANCE",
+          "label": "Governança",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        },
+        {
+          "domain": "OTHER",
+          "label": "Outros",
+          "spikes": 0,
+          "silences": 0,
+          "concentrated": 0,
+          "maxSeverity": 0.0,
+          "spikeLevel": 0.0,
+          "silenceLevel": 0.0,
+          "spikeBand": "normal",
+          "silenceBand": "normal"
+        }
+      ],
+      "severityBands": {
+        "watch": 0.33,
+        "alert": 0.66
+      },
+      "sensitivityOptions": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "isError": false
+  },
+  "toolCalls": [
+    {
+      "name": "gobus_detect_anomalies",
+      "arguments": {
+        "sensitivity": "high"
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** high · **Domínio:** todos\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias · 1 agências sem publicar há ≥14 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n### Picos Sustentados\n- **Saúde** (Saúde) · fatia 2,3× em 3 dias e 2,8× em 7 · 120 artigos em 3 dias, 240 em 7 · severidade 1,00 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Quedas Sustentadas\n- **Educação** (Educação) · fatia 0,3× em 3 dias e 0,4× em 7 · 12 artigos em 3 dias, 44 em 7 · severidade 1,00 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Silêncio Coordenado\n- **Tema Calado** (ORG, Saúde) · 9 artigos/7d em 3 agência(s) e 4 dia(s) · razão 4,4× · dona: SAUDE (0 menções; produção total 1,0× do baseline) · score 23,3 · severidade 1,00 (alerta) · confiança alta\n\n### Cobertura Concentrada\n- **Pauta Concentrada** (ORG, Educação) · 12 artigos/7d em 2 agência(s) e 4 dia(s) · razão 10,4× · dona: MEC · severidade 1,00 (alerta) · confiança alta\n\n### Explicado pelo Calendário\n- **Pauta da Secom** (ORG, Governança) · 6 artigos/7d em 2 agência(s) e 4 dia(s) · razão 9,3× · dona: SECOM · severidade 0,00 (normal) · confiança média\n  A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.\n\n### Rajadas e Entidades Novas\n- **Censo Escolar 2025** (EVENT, Outros) · 60 artigos/7d em 1 agência(s) e 2 dia(s) · razão 81,3× · 95% num único dia · severidade 0,65 (atenção) · confiança alta\n- **Programa Novo** (ORG, Outros) · 7 artigos/7d em 2 agência(s) e 3 dia(s) · razão 32,0× · sem menções no baseline · severidade 0,65 (atenção) · confiança média\n\n### Tendências Normais\n- **Pé-de-Meia** (POLICY, Educação) · 5 artigos/7d em 1 agência(s) e 5 dia(s) · razão 1,1× · dona: MEC · confiança média\n- **Assunto Comum** (ORG, Outros) · 12 artigos/7d em 6 agência(s) e 2 dia(s) · razão 1,1× · confiança alta\n- **Só Republicada** (ORG, Outros) · sem menções próprias em 7d (só republicadoras) · _republicadoras excluídas_\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção."
+          }
+        ],
+        "structuredContent": {
+          "summary": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** high · **Domínio:** todos\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias · 1 agências sem publicar há ≥14 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n### Picos Sustentados\n- **Saúde** (Saúde) · fatia 2,3× em 3 dias e 2,8× em 7 · 120 artigos em 3 dias, 240 em 7 · severidade 1,00 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Quedas Sustentadas\n- **Educação** (Educação) · fatia 0,3× em 3 dias e 0,4× em 7 · 12 artigos em 3 dias, 44 em 7 · severidade 1,00 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Silêncio Coordenado\n- **Tema Calado** (ORG, Saúde) · 9 artigos/7d em 3 agência(s) e 4 dia(s) · razão 4,4× · dona: SAUDE (0 menções; produção total 1,0× do baseline) · score 23,3 · severidade 1,00 (alerta) · confiança alta\n\n### Cobertura Concentrada\n- **Pauta Concentrada** (ORG, Educação) · 12 artigos/7d em 2 agência(s) e 4 dia(s) · razão 10,4× · dona: MEC · severidade 1,00 (alerta) · confiança alta\n\n### Explicado pelo Calendário\n- **Pauta da Secom** (ORG, Governança) · 6 artigos/7d em 2 agência(s) e 4 dia(s) · razão 9,3× · dona: SECOM · severidade 0,00 (normal) · confiança média\n  A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.\n\n### Rajadas e Entidades Novas\n- **Censo Escolar 2025** (EVENT, Outros) · 60 artigos/7d em 1 agência(s) e 2 dia(s) · razão 81,3× · 95% num único dia · severidade 0,65 (atenção) · confiança alta\n- **Programa Novo** (ORG, Outros) · 7 artigos/7d em 2 agência(s) e 3 dia(s) · razão 32,0× · sem menções no baseline · severidade 0,65 (atenção) · confiança média\n\n### Tendências Normais\n- **Pé-de-Meia** (POLICY, Educação) · 5 artigos/7d em 1 agência(s) e 5 dia(s) · razão 1,1× · dona: MEC · confiança média\n- **Assunto Comum** (ORG, Outros) · 12 artigos/7d em 6 agência(s) e 2 dia(s) · razão 1,1× · confiança alta\n- **Só Republicada** (ORG, Outros) · sem menções próprias em 7d (só republicadoras) · _republicadoras excluídas_\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção.",
+          "schemaVersion": 1,
+          "kind": "gobus.anomalies",
+          "tool": "gobus_detect_anomalies",
+          "status": "ok",
+          "generatedAt": "2026-10-05T22:00:00-03:00",
+          "referenceDate": "2026-10-05",
+          "params": {
+            "sensitivity": "high",
+            "domain_filter": null
+          },
+          "calendar": {
+            "phase": "blackout",
+            "label": "Defeso eleitoral 2026",
+            "blackoutStart": "2026-07-04",
+            "blackoutEnd": "2026-10-25",
+            "recoveryUntil": "2026-11-29",
+            "daysToEnd": 20,
+            "silencedAgencies": 1,
+            "resumedAgencies": 0
+          },
+          "dataStatus": [
+            {
+              "key": "themes",
+              "status": "ok",
+              "since": null,
+              "message": "Temas: ok — 95% dos artigos dos últimos 7 dias com tema (662 de 697)",
+              "metric": {
+                "classified": 662,
+                "total": 697,
+                "ratio": 0.9497847919655668,
+                "days": 7
+              }
+            },
+            {
+              "key": "entity_ranking",
+              "status": "ok",
+              "since": null,
+              "message": "Ranking de entidades em alta: ok — execução única de 05/10/2026 21:00 UTC (há 4 h)",
+              "metric": {
+                "rowsTotal": 8,
+                "rowsLastRun": 8,
+                "rowsLegacyFloor": 0,
+                "distinctRuns": 1,
+                "ageHours": 4.0
+              }
+            },
+            {
+              "key": "agency_activity",
+              "status": "ok",
+              "since": null,
+              "message": "Atividade das agências: ok — 5 agências de 06/06/2026 a 04/10/2026; 1 sem publicar há ≥14 dias; 0 retomadas (0 depois do defeso)",
+              "metric": {
+                "agencies": 5,
+                "silenced": 1,
+                "resumed": 0,
+                "resumedAfterBlackout": 0,
+                "days": 121
+              }
+            }
+          ],
+          "notices": [
+            {
+              "code": "ELECTORAL_BLACKOUT",
+              "severity": "info",
+              "message": "Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.",
+              "since": "2026-07-04",
+              "affects": [
+                "themes",
+                "entities"
+              ]
+            },
+            {
+              "code": "CLASSIFIER_CHANGED",
+              "severity": "warn",
+              "message": "Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.",
+              "since": "2026-09-25",
+              "affects": [
+                "themes"
+              ]
+            }
+          ],
+          "thresholds": {
+            "ratio": 1.3,
+            "windowAgencies": 8,
+            "silenceRatio": 1.5,
+            "minCount": 3
+          },
+          "themes": {
+            "status": "ok",
+            "note": null,
+            "windows": {
+              "short": {
+                "kind": "rolling",
+                "start": "2026-10-03T01:00:00Z",
+                "end": "2026-10-06T01:00:00Z",
+                "days": 3,
+                "bucketTz": "UTC",
+                "baselineOverlapsBlackout": true
+              },
+              "long": {
+                "kind": "rolling",
+                "start": "2026-09-29T01:00:00Z",
+                "end": "2026-10-06T01:00:00Z",
+                "days": 7,
+                "bucketTz": "UTC",
+                "baselineOverlapsBlackout": true
+              }
+            },
+            "classifiedCoverage": {
+              "short": 0.9515,
+              "long": 0.9498
+            },
+            "signals": [
+              {
+                "label": "Educação",
+                "domain": "EDUCATION",
+                "kind": "sustained_drop",
+                "ratioShort": 0.264,
+                "ratioLong": 0.355,
+                "countShort": 12,
+                "countLong": 44,
+                "shareLong": 0.0665,
+                "severity": 1.0,
+                "band": "alert",
+                "confidence": "medium",
+                "flags": [
+                  "classifier_changed",
+                  "blackout_baseline"
+                ],
+                "daily": null
+              },
+              {
+                "label": "Saúde",
+                "domain": "HEALTH",
+                "kind": "sustained_spike",
+                "ratioShort": 2.287,
+                "ratioLong": 2.847,
+                "countShort": 120,
+                "countLong": 240,
+                "shareLong": 0.3625,
+                "severity": 1.0,
+                "band": "alert",
+                "confidence": "medium",
+                "flags": [
+                  "classifier_changed",
+                  "blackout_baseline"
+                ],
+                "daily": null
+              }
+            ]
+          },
+          "entities": {
+            "status": "ok",
+            "note": null,
+            "window": {
+              "kind": "closed",
+              "start": "2026-09-28T00:00:00-03:00",
+              "end": "2026-10-05T00:00:00-03:00",
+              "days": 7,
+              "bucketTz": "UTC",
+              "baselineOverlapsBlackout": false
+            },
+            "baseline": {
+              "kind": "closed",
+              "start": "2026-08-31T00:00:00-03:00",
+              "end": "2026-09-28T00:00:00-03:00",
+              "days": 28,
+              "bucketTz": "UTC",
+              "baselineOverlapsBlackout": true
+            },
+            "candidates": 8,
+            "upstream": {
+              "lastRunAt": "2026-10-05T21:00:00Z",
+              "rowsTotal": 8,
+              "rowsLastRun": 8,
+              "rowsLegacyFloor": 0
+            },
+            "signals": [
+              {
+                "entityId": "dgb_concentrada",
+                "name": "Pauta Concentrada",
+                "type": "ORG",
+                "domain": "EDUCATION",
+                "kind": "concentrated_coverage",
+                "windowCount": 12,
+                "baselineCount": 4,
+                "windowAgencies": 2,
+                "distinctDays": 4,
+                "maxDayShare": 0.25,
+                "ratio": 10.4,
+                "upstreamVolumeRatio": 10.4,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "mec",
+                  "agencyName": "MEC",
+                  "method": "coverage",
+                  "share": 1.0
+                },
+                "ownerWindowCount": 8,
+                "ownerActivityRatio": 1.0,
+                "silenceScore": 2.778,
+                "severity": 1.0,
+                "band": "alert",
+                "confidence": "high",
+                "explanation": "Cobertura 10,4× acima do baseline concentrada em 2 agência(s) e 4 dias.",
+                "flags": [
+                  "owner_by_coverage",
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0],
+                "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0],
+                "samples": []
+              },
+              {
+                "entityId": "dgb_silencio",
+                "name": "Tema Calado",
+                "type": "ORG",
+                "domain": "HEALTH",
+                "kind": "coordinated_silence",
+                "windowCount": 9,
+                "baselineCount": 8,
+                "windowAgencies": 3,
+                "distinctDays": 4,
+                "maxDayShare": 0.333,
+                "ratio": 4.444,
+                "upstreamVolumeRatio": 13.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "saude",
+                  "agencyName": "SAUDE",
+                  "method": "agency_key",
+                  "share": 0.75
+                },
+                "ownerWindowCount": 0,
+                "ownerActivityRatio": 1.0,
+                "silenceScore": 23.333,
+                "severity": 1.0,
+                "band": "alert",
+                "confidence": "high",
+                "explanation": "Outras agências 13,3× acima do baseline; a dona (SAUDE) com 0 menções na janela contra 6 no baseline (produção total 1,0× do baseline).",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 3, 0, 0, 0],
+                "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                "samples": []
+              },
+              {
+                "entityId": "dgb_censo-escolar-2025",
+                "name": "Censo Escolar 2025",
+                "type": "EVENT",
+                "domain": "OTHER",
+                "kind": "burst",
+                "windowCount": 60,
+                "baselineCount": 2,
+                "windowAgencies": 1,
+                "distinctDays": 2,
+                "maxDayShare": 0.95,
+                "ratio": 81.333,
+                "upstreamVolumeRatio": 4321.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.65,
+                "band": "watch",
+                "confidence": "high",
+                "explanation": "95% das menções da janela num único dia: rajada pontual, não tendência sustentada.",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 57, 3, 0, 0],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_novo",
+                "name": "Programa Novo",
+                "type": "ORG",
+                "domain": "OTHER",
+                "kind": "new_entity",
+                "windowCount": 7,
+                "baselineCount": 0,
+                "windowAgencies": 2,
+                "distinctDays": 3,
+                "maxDayShare": 0.429,
+                "ratio": 32.0,
+                "upstreamVolumeRatio": 32.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.65,
+                "band": "watch",
+                "confidence": "medium",
+                "explanation": "Sem menções no baseline (28 dias); 7 artigos na janela.",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 2, 2, 0, 0],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_pe-de-meia",
+                "name": "Pé-de-Meia",
+                "type": "POLICY",
+                "domain": "EDUCATION",
+                "kind": "normal",
+                "windowCount": 5,
+                "baselineCount": 20,
+                "windowAgencies": 1,
+                "distinctDays": 5,
+                "maxDayShare": 0.2,
+                "ratio": 1.143,
+                "upstreamVolumeRatio": 1.14,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "mec",
+                  "agencyName": "MEC",
+                  "method": "coverage",
+                  "share": 1.0
+                },
+                "ownerWindowCount": 5,
+                "ownerActivityRatio": 1.0,
+                "silenceScore": 3.5,
+                "severity": 0.17,
+                "band": "normal",
+                "confidence": "medium",
+                "explanation": "Razão 1,1× em 1 agência(s).",
+                "flags": [
+                  "owner_by_coverage",
+                  "blackout_baseline"
+                ],
+                "daily": [],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_normal",
+                "name": "Assunto Comum",
+                "type": "ORG",
+                "domain": "OTHER",
+                "kind": "normal",
+                "windowCount": 12,
+                "baselineCount": 48,
+                "windowAgencies": 6,
+                "distinctDays": 2,
+                "maxDayShare": 0.5,
+                "ratio": 1.061,
+                "upstreamVolumeRatio": 1.06,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.075,
+                "band": "normal",
+                "confidence": "high",
+                "explanation": "Razão 1,1× em 6 agência(s).",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_secom",
+                "name": "Pauta da Secom",
+                "type": "ORG",
+                "domain": "GOVERNANCE",
+                "kind": "calendar_explained",
+                "windowCount": 6,
+                "baselineCount": 2,
+                "windowAgencies": 2,
+                "distinctDays": 4,
+                "maxDayShare": 0.333,
+                "ratio": 9.333,
+                "upstreamVolumeRatio": 7.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "secom",
+                  "agencyName": "SECOM",
+                  "method": "agency_key",
+                  "share": 0.0
+                },
+                "ownerWindowCount": 0,
+                "ownerActivityRatio": null,
+                "silenceScore": 2.333,
+                "severity": 0.0,
+                "band": "normal",
+                "confidence": "medium",
+                "explanation": "A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.",
+                "flags": [
+                  "owner_silenced",
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2, 1, 0, 0],
+                "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                "samples": []
+              },
+              {
+                "entityId": "dgb_republicada",
+                "name": "Só Republicada",
+                "type": "ORG",
+                "domain": "OTHER",
+                "kind": "normal",
+                "windowCount": 0,
+                "baselineCount": 0,
+                "windowAgencies": 0,
+                "distinctDays": 0,
+                "maxDayShare": 0.0,
+                "ratio": 4.0,
+                "upstreamVolumeRatio": 2.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.0,
+                "band": "normal",
+                "confidence": "low",
+                "explanation": "Sem menções próprias na janela (republicadoras não contam).",
+                "flags": [
+                  "republishers_excluded",
+                  "blackout_baseline"
+                ],
+                "daily": [],
+                "ownerDaily": null,
+                "samples": []
+              }
+            ],
+            "omitted": {}
+          },
+          "domains": [
+            {
+              "domain": "HEALTH",
+              "label": "Saúde",
+              "spikes": 1,
+              "silences": 1,
+              "concentrated": 0,
+              "maxSeverity": 1.0,
+              "spikeLevel": 1.0,
+              "silenceLevel": 1.0,
+              "spikeBand": "alert",
+              "silenceBand": "alert"
+            },
+            {
+              "domain": "EDUCATION",
+              "label": "Educação",
+              "spikes": 0,
+              "silences": 1,
+              "concentrated": 1,
+              "maxSeverity": 1.0,
+              "spikeLevel": 1.0,
+              "silenceLevel": 1.0,
+              "spikeBand": "alert",
+              "silenceBand": "alert"
+            },
+            {
+              "domain": "SOCIAL",
+              "label": "Social",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "ECONOMIC",
+              "label": "Economia",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "SECURITY",
+              "label": "Segurança",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "ENVIRONMENT",
+              "label": "Meio ambiente",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "GOVERNANCE",
+              "label": "Governança",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "OTHER",
+              "label": "Outros",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            }
+          ],
+          "severityBands": {
+            "watch": 0.33,
+            "alert": 0.66
+          },
+          "sensitivityOptions": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "isError": false
+      }
+    },
+    {
+      "name": "gobus_detect_anomalies",
+      "arguments": {
+        "sensitivity": "low"
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** low · **Domínio:** todos\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias · 1 agências sem publicar há ≥14 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n### Picos Sustentados\n- **Saúde** (Saúde) · fatia 2,3× em 3 dias e 2,8× em 7 · 120 artigos em 3 dias, 240 em 7 · severidade 0,40 (atenção) · confiança média · _troca de classificador no baseline_\n\n### Quedas Sustentadas\n- **Educação** (Educação) · fatia 0,3× em 3 dias e 0,4× em 7 · 12 artigos em 3 dias, 44 em 7 · severidade 0,50 (atenção) · confiança média · _troca de classificador no baseline_\n\n### Silêncio Coordenado\n- **Tema Calado** (ORG, Saúde) · 9 artigos/7d em 3 agência(s) e 4 dia(s) · razão 4,4× · dona: SAUDE (0 menções; produção total 1,0× do baseline) · score 23,3 · severidade 0,96 (alerta) · confiança média\n\n### Cobertura Concentrada\n- **Pauta Concentrada** (ORG, Educação) · 12 artigos/7d em 2 agência(s) e 4 dia(s) · razão 10,4× · dona: MEC · severidade 0,65 (atenção) · confiança média · _baseline pequeno_\n\n### Explicado pelo Calendário\n- **Pauta da Secom** (ORG, Governança) · 6 artigos/7d em 2 agência(s) e 4 dia(s) · razão 9,3× · dona: SECOM · severidade 0,00 (normal) · confiança baixa\n  A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.\n\n### Rajadas e Entidades Novas\n- **Censo Escolar 2025** (EVENT, Outros) · 60 artigos/7d em 1 agência(s) e 2 dia(s) · razão 81,3× · 95% num único dia · severidade 0,65 (atenção) · confiança alta\n- **Programa Novo** (ORG, Outros) · 7 artigos/7d em 2 agência(s) e 3 dia(s) · razão 32,0× · sem menções no baseline · severidade 0,65 (atenção) · confiança baixa\n\n### Tendências Normais\n- **Pé-de-Meia** (POLICY, Educação) · 5 artigos/7d em 1 agência(s) e 5 dia(s) · razão 1,1× · dona: MEC · confiança baixa\n- **Assunto Comum** (ORG, Outros) · 12 artigos/7d em 6 agência(s) e 2 dia(s) · razão 1,1× · confiança média\n- **Só Republicada** (ORG, Outros) · sem menções próprias em 7d (só republicadoras) · _republicadoras excluídas_\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção."
+          }
+        ],
+        "structuredContent": {
+          "summary": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** low · **Domínio:** todos\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias · 1 agências sem publicar há ≥14 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n### Picos Sustentados\n- **Saúde** (Saúde) · fatia 2,3× em 3 dias e 2,8× em 7 · 120 artigos em 3 dias, 240 em 7 · severidade 0,40 (atenção) · confiança média · _troca de classificador no baseline_\n\n### Quedas Sustentadas\n- **Educação** (Educação) · fatia 0,3× em 3 dias e 0,4× em 7 · 12 artigos em 3 dias, 44 em 7 · severidade 0,50 (atenção) · confiança média · _troca de classificador no baseline_\n\n### Silêncio Coordenado\n- **Tema Calado** (ORG, Saúde) · 9 artigos/7d em 3 agência(s) e 4 dia(s) · razão 4,4× · dona: SAUDE (0 menções; produção total 1,0× do baseline) · score 23,3 · severidade 0,96 (alerta) · confiança média\n\n### Cobertura Concentrada\n- **Pauta Concentrada** (ORG, Educação) · 12 artigos/7d em 2 agência(s) e 4 dia(s) · razão 10,4× · dona: MEC · severidade 0,65 (atenção) · confiança média · _baseline pequeno_\n\n### Explicado pelo Calendário\n- **Pauta da Secom** (ORG, Governança) · 6 artigos/7d em 2 agência(s) e 4 dia(s) · razão 9,3× · dona: SECOM · severidade 0,00 (normal) · confiança baixa\n  A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.\n\n### Rajadas e Entidades Novas\n- **Censo Escolar 2025** (EVENT, Outros) · 60 artigos/7d em 1 agência(s) e 2 dia(s) · razão 81,3× · 95% num único dia · severidade 0,65 (atenção) · confiança alta\n- **Programa Novo** (ORG, Outros) · 7 artigos/7d em 2 agência(s) e 3 dia(s) · razão 32,0× · sem menções no baseline · severidade 0,65 (atenção) · confiança baixa\n\n### Tendências Normais\n- **Pé-de-Meia** (POLICY, Educação) · 5 artigos/7d em 1 agência(s) e 5 dia(s) · razão 1,1× · dona: MEC · confiança baixa\n- **Assunto Comum** (ORG, Outros) · 12 artigos/7d em 6 agência(s) e 2 dia(s) · razão 1,1× · confiança média\n- **Só Republicada** (ORG, Outros) · sem menções próprias em 7d (só republicadoras) · _republicadoras excluídas_\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção.",
+          "schemaVersion": 1,
+          "kind": "gobus.anomalies",
+          "tool": "gobus_detect_anomalies",
+          "status": "ok",
+          "generatedAt": "2026-10-05T22:00:00-03:00",
+          "referenceDate": "2026-10-05",
+          "params": {
+            "sensitivity": "low",
+            "domain_filter": null
+          },
+          "calendar": {
+            "phase": "blackout",
+            "label": "Defeso eleitoral 2026",
+            "blackoutStart": "2026-07-04",
+            "blackoutEnd": "2026-10-25",
+            "recoveryUntil": "2026-11-29",
+            "daysToEnd": 20,
+            "silencedAgencies": 1,
+            "resumedAgencies": 0
+          },
+          "dataStatus": [
+            {
+              "key": "themes",
+              "status": "ok",
+              "since": null,
+              "message": "Temas: ok — 95% dos artigos dos últimos 7 dias com tema (662 de 697)",
+              "metric": {
+                "classified": 662,
+                "total": 697,
+                "ratio": 0.9497847919655668,
+                "days": 7
+              }
+            },
+            {
+              "key": "entity_ranking",
+              "status": "ok",
+              "since": null,
+              "message": "Ranking de entidades em alta: ok — execução única de 05/10/2026 21:00 UTC (há 4 h)",
+              "metric": {
+                "rowsTotal": 8,
+                "rowsLastRun": 8,
+                "rowsLegacyFloor": 0,
+                "distinctRuns": 1,
+                "ageHours": 4.0
+              }
+            },
+            {
+              "key": "agency_activity",
+              "status": "ok",
+              "since": null,
+              "message": "Atividade das agências: ok — 5 agências de 06/06/2026 a 04/10/2026; 1 sem publicar há ≥14 dias; 0 retomadas (0 depois do defeso)",
+              "metric": {
+                "agencies": 5,
+                "silenced": 1,
+                "resumed": 0,
+                "resumedAfterBlackout": 0,
+                "days": 121
+              }
+            }
+          ],
+          "notices": [
+            {
+              "code": "ELECTORAL_BLACKOUT",
+              "severity": "info",
+              "message": "Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.",
+              "since": "2026-07-04",
+              "affects": [
+                "themes",
+                "entities"
+              ]
+            },
+            {
+              "code": "CLASSIFIER_CHANGED",
+              "severity": "warn",
+              "message": "Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.",
+              "since": "2026-09-25",
+              "affects": [
+                "themes"
+              ]
+            }
+          ],
+          "thresholds": {
+            "ratio": 2.0,
+            "windowAgencies": 3,
+            "silenceRatio": 3.0,
+            "minCount": 8
+          },
+          "themes": {
+            "status": "ok",
+            "note": null,
+            "windows": {
+              "short": {
+                "kind": "rolling",
+                "start": "2026-10-03T01:00:00Z",
+                "end": "2026-10-06T01:00:00Z",
+                "days": 3,
+                "bucketTz": "UTC",
+                "baselineOverlapsBlackout": true
+              },
+              "long": {
+                "kind": "rolling",
+                "start": "2026-09-29T01:00:00Z",
+                "end": "2026-10-06T01:00:00Z",
+                "days": 7,
+                "bucketTz": "UTC",
+                "baselineOverlapsBlackout": true
+              }
+            },
+            "classifiedCoverage": {
+              "short": 0.9515,
+              "long": 0.9498
+            },
+            "signals": [
+              {
+                "label": "Educação",
+                "domain": "EDUCATION",
+                "kind": "sustained_drop",
+                "ratioShort": 0.264,
+                "ratioLong": 0.355,
+                "countShort": 12,
+                "countLong": 44,
+                "shareLong": 0.0665,
+                "severity": 0.498,
+                "band": "watch",
+                "confidence": "medium",
+                "flags": [
+                  "classifier_changed",
+                  "blackout_baseline"
+                ],
+                "daily": null
+              },
+              {
+                "label": "Saúde",
+                "domain": "HEALTH",
+                "kind": "sustained_spike",
+                "ratioShort": 2.287,
+                "ratioLong": 2.847,
+                "countShort": 120,
+                "countLong": 240,
+                "shareLong": 0.3625,
+                "severity": 0.398,
+                "band": "watch",
+                "confidence": "medium",
+                "flags": [
+                  "classifier_changed",
+                  "blackout_baseline"
+                ],
+                "daily": null
+              }
+            ]
+          },
+          "entities": {
+            "status": "ok",
+            "note": null,
+            "window": {
+              "kind": "closed",
+              "start": "2026-09-28T00:00:00-03:00",
+              "end": "2026-10-05T00:00:00-03:00",
+              "days": 7,
+              "bucketTz": "UTC",
+              "baselineOverlapsBlackout": false
+            },
+            "baseline": {
+              "kind": "closed",
+              "start": "2026-08-31T00:00:00-03:00",
+              "end": "2026-09-28T00:00:00-03:00",
+              "days": 28,
+              "bucketTz": "UTC",
+              "baselineOverlapsBlackout": true
+            },
+            "candidates": 8,
+            "upstream": {
+              "lastRunAt": "2026-10-05T21:00:00Z",
+              "rowsTotal": 8,
+              "rowsLastRun": 8,
+              "rowsLegacyFloor": 0
+            },
+            "signals": [
+              {
+                "entityId": "dgb_silencio",
+                "name": "Tema Calado",
+                "type": "ORG",
+                "domain": "HEALTH",
+                "kind": "coordinated_silence",
+                "windowCount": 9,
+                "baselineCount": 8,
+                "windowAgencies": 3,
+                "distinctDays": 4,
+                "maxDayShare": 0.333,
+                "ratio": 4.444,
+                "upstreamVolumeRatio": 13.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "saude",
+                  "agencyName": "SAUDE",
+                  "method": "agency_key",
+                  "share": 0.75
+                },
+                "ownerWindowCount": 0,
+                "ownerActivityRatio": 1.0,
+                "silenceScore": 23.333,
+                "severity": 0.956,
+                "band": "alert",
+                "confidence": "medium",
+                "explanation": "Outras agências 13,3× acima do baseline; a dona (SAUDE) com 0 menções na janela contra 6 no baseline (produção total 1,0× do baseline).",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 3, 0, 0, 0],
+                "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                "samples": []
+              },
+              {
+                "entityId": "dgb_censo-escolar-2025",
+                "name": "Censo Escolar 2025",
+                "type": "EVENT",
+                "domain": "OTHER",
+                "kind": "burst",
+                "windowCount": 60,
+                "baselineCount": 2,
+                "windowAgencies": 1,
+                "distinctDays": 2,
+                "maxDayShare": 0.95,
+                "ratio": 81.333,
+                "upstreamVolumeRatio": 4321.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.65,
+                "band": "watch",
+                "confidence": "high",
+                "explanation": "95% das menções da janela num único dia: rajada pontual, não tendência sustentada.",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 57, 3, 0, 0],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_concentrada",
+                "name": "Pauta Concentrada",
+                "type": "ORG",
+                "domain": "EDUCATION",
+                "kind": "concentrated_coverage",
+                "windowCount": 12,
+                "baselineCount": 4,
+                "windowAgencies": 2,
+                "distinctDays": 4,
+                "maxDayShare": 0.25,
+                "ratio": 10.4,
+                "upstreamVolumeRatio": 10.4,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "mec",
+                  "agencyName": "MEC",
+                  "method": "coverage",
+                  "share": 1.0
+                },
+                "ownerWindowCount": 8,
+                "ownerActivityRatio": 1.0,
+                "silenceScore": 2.778,
+                "severity": 0.65,
+                "band": "watch",
+                "confidence": "medium",
+                "explanation": "Cobertura 10,4× acima do baseline concentrada em 2 agência(s) e 4 dias.",
+                "flags": [
+                  "owner_by_coverage",
+                  "thin_baseline",
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0],
+                "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0],
+                "samples": []
+              },
+              {
+                "entityId": "dgb_novo",
+                "name": "Programa Novo",
+                "type": "ORG",
+                "domain": "OTHER",
+                "kind": "new_entity",
+                "windowCount": 7,
+                "baselineCount": 0,
+                "windowAgencies": 2,
+                "distinctDays": 3,
+                "maxDayShare": 0.429,
+                "ratio": 32.0,
+                "upstreamVolumeRatio": 32.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.65,
+                "band": "watch",
+                "confidence": "low",
+                "explanation": "Sem menções no baseline (28 dias); 7 artigos na janela.",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 2, 2, 0, 0],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_pe-de-meia",
+                "name": "Pé-de-Meia",
+                "type": "POLICY",
+                "domain": "EDUCATION",
+                "kind": "normal",
+                "windowCount": 5,
+                "baselineCount": 20,
+                "windowAgencies": 1,
+                "distinctDays": 5,
+                "maxDayShare": 0.2,
+                "ratio": 1.143,
+                "upstreamVolumeRatio": 1.14,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "mec",
+                  "agencyName": "MEC",
+                  "method": "coverage",
+                  "share": 1.0
+                },
+                "ownerWindowCount": 5,
+                "ownerActivityRatio": 1.0,
+                "silenceScore": 3.5,
+                "severity": 0.04,
+                "band": "normal",
+                "confidence": "low",
+                "explanation": "Razão 1,1× em 1 agência(s).",
+                "flags": [
+                  "owner_by_coverage",
+                  "blackout_baseline"
+                ],
+                "daily": [],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_normal",
+                "name": "Assunto Comum",
+                "type": "ORG",
+                "domain": "OTHER",
+                "kind": "normal",
+                "windowCount": 12,
+                "baselineCount": 48,
+                "windowAgencies": 6,
+                "distinctDays": 2,
+                "maxDayShare": 0.5,
+                "ratio": 1.061,
+                "upstreamVolumeRatio": 1.06,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.029,
+                "band": "normal",
+                "confidence": "medium",
+                "explanation": "Razão 1,1× em 6 agência(s).",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_secom",
+                "name": "Pauta da Secom",
+                "type": "ORG",
+                "domain": "GOVERNANCE",
+                "kind": "calendar_explained",
+                "windowCount": 6,
+                "baselineCount": 2,
+                "windowAgencies": 2,
+                "distinctDays": 4,
+                "maxDayShare": 0.333,
+                "ratio": 9.333,
+                "upstreamVolumeRatio": 7.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "secom",
+                  "agencyName": "SECOM",
+                  "method": "agency_key",
+                  "share": 0.0
+                },
+                "ownerWindowCount": 0,
+                "ownerActivityRatio": null,
+                "silenceScore": 2.333,
+                "severity": 0.0,
+                "band": "normal",
+                "confidence": "low",
+                "explanation": "A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.",
+                "flags": [
+                  "owner_silenced",
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2, 1, 0, 0],
+                "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                "samples": []
+              },
+              {
+                "entityId": "dgb_republicada",
+                "name": "Só Republicada",
+                "type": "ORG",
+                "domain": "OTHER",
+                "kind": "normal",
+                "windowCount": 0,
+                "baselineCount": 0,
+                "windowAgencies": 0,
+                "distinctDays": 0,
+                "maxDayShare": 0.0,
+                "ratio": 4.0,
+                "upstreamVolumeRatio": 2.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.0,
+                "band": "normal",
+                "confidence": "low",
+                "explanation": "Sem menções próprias na janela (republicadoras não contam).",
+                "flags": [
+                  "republishers_excluded",
+                  "blackout_baseline"
+                ],
+                "daily": [],
+                "ownerDaily": null,
+                "samples": []
+              }
+            ],
+            "omitted": {}
+          },
+          "domains": [
+            {
+              "domain": "HEALTH",
+              "label": "Saúde",
+              "spikes": 1,
+              "silences": 1,
+              "concentrated": 0,
+              "maxSeverity": 0.956,
+              "spikeLevel": 0.398,
+              "silenceLevel": 0.956,
+              "spikeBand": "watch",
+              "silenceBand": "alert"
+            },
+            {
+              "domain": "EDUCATION",
+              "label": "Educação",
+              "spikes": 0,
+              "silences": 1,
+              "concentrated": 1,
+              "maxSeverity": 0.65,
+              "spikeLevel": 0.65,
+              "silenceLevel": 0.498,
+              "spikeBand": "watch",
+              "silenceBand": "watch"
+            },
+            {
+              "domain": "SOCIAL",
+              "label": "Social",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "ECONOMIC",
+              "label": "Economia",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "SECURITY",
+              "label": "Segurança",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "ENVIRONMENT",
+              "label": "Meio ambiente",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "GOVERNANCE",
+              "label": "Governança",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "OTHER",
+              "label": "Outros",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            }
+          ],
+          "severityBands": {
+            "watch": 0.33,
+            "alert": 0.66
+          },
+          "sensitivityOptions": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "isError": false
+      }
+    },
+    {
+      "name": "gobus_detect_anomalies",
+      "arguments": {
+        "sensitivity": "medium",
+        "domain_filter": "HEALTH"
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** medium · **Domínio:** Saúde\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias · 1 agências sem publicar há ≥14 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n### Picos Sustentados\n- **Saúde** (Saúde) · fatia 2,3× em 3 dias e 2,8× em 7 · 120 artigos em 3 dias, 240 em 7 · severidade 0,68 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Quedas Sustentadas\nNenhuma queda sustentada.\n\n### Silêncio Coordenado\n- **Tema Calado** (ORG, Saúde) · 9 artigos/7d em 3 agência(s) e 4 dia(s) · razão 4,4× · dona: SAUDE (0 menções; produção total 1,0× do baseline) · score 23,3 · severidade 1,00 (alerta) · confiança média\n\n### Cobertura Concentrada\nNenhuma cobertura concentrada.\n\n### Explicado pelo Calendário\nNada explicado pelo calendário.\n\n### Rajadas e Entidades Novas\nNenhuma rajada ou entidade nova.\n\n### Tendências Normais\nNenhuma tendência normal.\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção."
+          }
+        ],
+        "structuredContent": {
+          "summary": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** medium · **Domínio:** Saúde\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias · 1 agências sem publicar há ≥14 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n### Picos Sustentados\n- **Saúde** (Saúde) · fatia 2,3× em 3 dias e 2,8× em 7 · 120 artigos em 3 dias, 240 em 7 · severidade 0,68 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Quedas Sustentadas\nNenhuma queda sustentada.\n\n### Silêncio Coordenado\n- **Tema Calado** (ORG, Saúde) · 9 artigos/7d em 3 agência(s) e 4 dia(s) · razão 4,4× · dona: SAUDE (0 menções; produção total 1,0× do baseline) · score 23,3 · severidade 1,00 (alerta) · confiança média\n\n### Cobertura Concentrada\nNenhuma cobertura concentrada.\n\n### Explicado pelo Calendário\nNada explicado pelo calendário.\n\n### Rajadas e Entidades Novas\nNenhuma rajada ou entidade nova.\n\n### Tendências Normais\nNenhuma tendência normal.\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção.",
+          "schemaVersion": 1,
+          "kind": "gobus.anomalies",
+          "tool": "gobus_detect_anomalies",
+          "status": "ok",
+          "generatedAt": "2026-10-05T22:00:00-03:00",
+          "referenceDate": "2026-10-05",
+          "params": {
+            "sensitivity": "medium",
+            "domain_filter": "HEALTH"
+          },
+          "calendar": {
+            "phase": "blackout",
+            "label": "Defeso eleitoral 2026",
+            "blackoutStart": "2026-07-04",
+            "blackoutEnd": "2026-10-25",
+            "recoveryUntil": "2026-11-29",
+            "daysToEnd": 20,
+            "silencedAgencies": 1,
+            "resumedAgencies": 0
+          },
+          "dataStatus": [
+            {
+              "key": "themes",
+              "status": "ok",
+              "since": null,
+              "message": "Temas: ok — 95% dos artigos dos últimos 7 dias com tema (662 de 697)",
+              "metric": {
+                "classified": 662,
+                "total": 697,
+                "ratio": 0.9497847919655668,
+                "days": 7
+              }
+            },
+            {
+              "key": "entity_ranking",
+              "status": "ok",
+              "since": null,
+              "message": "Ranking de entidades em alta: ok — execução única de 05/10/2026 21:00 UTC (há 4 h)",
+              "metric": {
+                "rowsTotal": 8,
+                "rowsLastRun": 8,
+                "rowsLegacyFloor": 0,
+                "distinctRuns": 1,
+                "ageHours": 4.0
+              }
+            },
+            {
+              "key": "agency_activity",
+              "status": "ok",
+              "since": null,
+              "message": "Atividade das agências: ok — 5 agências de 06/06/2026 a 04/10/2026; 1 sem publicar há ≥14 dias; 0 retomadas (0 depois do defeso)",
+              "metric": {
+                "agencies": 5,
+                "silenced": 1,
+                "resumed": 0,
+                "resumedAfterBlackout": 0,
+                "days": 121
+              }
+            }
+          ],
+          "notices": [
+            {
+              "code": "ELECTORAL_BLACKOUT",
+              "severity": "info",
+              "message": "Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.",
+              "since": "2026-07-04",
+              "affects": [
+                "themes",
+                "entities"
+              ]
+            },
+            {
+              "code": "CLASSIFIER_CHANGED",
+              "severity": "warn",
+              "message": "Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.",
+              "since": "2026-09-25",
+              "affects": [
+                "themes"
+              ]
+            }
+          ],
+          "thresholds": {
+            "ratio": 1.5,
+            "windowAgencies": 5,
+            "silenceRatio": 2.0,
+            "minCount": 5
+          },
+          "themes": {
+            "status": "ok",
+            "note": null,
+            "windows": {
+              "short": {
+                "kind": "rolling",
+                "start": "2026-10-03T01:00:00Z",
+                "end": "2026-10-06T01:00:00Z",
+                "days": 3,
+                "bucketTz": "UTC",
+                "baselineOverlapsBlackout": true
+              },
+              "long": {
+                "kind": "rolling",
+                "start": "2026-09-29T01:00:00Z",
+                "end": "2026-10-06T01:00:00Z",
+                "days": 7,
+                "bucketTz": "UTC",
+                "baselineOverlapsBlackout": true
+              }
+            },
+            "classifiedCoverage": {
+              "short": 0.9515,
+              "long": 0.9498
+            },
+            "signals": [
+              {
+                "label": "Saúde",
+                "domain": "HEALTH",
+                "kind": "sustained_spike",
+                "ratioShort": 2.287,
+                "ratioLong": 2.847,
+                "countShort": 120,
+                "countLong": 240,
+                "shareLong": 0.3625,
+                "severity": 0.68,
+                "band": "alert",
+                "confidence": "medium",
+                "flags": [
+                  "classifier_changed",
+                  "blackout_baseline"
+                ],
+                "daily": null
+              }
+            ]
+          },
+          "entities": {
+            "status": "ok",
+            "note": null,
+            "window": {
+              "kind": "closed",
+              "start": "2026-09-28T00:00:00-03:00",
+              "end": "2026-10-05T00:00:00-03:00",
+              "days": 7,
+              "bucketTz": "UTC",
+              "baselineOverlapsBlackout": false
+            },
+            "baseline": {
+              "kind": "closed",
+              "start": "2026-08-31T00:00:00-03:00",
+              "end": "2026-09-28T00:00:00-03:00",
+              "days": 28,
+              "bucketTz": "UTC",
+              "baselineOverlapsBlackout": true
+            },
+            "candidates": 8,
+            "upstream": {
+              "lastRunAt": "2026-10-05T21:00:00Z",
+              "rowsTotal": 8,
+              "rowsLastRun": 8,
+              "rowsLegacyFloor": 0
+            },
+            "signals": [
+              {
+                "entityId": "dgb_silencio",
+                "name": "Tema Calado",
+                "type": "ORG",
+                "domain": "HEALTH",
+                "kind": "coordinated_silence",
+                "windowCount": 9,
+                "baselineCount": 8,
+                "windowAgencies": 3,
+                "distinctDays": 4,
+                "maxDayShare": 0.333,
+                "ratio": 4.444,
+                "upstreamVolumeRatio": 13.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "saude",
+                  "agencyName": "SAUDE",
+                  "method": "agency_key",
+                  "share": 0.75
+                },
+                "ownerWindowCount": 0,
+                "ownerActivityRatio": 1.0,
+                "silenceScore": 23.333,
+                "severity": 1.0,
+                "band": "alert",
+                "confidence": "medium",
+                "explanation": "Outras agências 13,3× acima do baseline; a dona (SAUDE) com 0 menções na janela contra 6 no baseline (produção total 1,0× do baseline).",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 3, 0, 0, 0],
+                "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                "samples": []
+              }
+            ],
+            "omitted": {}
+          },
+          "domains": [
+            {
+              "domain": "HEALTH",
+              "label": "Saúde",
+              "spikes": 1,
+              "silences": 1,
+              "concentrated": 0,
+              "maxSeverity": 1.0,
+              "spikeLevel": 0.68,
+              "silenceLevel": 1.0,
+              "spikeBand": "alert",
+              "silenceBand": "alert"
+            },
+            {
+              "domain": "EDUCATION",
+              "label": "Educação",
+              "spikes": 0,
+              "silences": 1,
+              "concentrated": 1,
+              "maxSeverity": 0.852,
+              "spikeLevel": 0.65,
+              "silenceLevel": 0.852,
+              "spikeBand": "watch",
+              "silenceBand": "alert"
+            },
+            {
+              "domain": "SOCIAL",
+              "label": "Social",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "ECONOMIC",
+              "label": "Economia",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "SECURITY",
+              "label": "Segurança",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "ENVIRONMENT",
+              "label": "Meio ambiente",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "GOVERNANCE",
+              "label": "Governança",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "OTHER",
+              "label": "Outros",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            }
+          ],
+          "severityBands": {
+            "watch": 0.33,
+            "alert": 0.66
+          },
+          "sensitivityOptions": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "isError": false
+      }
+    },
+    {
+      "name": "gobus_detect_anomalies",
+      "arguments": {
+        "sensitivity": "medium"
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** medium · **Domínio:** todos\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias · 1 agências sem publicar há ≥14 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n### Picos Sustentados\n- **Saúde** (Saúde) · fatia 2,3× em 3 dias e 2,8× em 7 · 120 artigos em 3 dias, 240 em 7 · severidade 0,68 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Quedas Sustentadas\n- **Educação** (Educação) · fatia 0,3× em 3 dias e 0,4× em 7 · 12 artigos em 3 dias, 44 em 7 · severidade 0,85 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Silêncio Coordenado\n- **Tema Calado** (ORG, Saúde) · 9 artigos/7d em 3 agência(s) e 4 dia(s) · razão 4,4× · dona: SAUDE (0 menções; produção total 1,0× do baseline) · score 23,3 · severidade 1,00 (alerta) · confiança média\n\n### Cobertura Concentrada\n- **Pauta Concentrada** (ORG, Educação) · 12 artigos/7d em 2 agência(s) e 4 dia(s) · razão 10,4× · dona: MEC · severidade 0,65 (atenção) · confiança média · _baseline pequeno_\n\n### Explicado pelo Calendário\n- **Pauta da Secom** (ORG, Governança) · 6 artigos/7d em 2 agência(s) e 4 dia(s) · razão 9,3× · dona: SECOM · severidade 0,00 (normal) · confiança média\n  A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.\n\n### Rajadas e Entidades Novas\n- **Censo Escolar 2025** (EVENT, Outros) · 60 artigos/7d em 1 agência(s) e 2 dia(s) · razão 81,3× · 95% num único dia · severidade 0,65 (atenção) · confiança alta\n- **Programa Novo** (ORG, Outros) · 7 artigos/7d em 2 agência(s) e 3 dia(s) · razão 32,0× · sem menções no baseline · severidade 0,65 (atenção) · confiança média\n\n### Tendências Normais\n- **Pé-de-Meia** (POLICY, Educação) · 5 artigos/7d em 1 agência(s) e 5 dia(s) · razão 1,1× · dona: MEC · confiança média\n- **Assunto Comum** (ORG, Outros) · 12 artigos/7d em 6 agência(s) e 2 dia(s) · razão 1,1× · confiança média\n- **Só Republicada** (ORG, Outros) · sem menções próprias em 7d (só republicadoras) · _republicadoras excluídas_\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção."
+          }
+        ],
+        "structuredContent": {
+          "summary": "## Detector de Anomalias Comunicacionais\n**Entidades:** janela fechada 28/09–04/10/2026 (até 04/10 23:59, America/Sao_Paulo; contagens por dia UTC) contra o baseline 31/08–27/09/2026 · **Temas:** janelas móveis de 3 e 7 dias até 05/10 22:00 (BRT; contagens em UTC)\n**Sensibilidade:** medium · **Domínio:** todos\n**Calendário:** Defeso eleitoral 2026 (04/07–25/10/2026) — faltam 20 dias · 1 agências sem publicar há ≥14 dias\n\n> **Avisos de dados**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n### Picos Sustentados\n- **Saúde** (Saúde) · fatia 2,3× em 3 dias e 2,8× em 7 · 120 artigos em 3 dias, 240 em 7 · severidade 0,68 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Quedas Sustentadas\n- **Educação** (Educação) · fatia 0,3× em 3 dias e 0,4× em 7 · 12 artigos em 3 dias, 44 em 7 · severidade 0,85 (alerta) · confiança média · _troca de classificador no baseline_\n\n### Silêncio Coordenado\n- **Tema Calado** (ORG, Saúde) · 9 artigos/7d em 3 agência(s) e 4 dia(s) · razão 4,4× · dona: SAUDE (0 menções; produção total 1,0× do baseline) · score 23,3 · severidade 1,00 (alerta) · confiança média\n\n### Cobertura Concentrada\n- **Pauta Concentrada** (ORG, Educação) · 12 artigos/7d em 2 agência(s) e 4 dia(s) · razão 10,4× · dona: MEC · severidade 0,65 (atenção) · confiança média · _baseline pequeno_\n\n### Explicado pelo Calendário\n- **Pauta da Secom** (ORG, Governança) · 6 artigos/7d em 2 agência(s) e 4 dia(s) · razão 9,3× · dona: SECOM · severidade 0,00 (normal) · confiança média\n  A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.\n\n### Rajadas e Entidades Novas\n- **Censo Escolar 2025** (EVENT, Outros) · 60 artigos/7d em 1 agência(s) e 2 dia(s) · razão 81,3× · 95% num único dia · severidade 0,65 (atenção) · confiança alta\n- **Programa Novo** (ORG, Outros) · 7 artigos/7d em 2 agência(s) e 3 dia(s) · razão 32,0× · sem menções no baseline · severidade 0,65 (atenção) · confiança média\n\n### Tendências Normais\n- **Pé-de-Meia** (POLICY, Educação) · 5 artigos/7d em 1 agência(s) e 5 dia(s) · razão 1,1× · dona: MEC · confiança média\n- **Assunto Comum** (ORG, Outros) · 12 artigos/7d em 6 agência(s) e 2 dia(s) · razão 1,1× · confiança média\n- **Só Republicada** (ORG, Outros) · sem menções próprias em 7d (só republicadoras) · _republicadoras excluídas_\n\n### Metodologia\n- **Temas:** share-of-voice (fatia entre os artigos classificados) nas janelas móveis de 3 e 7 dias contra o baseline anterior (21 e 28 dias), com suavização de Laplace. Pico ou queda só quando as duas janelas passam do limiar. Cancela fim de semana e atraso de indexação; atenua o defeso.\n- **Entidades:** cobertura diária (`entityCoverage`) na janela fechada de 7 dias contra 28 dias de baseline (na recuperação, os 28 dias antes do defeso), sem republicadoras. Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura concentrada → normal.\n- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele (atenção a partir de 0,33; alerta a partir de 0,66). Rajadas, entidades novas e cobertura com baseline abaixo do volume mínimo ficam no máximo em atenção.",
+          "schemaVersion": 1,
+          "kind": "gobus.anomalies",
+          "tool": "gobus_detect_anomalies",
+          "status": "ok",
+          "generatedAt": "2026-10-05T22:00:00-03:00",
+          "referenceDate": "2026-10-05",
+          "params": {
+            "sensitivity": "medium",
+            "domain_filter": null
+          },
+          "calendar": {
+            "phase": "blackout",
+            "label": "Defeso eleitoral 2026",
+            "blackoutStart": "2026-07-04",
+            "blackoutEnd": "2026-10-25",
+            "recoveryUntil": "2026-11-29",
+            "daysToEnd": 20,
+            "silencedAgencies": 1,
+            "resumedAgencies": 0
+          },
+          "dataStatus": [
+            {
+              "key": "themes",
+              "status": "ok",
+              "since": null,
+              "message": "Temas: ok — 95% dos artigos dos últimos 7 dias com tema (662 de 697)",
+              "metric": {
+                "classified": 662,
+                "total": 697,
+                "ratio": 0.9497847919655668,
+                "days": 7
+              }
+            },
+            {
+              "key": "entity_ranking",
+              "status": "ok",
+              "since": null,
+              "message": "Ranking de entidades em alta: ok — execução única de 05/10/2026 21:00 UTC (há 4 h)",
+              "metric": {
+                "rowsTotal": 8,
+                "rowsLastRun": 8,
+                "rowsLegacyFloor": 0,
+                "distinctRuns": 1,
+                "ageHours": 4.0
+              }
+            },
+            {
+              "key": "agency_activity",
+              "status": "ok",
+              "since": null,
+              "message": "Atividade das agências: ok — 5 agências de 06/06/2026 a 04/10/2026; 1 sem publicar há ≥14 dias; 0 retomadas (0 depois do defeso)",
+              "metric": {
+                "agencies": 5,
+                "silenced": 1,
+                "resumed": 0,
+                "resumedAfterBlackout": 0,
+                "days": 121
+              }
+            }
+          ],
+          "notices": [
+            {
+              "code": "ELECTORAL_BLACKOUT",
+              "severity": "info",
+              "message": "Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas. 1 agências estão sem publicar há ≥14 dias.",
+              "since": "2026-07-04",
+              "affects": [
+                "themes",
+                "entities"
+              ]
+            },
+            {
+              "code": "CLASSIFIER_CHANGED",
+              "severity": "warn",
+              "message": "Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.",
+              "since": "2026-09-25",
+              "affects": [
+                "themes"
+              ]
+            }
+          ],
+          "thresholds": {
+            "ratio": 1.5,
+            "windowAgencies": 5,
+            "silenceRatio": 2.0,
+            "minCount": 5
+          },
+          "themes": {
+            "status": "ok",
+            "note": null,
+            "windows": {
+              "short": {
+                "kind": "rolling",
+                "start": "2026-10-03T01:00:00Z",
+                "end": "2026-10-06T01:00:00Z",
+                "days": 3,
+                "bucketTz": "UTC",
+                "baselineOverlapsBlackout": true
+              },
+              "long": {
+                "kind": "rolling",
+                "start": "2026-09-29T01:00:00Z",
+                "end": "2026-10-06T01:00:00Z",
+                "days": 7,
+                "bucketTz": "UTC",
+                "baselineOverlapsBlackout": true
+              }
+            },
+            "classifiedCoverage": {
+              "short": 0.9515,
+              "long": 0.9498
+            },
+            "signals": [
+              {
+                "label": "Educação",
+                "domain": "EDUCATION",
+                "kind": "sustained_drop",
+                "ratioShort": 0.264,
+                "ratioLong": 0.355,
+                "countShort": 12,
+                "countLong": 44,
+                "shareLong": 0.0665,
+                "severity": 0.852,
+                "band": "alert",
+                "confidence": "medium",
+                "flags": [
+                  "classifier_changed",
+                  "blackout_baseline"
+                ],
+                "daily": null
+              },
+              {
+                "label": "Saúde",
+                "domain": "HEALTH",
+                "kind": "sustained_spike",
+                "ratioShort": 2.287,
+                "ratioLong": 2.847,
+                "countShort": 120,
+                "countLong": 240,
+                "shareLong": 0.3625,
+                "severity": 0.68,
+                "band": "alert",
+                "confidence": "medium",
+                "flags": [
+                  "classifier_changed",
+                  "blackout_baseline"
+                ],
+                "daily": null
+              }
+            ]
+          },
+          "entities": {
+            "status": "ok",
+            "note": null,
+            "window": {
+              "kind": "closed",
+              "start": "2026-09-28T00:00:00-03:00",
+              "end": "2026-10-05T00:00:00-03:00",
+              "days": 7,
+              "bucketTz": "UTC",
+              "baselineOverlapsBlackout": false
+            },
+            "baseline": {
+              "kind": "closed",
+              "start": "2026-08-31T00:00:00-03:00",
+              "end": "2026-09-28T00:00:00-03:00",
+              "days": 28,
+              "bucketTz": "UTC",
+              "baselineOverlapsBlackout": true
+            },
+            "candidates": 8,
+            "upstream": {
+              "lastRunAt": "2026-10-05T21:00:00Z",
+              "rowsTotal": 8,
+              "rowsLastRun": 8,
+              "rowsLegacyFloor": 0
+            },
+            "signals": [
+              {
+                "entityId": "dgb_silencio",
+                "name": "Tema Calado",
+                "type": "ORG",
+                "domain": "HEALTH",
+                "kind": "coordinated_silence",
+                "windowCount": 9,
+                "baselineCount": 8,
+                "windowAgencies": 3,
+                "distinctDays": 4,
+                "maxDayShare": 0.333,
+                "ratio": 4.444,
+                "upstreamVolumeRatio": 13.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "saude",
+                  "agencyName": "SAUDE",
+                  "method": "agency_key",
+                  "share": 0.75
+                },
+                "ownerWindowCount": 0,
+                "ownerActivityRatio": 1.0,
+                "silenceScore": 23.333,
+                "severity": 1.0,
+                "band": "alert",
+                "confidence": "medium",
+                "explanation": "Outras agências 13,3× acima do baseline; a dona (SAUDE) com 0 menções na janela contra 6 no baseline (produção total 1,0× do baseline).",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 3, 0, 0, 0],
+                "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                "samples": []
+              },
+              {
+                "entityId": "dgb_censo-escolar-2025",
+                "name": "Censo Escolar 2025",
+                "type": "EVENT",
+                "domain": "OTHER",
+                "kind": "burst",
+                "windowCount": 60,
+                "baselineCount": 2,
+                "windowAgencies": 1,
+                "distinctDays": 2,
+                "maxDayShare": 0.95,
+                "ratio": 81.333,
+                "upstreamVolumeRatio": 4321.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.65,
+                "band": "watch",
+                "confidence": "high",
+                "explanation": "95% das menções da janela num único dia: rajada pontual, não tendência sustentada.",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 57, 3, 0, 0],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_concentrada",
+                "name": "Pauta Concentrada",
+                "type": "ORG",
+                "domain": "EDUCATION",
+                "kind": "concentrated_coverage",
+                "windowCount": 12,
+                "baselineCount": 4,
+                "windowAgencies": 2,
+                "distinctDays": 4,
+                "maxDayShare": 0.25,
+                "ratio": 10.4,
+                "upstreamVolumeRatio": 10.4,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "mec",
+                  "agencyName": "MEC",
+                  "method": "coverage",
+                  "share": 1.0
+                },
+                "ownerWindowCount": 8,
+                "ownerActivityRatio": 1.0,
+                "silenceScore": 2.778,
+                "severity": 0.65,
+                "band": "watch",
+                "confidence": "medium",
+                "explanation": "Cobertura 10,4× acima do baseline concentrada em 2 agência(s) e 4 dias.",
+                "flags": [
+                  "owner_by_coverage",
+                  "thin_baseline",
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0],
+                "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0],
+                "samples": []
+              },
+              {
+                "entityId": "dgb_novo",
+                "name": "Programa Novo",
+                "type": "ORG",
+                "domain": "OTHER",
+                "kind": "new_entity",
+                "windowCount": 7,
+                "baselineCount": 0,
+                "windowAgencies": 2,
+                "distinctDays": 3,
+                "maxDayShare": 0.429,
+                "ratio": 32.0,
+                "upstreamVolumeRatio": 32.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.65,
+                "band": "watch",
+                "confidence": "medium",
+                "explanation": "Sem menções no baseline (28 dias); 7 artigos na janela.",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 2, 2, 0, 0],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_pe-de-meia",
+                "name": "Pé-de-Meia",
+                "type": "POLICY",
+                "domain": "EDUCATION",
+                "kind": "normal",
+                "windowCount": 5,
+                "baselineCount": 20,
+                "windowAgencies": 1,
+                "distinctDays": 5,
+                "maxDayShare": 0.2,
+                "ratio": 1.143,
+                "upstreamVolumeRatio": 1.14,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "mec",
+                  "agencyName": "MEC",
+                  "method": "coverage",
+                  "share": 1.0
+                },
+                "ownerWindowCount": 5,
+                "ownerActivityRatio": 1.0,
+                "silenceScore": 3.5,
+                "severity": 0.11,
+                "band": "normal",
+                "confidence": "medium",
+                "explanation": "Razão 1,1× em 1 agência(s).",
+                "flags": [
+                  "owner_by_coverage",
+                  "blackout_baseline"
+                ],
+                "daily": [],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_normal",
+                "name": "Assunto Comum",
+                "type": "ORG",
+                "domain": "OTHER",
+                "kind": "normal",
+                "windowCount": 12,
+                "baselineCount": 48,
+                "windowAgencies": 6,
+                "distinctDays": 2,
+                "maxDayShare": 0.5,
+                "ratio": 1.061,
+                "upstreamVolumeRatio": 1.06,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.049,
+                "band": "normal",
+                "confidence": "medium",
+                "explanation": "Razão 1,1× em 6 agência(s).",
+                "flags": [
+                  "blackout_baseline"
+                ],
+                "daily": [],
+                "ownerDaily": null,
+                "samples": []
+              },
+              {
+                "entityId": "dgb_secom",
+                "name": "Pauta da Secom",
+                "type": "ORG",
+                "domain": "GOVERNANCE",
+                "kind": "calendar_explained",
+                "windowCount": 6,
+                "baselineCount": 2,
+                "windowAgencies": 2,
+                "distinctDays": 4,
+                "maxDayShare": 0.333,
+                "ratio": 9.333,
+                "upstreamVolumeRatio": 7.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": {
+                  "agencyKey": "secom",
+                  "agencyName": "SECOM",
+                  "method": "agency_key",
+                  "share": 0.0
+                },
+                "ownerWindowCount": 0,
+                "ownerActivityRatio": null,
+                "silenceScore": 2.333,
+                "severity": 0.0,
+                "band": "normal",
+                "confidence": "medium",
+                "explanation": "A agência dona (SECOM) está sem publicar no defeso eleitoral; o padrão de cobertura é explicado pelo calendário.",
+                "flags": [
+                  "owner_silenced",
+                  "blackout_baseline"
+                ],
+                "daily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2, 1, 0, 0],
+                "ownerDaily": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                "samples": []
+              },
+              {
+                "entityId": "dgb_republicada",
+                "name": "Só Republicada",
+                "type": "ORG",
+                "domain": "OTHER",
+                "kind": "normal",
+                "windowCount": 0,
+                "baselineCount": 0,
+                "windowAgencies": 0,
+                "distinctDays": 0,
+                "maxDayShare": 0.0,
+                "ratio": 4.0,
+                "upstreamVolumeRatio": 2.0,
+                "upstreamComputedAt": "2026-10-05T21:00:00Z",
+                "owner": null,
+                "ownerWindowCount": null,
+                "ownerActivityRatio": null,
+                "silenceScore": null,
+                "severity": 0.0,
+                "band": "normal",
+                "confidence": "low",
+                "explanation": "Sem menções próprias na janela (republicadoras não contam).",
+                "flags": [
+                  "republishers_excluded",
+                  "blackout_baseline"
+                ],
+                "daily": [],
+                "ownerDaily": null,
+                "samples": []
+              }
+            ],
+            "omitted": {}
+          },
+          "domains": [
+            {
+              "domain": "HEALTH",
+              "label": "Saúde",
+              "spikes": 1,
+              "silences": 1,
+              "concentrated": 0,
+              "maxSeverity": 1.0,
+              "spikeLevel": 0.68,
+              "silenceLevel": 1.0,
+              "spikeBand": "alert",
+              "silenceBand": "alert"
+            },
+            {
+              "domain": "EDUCATION",
+              "label": "Educação",
+              "spikes": 0,
+              "silences": 1,
+              "concentrated": 1,
+              "maxSeverity": 0.852,
+              "spikeLevel": 0.65,
+              "silenceLevel": 0.852,
+              "spikeBand": "watch",
+              "silenceBand": "alert"
+            },
+            {
+              "domain": "SOCIAL",
+              "label": "Social",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "ECONOMIC",
+              "label": "Economia",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "SECURITY",
+              "label": "Segurança",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "ENVIRONMENT",
+              "label": "Meio ambiente",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "GOVERNANCE",
+              "label": "Governança",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            },
+            {
+              "domain": "OTHER",
+              "label": "Outros",
+              "spikes": 0,
+              "silences": 0,
+              "concentrated": 0,
+              "maxSeverity": 0.0,
+              "spikeLevel": 0.0,
+              "silenceLevel": 0.0,
+              "spikeBand": "normal",
+              "silenceBand": "normal"
+            }
+          ],
+          "severityBands": {
+            "watch": 0.33,
+            "alert": 0.66
+          },
+          "sensitivityOptions": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "isError": false
+      }
+    }
+  ]
+}

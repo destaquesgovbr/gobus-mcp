@@ -1,6 +1,6 @@
 # Tools
 
-O Gobus MCP expõe **13 tools**, todas somente leitura (`readOnlyHint`) e sem `outputSchema`: o cliente recebe o Markdown direto no `content`.
+O Gobus MCP expõe **14 tools**, todas somente leitura (`readOnlyHint`) e sem `outputSchema`: o cliente recebe o Markdown direto no `content`. Quatro são tools de [MCP App](../apps/index.md) (`get_readability_recommendations`, `score_article`, `detect_anomalies` e `forecast_trends`): além do Markdown completo no `content`, devolvem o payload estruturado (`structuredContent`, com o mesmo Markdown até 6 KB em `summary`) que o painel desenha. As tools de preview `gobus_dev_preview_*` só existem em desenvolvimento ([Desenvolvimento e validação](../apps/desenvolvimento.md)).
 
 | Tool | Descrição | Quando usar |
 |------|-----------|-------------|
@@ -17,10 +17,11 @@ O Gobus MCP expõe **13 tools**, todas somente leitura (`readOnlyHint`) e sem `o
 | [get_policy_lifecycle](get-policy-lifecycle.md) | Ciclo de vida mensal de uma política pública | Saber se uma política está em anúncio, implementação ou rotina |
 | [detect_anomalies](detect-anomalies.md) | Picos/quedas de temas e sinais de entidade (silêncio coordenado, concentrada, rajada), cientes do defeso | Achar assuntos fora do padrão, por domínio de política |
 | [forecast_trends](forecast-trends.md) | Projeção de temas por share-of-voice em 3 janelas, com horizonte de 1 a 28 dias | Antecipar pautas e o volume esperado |
+| [get_message_coherence](get-message-coherence.md) | Coerência de mensagem entre agências sobre uma entidade ou um tema (índice 1–5: entidades, timing, enquadramento e tom), com as republicadoras à parte | Saber se o governo fala em sintonia sobre um programa ou pauta |
 
 ## Convenções de saída
 
-- **Markdown, não JSON** — o texto já vem pronto para o LLM apresentar ao usuário.
+- **Markdown, não JSON** — o texto já vem pronto para o LLM apresentar ao usuário. Nas tools de app, o `content` traz o Markdown completo e o `structuredContent` traz o mesmo texto em `summary` (primeiro campo, cortado em 6 KB) e os dados do painel (até 20 KB).
 - **Nulo nunca vira 0.** Métrica sem dado aparece como "indisponível", com um aviso `> …` explicando a fonte e, quando conhecido, "desde dd/mm/aaaa". O estado das fontes está em [`gobus://health/pipelines`](../resources/health-pipelines.md).
 - **Flesch:** escala inglesa do `textstat`, limitada a 0–100 (o valor bruto aparece quando foi limitado), com faixas únicas 0–25 muito difícil · 25–50 difícil · 50–75 médio · 75–100 fácil.
 - **Agências:** códigos do catálogo (`gobus://agencies`); um código inválido devolve sugestões (`"ms"` → `saude`, `"trabalho"` → `trabalho-e-emprego`).

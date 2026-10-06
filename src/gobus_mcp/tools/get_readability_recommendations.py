@@ -15,6 +15,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 
 from gobus_mcp.agency_catalog import AgencyCatalog
+from gobus_mcp.analytics.render import fit_summary
 from gobus_mcp.calendario import (
     DateRange,
     brt_bounds,
@@ -31,6 +32,7 @@ from gobus_mcp.payloads.readability import (
     DayRange,
     ReadabilityCoverageInfo,
     ReadabilityReport,
+    fit_readability_budget,
     flesch_bands,
 )
 from gobus_mcp.readability import (
@@ -315,7 +317,8 @@ async def build_readability_payload(
         benchmark=benchmark,
         **fields,
     )
-    return report.model_copy(update={"summary": render_readability_markdown(report)})
+    summary = fit_summary(render_readability_markdown(report))
+    return fit_readability_budget(report.model_copy(update={"summary": summary}))
 
 
 # ── render ──────────────────────────────────────────────────────────────────

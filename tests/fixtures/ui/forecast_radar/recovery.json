@@ -1,0 +1,590 @@
+{
+  "app": "forecast_radar",
+  "state": "recovery",
+  "description": "DEV — dados fictícios: 03/11/2026, recuperação pós-defeso: confiança reduzida em um nível; horizonte 14",
+  "toolName": "gobus_forecast_trends",
+  "toolInput": {
+    "horizon_days": 14,
+    "limit": 8
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "## Forecast de Tendências — Horizonte 14 dias (03/11 → 16/11/2026)\n**Janelas móveis até 03/11 12:00 (BRT; contagens em UTC):** 3d (peso 0,50) · 7d (peso 0,30) · 21d (peso 0,20) · share-of-voice entre os artigos classificados\n**Calendário:** recuperação pós-defeso até 29/11/2026; confiança reduzida em um nível.\n\n> **Avisos**\n> - Recuperação pós-defeso eleitoral 2026 até 29/11/2026: agências retomando a publicação; os baselines usam o período antes do defeso e a confiança dos sinais cai um nível.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n| Tema | Ritmo (×/semana) | Momentum | Confiança | Artigos esperados (14d) | Janelas |\n|---|---|---|---|---|---|\n| Saúde | 1,67× | acelerando | média | 217 (188–245) | 3d 2,0× · 7d 2,8× · 21d 1,7× |\n| Cultura | 0,91× | estável | média | 26 (16–36) | 3d 0,9× · 7d 0,8× · 21d 0,9× |\n| Meio Ambiente e Sustentabilidade | 0,91× | estável | média | 34 (23–46) | 3d 0,9× · 7d 0,8× · 21d 0,9× |\n| Segurança Pública | 0,90× | estável | média | 64 (48–80) | 3d 0,9× · 7d 0,8× · 21d 0,9× |\n| Economia e Finanças | 0,90× | estável | média | 107 (86–127) | 3d 0,9× · 7d 0,8× · 21d 0,9× |\n| Educação | 0,46× | desacelerando | média | 18 (10–26) | 3d 0,3× · 7d 0,4× · 21d 0,8× |\n\n### Metodologia\nRazão de share-of-voice sem sobreposição (janela contra o baseline anterior a ela) e taxa log por dia ln(r)/(B/2); composto 0,5/0,3/0,2 renormalizado nas janelas com cobertura de classificação; momentum = taxa de 3 dias − taxa de 7 dias (±10% por semana). Projeção amortecida (φ = 0,9) sobre o volume esperado por dia (perfil de dia útil, feriado como domingo, nível por fase do calendário), com intervalo de Poisson de 95%."
+      }
+    ],
+    "structuredContent": {
+      "summary": "## Forecast de Tendências — Horizonte 14 dias (03/11 → 16/11/2026)\n**Janelas móveis até 03/11 12:00 (BRT; contagens em UTC):** 3d (peso 0,50) · 7d (peso 0,30) · 21d (peso 0,20) · share-of-voice entre os artigos classificados\n**Calendário:** recuperação pós-defeso até 29/11/2026; confiança reduzida em um nível.\n\n> **Avisos**\n> - Recuperação pós-defeso eleitoral 2026 até 29/11/2026: agências retomando a publicação; os baselines usam o período antes do defeso e a confiança dos sinais cai um nível.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\n| Tema | Ritmo (×/semana) | Momentum | Confiança | Artigos esperados (14d) | Janelas |\n|---|---|---|---|---|---|\n| Saúde | 1,67× | acelerando | média | 217 (188–245) | 3d 2,0× · 7d 2,8× · 21d 1,7× |\n| Cultura | 0,91× | estável | média | 26 (16–36) | 3d 0,9× · 7d 0,8× · 21d 0,9× |\n| Meio Ambiente e Sustentabilidade | 0,91× | estável | média | 34 (23–46) | 3d 0,9× · 7d 0,8× · 21d 0,9× |\n| Segurança Pública | 0,90× | estável | média | 64 (48–80) | 3d 0,9× · 7d 0,8× · 21d 0,9× |\n| Economia e Finanças | 0,90× | estável | média | 107 (86–127) | 3d 0,9× · 7d 0,8× · 21d 0,9× |\n| Educação | 0,46× | desacelerando | média | 18 (10–26) | 3d 0,3× · 7d 0,4× · 21d 0,8× |\n\n### Metodologia\nRazão de share-of-voice sem sobreposição (janela contra o baseline anterior a ela) e taxa log por dia ln(r)/(B/2); composto 0,5/0,3/0,2 renormalizado nas janelas com cobertura de classificação; momentum = taxa de 3 dias − taxa de 7 dias (±10% por semana). Projeção amortecida (φ = 0,9) sobre o volume esperado por dia (perfil de dia útil, feriado como domingo, nível por fase do calendário), com intervalo de Poisson de 95%.",
+      "schemaVersion": 1,
+      "kind": "gobus.forecast",
+      "tool": "gobus_forecast_trends",
+      "status": "ok",
+      "generatedAt": "2026-11-03T12:00:00-03:00",
+      "referenceDate": "2026-11-03",
+      "params": {
+        "horizon_days_requested": 14,
+        "horizon_days": 14,
+        "limit": 8
+      },
+      "calendar": {
+        "phase": "recovery",
+        "label": "Recuperação pós-defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 26,
+        "silencedAgencies": 0,
+        "resumedAgencies": 0
+      },
+      "dataStatus": [
+        {
+          "key": "themes",
+          "status": "ok",
+          "since": null,
+          "message": "Temas: ok — 95% dos artigos dos últimos 7 dias com tema (662 de 697)",
+          "metric": {
+            "classified": 662,
+            "total": 697,
+            "ratio": 0.9497847919655668,
+            "days": 7
+          }
+        },
+        {
+          "key": "agency_activity",
+          "status": "ok",
+          "since": null,
+          "message": "Atividade das agências: ok — 4 agências de 06/06/2026 a 02/11/2026; 0 sem publicar há ≥14 dias; 0 retomadas (0 depois do defeso)",
+          "metric": {
+            "agencies": 4,
+            "silenced": 0,
+            "resumed": 0,
+            "resumedAfterBlackout": 0,
+            "days": 150
+          }
+        }
+      ],
+      "notices": [
+        {
+          "code": "POST_BLACKOUT_RECOVERY",
+          "severity": "info",
+          "message": "Recuperação pós-defeso eleitoral 2026 até 29/11/2026: agências retomando a publicação; os baselines usam o período antes do defeso e a confiança dos sinais cai um nível.",
+          "since": "2026-10-26",
+          "affects": [
+            "themes",
+            "entities"
+          ]
+        },
+        {
+          "code": "CLASSIFIER_CHANGED",
+          "severity": "warn",
+          "message": "Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.",
+          "since": "2026-09-25",
+          "affects": [
+            "themes"
+          ]
+        }
+      ],
+      "windows": {
+        "3d": {
+          "windowDays": 3,
+          "baselineDays": 14,
+          "weight": 0.5,
+          "effectiveWeight": 0.5,
+          "classifiedCoverage": 0.9515,
+          "status": "ok",
+          "businessDays": 0.5,
+          "baselineOverlapsBlackout": true
+        },
+        "7d": {
+          "windowDays": 7,
+          "baselineDays": 28,
+          "weight": 0.3,
+          "effectiveWeight": 0.3,
+          "classifiedCoverage": 0.9498,
+          "status": "ok",
+          "businessDays": 4.5,
+          "baselineOverlapsBlackout": true
+        },
+        "21d": {
+          "windowDays": 21,
+          "baselineDays": 84,
+          "weight": 0.2,
+          "effectiveWeight": 0.2,
+          "classifiedCoverage": 0.951,
+          "status": "ok",
+          "businessDays": 15.3,
+          "baselineOverlapsBlackout": true
+        }
+      },
+      "platform": {
+        "weekdayProfile": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.3,
+          "6": 0.1
+        },
+        "levelByPhase": {
+          "normal": 40.0,
+          "blackout": 40.0
+        },
+        "profileSource": "snapshot"
+      },
+      "themes": [
+        {
+          "label": "Saúde",
+          "domain": "HEALTH",
+          "windows": {
+            "3d": {
+              "ratio": 1.958,
+              "windowCount": 120,
+              "baselinePrevCount": 190,
+              "share": 0.4082,
+              "perDayRate": 0.09596
+            },
+            "7d": {
+              "ratio": 2.847,
+              "windowCount": 240,
+              "baselinePrevCount": 210,
+              "share": 0.3625,
+              "perDayRate": 0.07473
+            },
+            "21d": {
+              "ratio": 1.696,
+              "windowCount": 380,
+              "baselinePrevCount": 630,
+              "share": 0.2149,
+              "perDayRate": 0.01258
+            }
+          },
+          "perDayRate": 0.07292,
+          "weeklyMultiplier": 1.666,
+          "momentum": "accelerating",
+          "acceleration": 0.02123,
+          "confidence": "medium",
+          "projection": {
+            "horizonDays": 14,
+            "expectedArticles": 216.6,
+            "low": 187.7,
+            "high": 245.4,
+            "shareNow": 0.3625,
+            "shareAtHorizon": 0.6013,
+            "daily": [
+              {
+                "date": "2026-11-03",
+                "expected": 15.48
+              },
+              {
+                "date": "2026-11-04",
+                "expected": 16.43
+              },
+              {
+                "date": "2026-11-05",
+                "expected": 17.32
+              },
+              {
+                "date": "2026-11-06",
+                "expected": 18.17
+              },
+              {
+                "date": "2026-11-07",
+                "expected": 5.69
+              },
+              {
+                "date": "2026-11-08",
+                "expected": 1.97
+              },
+              {
+                "date": "2026-11-09",
+                "expected": 20.42
+              },
+              {
+                "date": "2026-11-10",
+                "expected": 21.07
+              },
+              {
+                "date": "2026-11-11",
+                "expected": 21.67
+              },
+              {
+                "date": "2026-11-12",
+                "expected": 22.23
+              },
+              {
+                "date": "2026-11-13",
+                "expected": 22.75
+              },
+              {
+                "date": "2026-11-14",
+                "expected": 6.97
+              },
+              {
+                "date": "2026-11-15",
+                "expected": 2.37
+              },
+              {
+                "date": "2026-11-16",
+                "expected": 24.05
+              }
+            ]
+          },
+          "flags": [
+            "classifier_changed",
+            "blackout_baseline",
+            "recovery"
+          ]
+        },
+        {
+          "label": "Cultura",
+          "domain": "OTHER",
+          "windows": {
+            "3d": {
+              "ratio": 0.876,
+              "windowCount": 18,
+              "baselinePrevCount": 66,
+              "share": 0.0612,
+              "perDayRate": -0.01887
+            },
+            "7d": {
+              "ratio": 0.844,
+              "windowCount": 42,
+              "baselinePrevCount": 126,
+              "share": 0.0634,
+              "perDayRate": -0.01212
+            },
+            "21d": {
+              "ratio": 0.941,
+              "windowCount": 126,
+              "baselinePrevCount": 378,
+              "share": 0.0713,
+              "perDayRate": -0.00144
+            }
+          },
+          "perDayRate": -0.01336,
+          "weeklyMultiplier": 0.911,
+          "momentum": "stable",
+          "acceleration": -0.00675,
+          "confidence": "medium",
+          "projection": {
+            "horizonDays": 14,
+            "expectedArticles": 25.9,
+            "low": 15.9,
+            "high": 35.8,
+            "shareNow": 0.0634,
+            "shareAtHorizon": 0.0578,
+            "daily": [
+              {
+                "date": "2026-11-03",
+                "expected": 2.51
+              },
+              {
+                "date": "2026-11-04",
+                "expected": 2.48
+              },
+              {
+                "date": "2026-11-05",
+                "expected": 2.45
+              },
+              {
+                "date": "2026-11-06",
+                "expected": 2.43
+              },
+              {
+                "date": "2026-11-07",
+                "expected": 0.72
+              },
+              {
+                "date": "2026-11-08",
+                "expected": 0.24
+              },
+              {
+                "date": "2026-11-09",
+                "expected": 2.38
+              },
+              {
+                "date": "2026-11-10",
+                "expected": 2.37
+              },
+              {
+                "date": "2026-11-11",
+                "expected": 2.36
+              },
+              {
+                "date": "2026-11-12",
+                "expected": 2.34
+              },
+              {
+                "date": "2026-11-13",
+                "expected": 2.34
+              },
+              {
+                "date": "2026-11-14",
+                "expected": 0.7
+              },
+              {
+                "date": "2026-11-15",
+                "expected": 0.23
+              },
+              {
+                "date": "2026-11-16",
+                "expected": 2.31
+              }
+            ]
+          },
+          "flags": [
+            "classifier_changed",
+            "blackout_baseline",
+            "recovery"
+          ]
+        },
+        {
+          "label": "Meio Ambiente e Sustentabilidade",
+          "domain": "ENVIRONMENT",
+          "windows": {
+            "3d": {
+              "ratio": 0.868,
+              "windowCount": 24,
+              "baselinePrevCount": 88,
+              "share": 0.0816,
+              "perDayRate": -0.02023
+            },
+            "7d": {
+              "ratio": 0.841,
+              "windowCount": 56,
+              "baselinePrevCount": 168,
+              "share": 0.0846,
+              "perDayRate": -0.0124
+            },
+            "21d": {
+              "ratio": 0.94,
+              "windowCount": 168,
+              "baselinePrevCount": 504,
+              "share": 0.095,
+              "perDayRate": -0.00147
+            }
+          },
+          "perDayRate": -0.01413,
+          "weeklyMultiplier": 0.906,
+          "momentum": "stable",
+          "acceleration": -0.00783,
+          "confidence": "medium",
+          "projection": {
+            "horizonDays": 14,
+            "expectedArticles": 34.4,
+            "low": 22.9,
+            "high": 45.9,
+            "shareNow": 0.0846,
+            "shareAtHorizon": 0.0767,
+            "daily": [
+              {
+                "date": "2026-11-03",
+                "expected": 3.34
+              },
+              {
+                "date": "2026-11-04",
+                "expected": 3.3
+              },
+              {
+                "date": "2026-11-05",
+                "expected": 3.27
+              },
+              {
+                "date": "2026-11-06",
+                "expected": 3.24
+              },
+              {
+                "date": "2026-11-07",
+                "expected": 0.96
+              },
+              {
+                "date": "2026-11-08",
+                "expected": 0.32
+              },
+              {
+                "date": "2026-11-09",
+                "expected": 3.17
+              },
+              {
+                "date": "2026-11-10",
+                "expected": 3.15
+              },
+              {
+                "date": "2026-11-11",
+                "expected": 3.13
+              },
+              {
+                "date": "2026-11-12",
+                "expected": 3.12
+              },
+              {
+                "date": "2026-11-13",
+                "expected": 3.1
+              },
+              {
+                "date": "2026-11-14",
+                "expected": 0.93
+              },
+              {
+                "date": "2026-11-15",
+                "expected": 0.31
+              },
+              {
+                "date": "2026-11-16",
+                "expected": 3.07
+              }
+            ]
+          },
+          "flags": [
+            "classifier_changed",
+            "blackout_baseline",
+            "recovery"
+          ]
+        },
+        {
+          "label": "Segurança Pública",
+          "domain": "SECURITY",
+          "windows": {
+            "3d": {
+              "ratio": 0.856,
+              "windowCount": 45,
+              "baselinePrevCount": 165,
+              "share": 0.1531,
+              "perDayRate": -0.02217
+            },
+            "7d": {
+              "ratio": 0.836,
+              "windowCount": 105,
+              "baselinePrevCount": 315,
+              "share": 0.1586,
+              "perDayRate": -0.01279
+            },
+            "21d": {
+              "ratio": 0.938,
+              "windowCount": 315,
+              "baselinePrevCount": 945,
+              "share": 0.1782,
+              "perDayRate": -0.00152
+            }
+          },
+          "perDayRate": -0.01523,
+          "weeklyMultiplier": 0.899,
+          "momentum": "stable",
+          "acceleration": -0.00938,
+          "confidence": "medium",
+          "projection": {
+            "horizonDays": 14,
+            "expectedArticles": 64.2,
+            "low": 48.5,
+            "high": 79.9,
+            "shareNow": 0.1586,
+            "shareAtHorizon": 0.1427,
+            "daily": []
+          },
+          "flags": [
+            "classifier_changed",
+            "blackout_baseline",
+            "recovery"
+          ]
+        },
+        {
+          "label": "Economia e Finanças",
+          "domain": "ECONOMIC",
+          "windows": {
+            "3d": {
+              "ratio": 0.851,
+              "windowCount": 75,
+              "baselinePrevCount": 275,
+              "share": 0.2551,
+              "perDayRate": -0.02307
+            },
+            "7d": {
+              "ratio": 0.834,
+              "windowCount": 175,
+              "baselinePrevCount": 525,
+              "share": 0.2644,
+              "perDayRate": -0.01297
+            },
+            "21d": {
+              "ratio": 0.937,
+              "windowCount": 525,
+              "baselinePrevCount": 1575,
+              "share": 0.2969,
+              "perDayRate": -0.00154
+            }
+          },
+          "perDayRate": -0.01573,
+          "weeklyMultiplier": 0.896,
+          "momentum": "stable",
+          "acceleration": -0.0101,
+          "confidence": "medium",
+          "projection": {
+            "horizonDays": 14,
+            "expectedArticles": 106.8,
+            "low": 86.5,
+            "high": 127.0,
+            "shareNow": 0.2644,
+            "shareAtHorizon": 0.237,
+            "daily": []
+          },
+          "flags": [
+            "classifier_changed",
+            "blackout_baseline",
+            "recovery"
+          ]
+        },
+        {
+          "label": "Educação",
+          "domain": "EDUCATION",
+          "windows": {
+            "3d": {
+              "ratio": 0.291,
+              "windowCount": 12,
+              "baselinePrevCount": 137,
+              "share": 0.0408,
+              "perDayRate": -0.1763
+            },
+            "7d": {
+              "ratio": 0.355,
+              "windowCount": 44,
+              "baselinePrevCount": 315,
+              "share": 0.0665,
+              "perDayRate": -0.07398
+            },
+            "21d": {
+              "ratio": 0.757,
+              "windowCount": 254,
+              "baselinePrevCount": 945,
+              "share": 0.1437,
+              "perDayRate": -0.00662
+            }
+          },
+          "perDayRate": -0.11167,
+          "weeklyMultiplier": 0.458,
+          "momentum": "decelerating",
+          "acceleration": -0.10232,
+          "confidence": "medium",
+          "projection": {
+            "horizonDays": 14,
+            "expectedArticles": 18.2,
+            "low": 9.8,
+            "high": 26.5,
+            "shareNow": 0.0665,
+            "shareAtHorizon": 0.0306,
+            "daily": []
+          },
+          "flags": [
+            "classifier_changed",
+            "blackout_baseline",
+            "recovery"
+          ]
+        }
+      ],
+      "horizonOptions": [7, 14, 21, 28]
+    },
+    "isError": false
+  },
+  "toolCalls": []
+}

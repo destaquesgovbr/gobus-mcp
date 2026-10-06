@@ -1,0 +1,142 @@
+{
+  "app": "forecast_radar",
+  "state": "empty",
+  "description": "DEV — dados fictícios: janelas com cobertura, mas nenhum tema com 5 artigos (lista vazia)",
+  "toolName": "gobus_forecast_trends",
+  "toolInput": {
+    "horizon_days": 21,
+    "limit": 8
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "## Forecast de Tendências — Horizonte 21 dias (05/10 → 25/10/2026)\n**Janelas móveis até 05/10 22:00 (BRT; contagens em UTC):** 3d (peso 0,50) · 7d (peso 0,30) · 21d (peso 0,20) · share-of-voice entre os artigos classificados\n**Calendário:** o horizonte cruza o fim do defeso (25/10/2026) — o volume esperado sobe de ~40 para ~40 artigos por dia útil a partir de 26/10.\n\n> **Avisos**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\nNenhum tema com dados suficientes nas janelas disponíveis.\n\n### Metodologia\nRazão de share-of-voice sem sobreposição (janela contra o baseline anterior a ela) e taxa log por dia ln(r)/(B/2); composto 0,5/0,3/0,2 renormalizado nas janelas com cobertura de classificação; momentum = taxa de 3 dias − taxa de 7 dias (±10% por semana). Projeção amortecida (φ = 0,9) sobre o volume esperado por dia (perfil de dia útil, feriado como domingo, nível por fase do calendário), com intervalo de Poisson de 95%."
+      }
+    ],
+    "structuredContent": {
+      "summary": "## Forecast de Tendências — Horizonte 21 dias (05/10 → 25/10/2026)\n**Janelas móveis até 05/10 22:00 (BRT; contagens em UTC):** 3d (peso 0,50) · 7d (peso 0,30) · 21d (peso 0,20) · share-of-voice entre os artigos classificados\n**Calendário:** o horizonte cruza o fim do defeso (25/10/2026) — o volume esperado sobe de ~40 para ~40 artigos por dia útil a partir de 26/10.\n\n> **Avisos**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n\nNenhum tema com dados suficientes nas janelas disponíveis.\n\n### Metodologia\nRazão de share-of-voice sem sobreposição (janela contra o baseline anterior a ela) e taxa log por dia ln(r)/(B/2); composto 0,5/0,3/0,2 renormalizado nas janelas com cobertura de classificação; momentum = taxa de 3 dias − taxa de 7 dias (±10% por semana). Projeção amortecida (φ = 0,9) sobre o volume esperado por dia (perfil de dia útil, feriado como domingo, nível por fase do calendário), com intervalo de Poisson de 95%.",
+      "schemaVersion": 1,
+      "kind": "gobus.forecast",
+      "tool": "gobus_forecast_trends",
+      "status": "empty",
+      "generatedAt": "2026-10-05T22:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "horizon_days_requested": 21,
+        "horizon_days": 21,
+        "limit": 8
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": 0,
+        "resumedAgencies": 0
+      },
+      "dataStatus": [
+        {
+          "key": "themes",
+          "status": "ok",
+          "since": null,
+          "message": "Temas: ok — 100% dos artigos dos últimos 3 dias com tema (3 de 3)",
+          "metric": {
+            "classified": 3,
+            "total": 3,
+            "ratio": 1.0,
+            "days": 3
+          }
+        },
+        {
+          "key": "agency_activity",
+          "status": "ok",
+          "since": null,
+          "message": "Atividade das agências: ok — 4 agências de 06/06/2026 a 04/10/2026; 0 sem publicar há ≥14 dias; 0 retomadas (0 depois do defeso)",
+          "metric": {
+            "agencies": 4,
+            "silenced": 0,
+            "resumed": 0,
+            "resumedAfterBlackout": 0,
+            "days": 121
+          }
+        }
+      ],
+      "notices": [
+        {
+          "code": "ELECTORAL_BLACKOUT",
+          "severity": "info",
+          "message": "Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas.",
+          "since": "2026-07-04",
+          "affects": [
+            "themes",
+            "entities"
+          ]
+        },
+        {
+          "code": "CLASSIFIER_CHANGED",
+          "severity": "warn",
+          "message": "Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.",
+          "since": "2026-09-25",
+          "affects": [
+            "themes"
+          ]
+        }
+      ],
+      "windows": {
+        "3d": {
+          "windowDays": 3,
+          "baselineDays": 14,
+          "weight": 0.5,
+          "effectiveWeight": 0.5,
+          "classifiedCoverage": 1.0,
+          "status": "ok",
+          "businessDays": 1.4,
+          "baselineOverlapsBlackout": true
+        },
+        "7d": {
+          "windowDays": 7,
+          "baselineDays": 28,
+          "weight": 0.3,
+          "effectiveWeight": 0.3,
+          "classifiedCoverage": 1.0,
+          "status": "ok",
+          "businessDays": 5.4,
+          "baselineOverlapsBlackout": true
+        },
+        "21d": {
+          "windowDays": 21,
+          "baselineDays": 84,
+          "weight": 0.2,
+          "effectiveWeight": 0.2,
+          "classifiedCoverage": 1.0,
+          "status": "ok",
+          "businessDays": 16.2,
+          "baselineOverlapsBlackout": true
+        }
+      },
+      "platform": {
+        "weekdayProfile": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.3,
+          "6": 0.1
+        },
+        "levelByPhase": {
+          "normal": 40.0,
+          "blackout": 40.0
+        },
+        "profileSource": "snapshot"
+      },
+      "themes": [],
+      "horizonOptions": [7, 14, 21, 28]
+    },
+    "isError": false
+  },
+  "toolCalls": []
+}

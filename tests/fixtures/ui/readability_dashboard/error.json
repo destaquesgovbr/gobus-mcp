@@ -1,0 +1,95 @@
+{
+  "app": "readability_dashboard",
+  "state": "error",
+  "description": "DEV — dados fictícios: agência fora do catálogo (tcu)",
+  "toolName": "gobus_get_readability_recommendations",
+  "toolInput": {
+    "days": 90,
+    "limit": 10,
+    "agency_key": "tcu"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Diagnóstico de Legibilidade\n\n'tcu' (Tribunal de Contas da União) está fora do catálogo do Destaques Gov.BR, que reúne as notícias dos órgãos publicadas no gov.br."
+      }
+    ],
+    "structuredContent": {
+      "summary": "# Diagnóstico de Legibilidade\n\n'tcu' (Tribunal de Contas da União) está fora do catálogo do Destaques Gov.BR, que reúne as notícias dos órgãos publicadas no gov.br.",
+      "schemaVersion": 1,
+      "kind": "gobus.readability",
+      "tool": "gobus_get_readability_recommendations",
+      "status": "unavailable",
+      "generatedAt": "2026-10-05T12:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "agency_key": "tcu",
+        "days": 90,
+        "limit": 10,
+        "date_to": null
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": null,
+        "resumedAgencies": null
+      },
+      "dataStatus": [],
+      "notices": [],
+      "mode": "agency",
+      "error": "'tcu' (Tribunal de Contas da União) está fora do catálogo do Destaques Gov.BR, que reúne as notícias dos órgãos publicadas no gov.br.",
+      "scale": "flesch_en_textstat",
+      "bands": [
+        {
+          "key": "very_hard",
+          "label": "muito difícil",
+          "lower": 0.0,
+          "upper": 25.0
+        },
+        {
+          "key": "hard",
+          "label": "difícil",
+          "lower": 25.0,
+          "upper": 50.0
+        },
+        {
+          "key": "medium",
+          "label": "médio",
+          "lower": 50.0,
+          "upper": 75.0
+        },
+        {
+          "key": "easy",
+          "label": "fácil",
+          "lower": 75.0,
+          "upper": 100.0
+        }
+      ],
+      "targetService": 50.0,
+      "targetInstitutional": 30.0,
+      "requestedWindow": null,
+      "effectiveWindow": null,
+      "windowShifted": false,
+      "windowNote": null,
+      "coverage": null,
+      "agencies": [],
+      "agenciesWithoutData": [],
+      "omittedWithData": 0,
+      "omittedWithoutData": 0,
+      "benchmark": null,
+      "agency": null,
+      "sampleSize": null,
+      "sampleFound": null,
+      "worstArticle": null,
+      "bestArticle": null,
+      "recommendations": []
+    },
+    "isError": false
+  },
+  "toolCalls": []
+}

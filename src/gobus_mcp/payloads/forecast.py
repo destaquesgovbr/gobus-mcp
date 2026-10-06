@@ -8,7 +8,11 @@
   (artigos por dia útil equivalente) e a origem do perfil;
 - ``themes``: até 10 temas com razão por janela, taxa log por dia, momentum e projeção
   amortecida (φ = 0,9) com intervalo de Poisson. A série diária histórica de tema não
-  existe na v1; a ``daily`` da projeção é calculada.
+  existe na v1; a ``daily`` da projeção é calculada;
+- ``horizon_options``: os horizontes do controle do app (o JS não os fixa).
+
+No payload do app (``compact_forecast_payload``), a série diária da projeção fica só no
+top-3 (o que o app desenha com momentum); o Markdown completo vai no ``content``.
 """
 
 from __future__ import annotations
@@ -27,6 +31,8 @@ Momentum = Literal["accelerating", "decelerating", "stable", "undetermined"]
 
 MAX_THEMES = 10
 MAX_HORIZON_DAYS = 28
+HORIZON_OPTIONS = (7, 14, 21, 28)  # controle de horizonte do app (≤ MAX_HORIZON_DAYS)
+MAX_SERIES_THEMES = 3  # temas com a série diária da projeção no payload do app
 
 
 class ForecastWindow(Payload):
@@ -90,6 +96,7 @@ class ForecastReport(ReportBase):
     windows: dict[WindowKey, ForecastWindow]
     platform: PlatformInfo
     themes: list[ForecastTheme] = Field(max_length=MAX_THEMES)
+    horizon_options: list[int] = Field(default_factory=lambda: list(HORIZON_OPTIONS))
 
 
 def fit_forecast_budget(
@@ -110,3 +117,21 @@ def fit_forecast_budget(
         )
         candidate = report.model_copy(update={"themes": list(themes)})
     return candidate
+
+
+def compact_forecast_payload(
+    report: ForecastReport,
+    *,
+    series_themes: int = MAX_SERIES_THEMES,
+    max_bytes: int = MAX_PAYLOAD_BYTES,
+) -> ForecastReport:
+    """Payload do app ``ui://forecast-radar``: a série diária da projeção só nos primeiros
+    ``series_themes`` temas (o top-3 que o app desenha com momentum); os demais mantêm
+    total, intervalo e fatias. ``fit_forecast_budget`` fica como rede de segurança."""
+    themes = [
+        t
+        if index < series_themes or t.projection is None or not t.projection.daily
+        else t.model_copy(update={"projection": t.projection.model_copy(update={"daily": []})})
+        for index, t in enumerate(report.themes)
+    ]
+    return fit_forecast_budget(report.model_copy(update={"themes": themes}), max_bytes)

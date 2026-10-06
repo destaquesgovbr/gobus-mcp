@@ -1,0 +1,170 @@
+{
+  "app": "readability_dashboard",
+  "state": "agency_detail",
+  "description": "DEV — dados fictícios: diagnóstico do Ministério da Saúde com pior/melhor artigo e benchmark",
+  "toolName": "gobus_get_readability_recommendations",
+  "toolInput": {
+    "days": 90,
+    "limit": 10,
+    "date_to": "2026-06-30",
+    "agency_key": "saude"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Diagnóstico de Legibilidade: Ministério da Saúde (`saude`)\n\n**Janela pedida:** 02/04/2026–30/06/2026 (90 dias)\n\n**Flesch médio:** 13.7 (muito difícil) · **Artigos na janela:** 294 (294 com Flesch) · **Palavras/artigo:** 682\n**Gap até a meta de serviço (50):** -36.3\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n\n## Artigos da janela (amostra dos 100 mais recentes: 6 com Flesch)\n\n- **Pior:** [Portaria regulamenta repasses do fundo nacional aos municípios](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-1) — 2026-06-27 · Flesch 0.0 (muito difícil; valor bruto -8.3) · 958 palavras · `saude-artigo-1`\n- **Melhor:** [Ministério amplia vacinação contra a gripe para todas as idades](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-0) — 2026-06-28 · Flesch 42.6 (difícil) · 454 palavras · `saude-artigo-0`\n\n## Recomendações de Estilo\n\n1. **Frases curtas:** meta de no máximo 20 palavras por frase; cada ponto final melhora o índice.\n2. **Palavras simples:** prefira 'fazer' a 'realizar', 'ver' a 'verificar', 'dizer' a 'declarar'; explique siglas e termos técnicos na primeira ocorrência.\n3. **Lead direto e voz ativa:** o quê, quem e quando na primeira frase; troque a voz passiva pela ativa.\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._"
+      }
+    ],
+    "structuredContent": {
+      "summary": "# Diagnóstico de Legibilidade: Ministério da Saúde (`saude`)\n\n**Janela pedida:** 02/04/2026–30/06/2026 (90 dias)\n\n**Flesch médio:** 13.7 (muito difícil) · **Artigos na janela:** 294 (294 com Flesch) · **Palavras/artigo:** 682\n**Gap até a meta de serviço (50):** -36.3\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n\n## Artigos da janela (amostra dos 100 mais recentes: 6 com Flesch)\n\n- **Pior:** [Portaria regulamenta repasses do fundo nacional aos municípios](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-1) — 2026-06-27 · Flesch 0.0 (muito difícil; valor bruto -8.3) · 958 palavras · `saude-artigo-1`\n- **Melhor:** [Ministério amplia vacinação contra a gripe para todas as idades](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-0) — 2026-06-28 · Flesch 42.6 (difícil) · 454 palavras · `saude-artigo-0`\n\n## Recomendações de Estilo\n\n1. **Frases curtas:** meta de no máximo 20 palavras por frase; cada ponto final melhora o índice.\n2. **Palavras simples:** prefira 'fazer' a 'realizar', 'ver' a 'verificar', 'dizer' a 'declarar'; explique siglas e termos técnicos na primeira ocorrência.\n3. **Lead direto e voz ativa:** o quê, quem e quando na primeira frase; troque a voz passiva pela ativa.\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._",
+      "schemaVersion": 1,
+      "kind": "gobus.readability",
+      "tool": "gobus_get_readability_recommendations",
+      "status": "ok",
+      "generatedAt": "2026-10-05T12:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "agency_key": "saude",
+        "days": 90,
+        "limit": 10,
+        "date_to": "2026-06-30"
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": null,
+        "resumedAgencies": null
+      },
+      "dataStatus": [
+        {
+          "key": "readability",
+          "status": "ok",
+          "since": null,
+          "message": "Legibilidade (Flesch): ok — 100% dos artigos com valor (1233 de 1233)",
+          "metric": {
+            "coveredArticles": 1233,
+            "totalArticles": 1233,
+            "ratio": 1.0
+          }
+        }
+      ],
+      "notices": [],
+      "mode": "agency",
+      "error": null,
+      "scale": "flesch_en_textstat",
+      "bands": [
+        {
+          "key": "very_hard",
+          "label": "muito difícil",
+          "lower": 0.0,
+          "upper": 25.0
+        },
+        {
+          "key": "hard",
+          "label": "difícil",
+          "lower": 25.0,
+          "upper": 50.0
+        },
+        {
+          "key": "medium",
+          "label": "médio",
+          "lower": 50.0,
+          "upper": 75.0
+        },
+        {
+          "key": "easy",
+          "label": "fácil",
+          "lower": 75.0,
+          "upper": 100.0
+        }
+      ],
+      "targetService": 50.0,
+      "targetInstitutional": 30.0,
+      "requestedWindow": {
+        "start": "2026-04-02",
+        "end": "2026-06-30",
+        "days": 90
+      },
+      "effectiveWindow": {
+        "start": "2026-04-02",
+        "end": "2026-06-30",
+        "days": 90
+      },
+      "windowShifted": false,
+      "windowNote": null,
+      "coverage": {
+        "periodsTotal": 3,
+        "periodsWithData": 3,
+        "articlesTotal": 1233,
+        "articlesInPeriodsWithData": 1233,
+        "lastPeriodWithData": "2026-06-01 00:00:00+00"
+      },
+      "agencies": [],
+      "agenciesWithoutData": [],
+      "omittedWithData": 0,
+      "omittedWithoutData": 0,
+      "benchmark": {
+        "agencyKey": "agencia_brasil",
+        "agencyName": "Agência Brasil",
+        "isRepublisher": true,
+        "articleCount": 939,
+        "articlesWithData": 939,
+        "flesch": 33.61,
+        "fleschRaw": 33.61,
+        "band": "hard",
+        "bandLabel": "difícil",
+        "gapToTarget": -16.39,
+        "avgWordCount": 434.0
+      },
+      "agency": {
+        "agencyKey": "saude",
+        "agencyName": "Ministério da Saúde",
+        "isRepublisher": false,
+        "articleCount": 294,
+        "articlesWithData": 294,
+        "flesch": 13.73,
+        "fleschRaw": 13.73,
+        "band": "very_hard",
+        "bandLabel": "muito difícil",
+        "gapToTarget": -36.27,
+        "avgWordCount": 682.0
+      },
+      "sampleSize": 6,
+      "sampleFound": 7,
+      "worstArticle": {
+        "uniqueId": "saude-artigo-1",
+        "title": "Portaria regulamenta repasses do fundo nacional aos municípios",
+        "url": "https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-1",
+        "publishedAt": "2026-06-27T13:00:00+00:00",
+        "flesch": 0.0,
+        "fleschRaw": -8.3,
+        "band": "very_hard",
+        "bandLabel": "muito difícil",
+        "wordCount": 958
+      },
+      "bestArticle": {
+        "uniqueId": "saude-artigo-0",
+        "title": "Ministério amplia vacinação contra a gripe para todas as idades",
+        "url": "https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-0",
+        "publishedAt": "2026-06-28T13:00:00+00:00",
+        "flesch": 42.6,
+        "fleschRaw": 42.6,
+        "band": "hard",
+        "bandLabel": "difícil",
+        "wordCount": 454
+      },
+      "recommendations": [
+        "1. **Frases curtas:** meta de no máximo 20 palavras por frase; cada ponto final melhora o índice.",
+        "2. **Palavras simples:** prefira 'fazer' a 'realizar', 'ver' a 'verificar', 'dizer' a 'declarar'; explique siglas e termos técnicos na primeira ocorrência.",
+        "3. **Lead direto e voz ativa:** o quê, quem e quando na primeira frase; troque a voz passiva pela ativa."
+      ]
+    },
+    "isError": false
+  },
+  "toolCalls": []
+}

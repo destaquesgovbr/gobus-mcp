@@ -40,3 +40,74 @@ jobs:
 
       - name: mkdocs build --strict
         run: poetry run mkdocs build --strict
+
+  ui:
+    name: MCP Apps (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar Poetry
+        run: pipx install poetry==2.0.1
+
+      - name: Instalar dependências (main + dev)
+        run: poetry install --with dev --no-interaction
+
+      - name: Instalar o Chromium do Playwright
+        run: poetry run python -m playwright install --with-deps chromium
+
+      - name: pytest -m ui (mini-host headless)
+        env:
+          GOBUS_UI_ARTIFACTS: ${{ runner.temp }}/ui-screenshots
+        run: poetry run pytest -q -m ui
+
+      - name: Screenshots dos apps
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots
+          path: ${{ runner.temp }}/ui-screenshots
+          if-no-files-found: ignore
+          retention-days: 7
+
+  apps-conformance:
+    name: MCP Apps conformance (MCPJam)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalar Poetry
+        run: pipx install poetry==2.0.1
+
+      - name: Instalar dependências (main)
+        run: poetry install --only main --no-interaction
+
+      # make conformance: servidor HTTP em background (PORT=8000, GraphQL num endereço
+      # morto: os resources ui:// são estáticos e a checagem não chama tools), espera o
+      # /mcp responder (until curl), roda o MCPJam e derruba o servidor (trap).
+      - name: MCPJam apps conformance (7 checagens)
+        run: make -s conformance PY="$(poetry env info --path)/bin/python" MCPJAM_ARGS="--reporter junit-xml" > "$RUNNER_TEMP/apps-conformance.xml"
+
+      - name: Relatório JUnit do MCPJam
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apps-conformance
+          path: ${{ runner.temp }}/apps-conformance.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
