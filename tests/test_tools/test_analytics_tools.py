@@ -2,7 +2,7 @@ import pytest
 
 from gobus_mcp.tools.detect_trends import detect_trends
 from gobus_mcp.tools.get_agency_analytics import get_agency_analytics
-from tests.conftest import FakeGraphQLClient
+from tests.conftest import FakeGraphQLClient, route_catalog
 
 
 class TestGetAgencyAnalytics:
@@ -62,7 +62,7 @@ class TestGetAgencyAnalytics:
         )
         result = await get_agency_analytics(["mec"], "2026-06-01", "2026-06-30", client)
         assert "72.5" in result
-        assert "fácil" in result.lower()
+        assert "médio" in result.lower()  # faixa única 50–75 (antes: "fácil" acima de 70)
 
     @pytest.mark.asyncio
     async def test_exibe_pct_negativo(self):
@@ -205,3 +205,82 @@ class TestDetectTrends:
         assert "T1" in result
         assert "T2" in result
         assert "a1" in result
+
+
+# ── null ≠ 0, faixa única, nomes do catálogo e validação ────────────────────
+
+
+def _metrics(**overrides):
+    row = {
+        "period": "2026-09-01 00:00:00+00",
+        "agencyKey": "mec",
+        "agencyName": "MEC",
+        "articleCount": 10,
+        "avgSentimentScore": 0.1,
+        "pctPositive": 0.3,
+        "pctNegative": 0.1,
+        "avgReadabilityFlesch": 40.0,
+        "avgWordCount": 380.0,
+    }
+    row.update(overrides)
+    return row
+
+
+def _route_analytics(client, rows):
+    route_catalog(client)
+    client.route("AgencyAnalytics", {"agencyAnalytics": rows})
+    return client
+
+
+async def test_analytics_sentimento_nulo_fica_indisponivel_sem_pct_zero(fake_client):
+    _route_analytics(fake_client, [_metrics(avgSentimentScore=None, pctPositive=0.0)])
+
+    result = await get_agency_analytics(["mec"], "2026-09-01", "2026-09-30", fake_client)
+
+    assert "sentimento indisponível" in result
+    assert "0% pos" not in result
+
+
+async def test_analytics_flesch_e_palavras_nulos_ficam_indisponiveis(fake_client):
+    _route_analytics(fake_client, [_metrics(avgReadabilityFlesch=None, avgWordCount=None)])
+
+    result = await get_agency_analytics(["mec"], "2026-09-01", "2026-09-30", fake_client)
+
+    assert "legibilidade indisponível" in result
+    assert "0.0" not in result
+    assert "Legibilidade (Flesch): indisponível" in result  # aviso de dado no topo
+
+
+@pytest.mark.parametrize(
+    ("flesch", "expected"),
+    [(72.5, "72.5 (médio)"), (-5.0, "0.0 (muito difícil; valor bruto -5.0)"), (0.0, "0.0")],
+)
+async def test_analytics_flesch_na_faixa_unica(fake_client, flesch, expected):
+    _route_analytics(fake_client, [_metrics(avgReadabilityFlesch=flesch)])
+
+    result = await get_agency_analytics(["mec"], "2026-09-01", "2026-09-30", fake_client)
+
+    assert f"legibilidade {expected}" in result
+
+
+async def test_analytics_nomes_do_catalogo_e_periodo_formatado(fake_client):
+    _route_analytics(fake_client, [_metrics()])
+
+    result = await get_agency_analytics(["mec"], "2026-09-01", "2026-09-30", fake_client)
+
+    assert "Ministério da Educação" in result
+    assert "## 2026-09-01" in result
+    assert "00:00:00" not in result
+
+
+async def test_analytics_sem_dados_sugere_codigo(fake_client):
+    _route_analytics(fake_client, [])
+
+    result = await get_agency_analytics(["ms"], "2026-09-01", "2026-09-30", fake_client)
+
+    assert "saude" in result
+
+
+def test_docstring_usa_codigos_validos():
+    assert '"ms"' not in get_agency_analytics.__doc__
+    assert '"saude"' in get_agency_analytics.__doc__
