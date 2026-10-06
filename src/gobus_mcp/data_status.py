@@ -250,6 +250,42 @@ def metric_coverage_status(
     return _make(key, status, detail, since=since, metric=metric)
 
 
+# Atraso de indexação (Typesense contra Postgres no mesmo intervalo).
+INDEXING_OK = 0.9
+INDEXING_DEAD = 0.5
+INDEXING_TOLERANCE = 5  # artigos ainda não indexados que não contam como atraso
+
+
+def indexing_lag_status(indexed: int, stored: int, *, label: str) -> DataStatus:
+    """Fração dos artigos do Postgres (``agencyAnalytics`` DAY) já no Typesense
+    (``articles{found}``) no mesmo intervalo de dias UTC (``label``, só texto).
+
+    - ok: ≥ 90% indexados, ou faltam no máximo 5 (atraso normal de minutos);
+    - degradado: ≥ 50%; indisponível: abaixo disso (tempo real parado, só o sync diário);
+    - sem artigos no Postgres: ok, sem fração (nada a comparar).
+    """
+    missing = max(stored - indexed, 0)
+    ratio = min(indexed / stored, 1.0) if stored > 0 else None
+    metric: dict[str, float | int | None] = {
+        "indexed": indexed,
+        "stored": stored,
+        "missing": missing,
+        "ratio": ratio,
+    }
+    if ratio is None:
+        return _make("indexing_lag", "ok", f"sem artigos em {label}", since=None, metric=metric)
+    if ratio >= INDEXING_OK or missing <= INDEXING_TOLERANCE:
+        status: Status = "ok"
+    elif ratio >= INDEXING_DEAD:
+        status = "degraded"
+    else:
+        status = "unavailable"
+    detail = (
+        f"{indexed} de {stored} artigos de {label} no Typesense ({_pct(ratio)}); faltam {missing}"
+    )
+    return _make("indexing_lag", status, detail, since=None, metric=metric)
+
+
 def sentiment_analytics_status(rows: Iterable[Mapping]) -> DataStatus:
     """Sentimento do ``agencyAnalytics``: decide pela nulidade de ``avgSentimentScore``.
 
