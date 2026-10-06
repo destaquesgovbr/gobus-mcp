@@ -21,6 +21,10 @@ Precedência das classes (``classify_entity``):
    ≥ 2 dias distintos;
 6. ``normal``.
 
+Severidade (0–1): pela razão contra ``sens.ratio`` (no silêncio, pelo ``silence_score``
+contra ``sens.silence_ratio``); zero sem menções próprias na janela e em
+``calendar_explained`` (explicado não é anomalia).
+
 O ``volumeRatio`` do upstream só é repassado ao payload; nunca decide nada aqui.
 """
 
@@ -398,6 +402,11 @@ def classify_entity(
         else:
             kind = "normal"
             explanation = f"Razão {_x(ratio)} em {stats.window_agencies} agência(s)."
+
+    # Sem menções próprias, a razão de Laplace (w=b=0 → B/W) não mede nada; e o que o
+    # calendário explica não é anomalia. Nos dois casos, severidade zero (faixa normal).
+    if wc == 0 or kind == "calendar_explained":
+        sev = 0.0
 
     def _r(value: float | None) -> float | None:
         return None if value is None else round(value, 3)
