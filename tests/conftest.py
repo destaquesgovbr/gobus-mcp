@@ -68,3 +68,56 @@ class FakeGraphQLClient:
 @pytest.fixture
 def fake_client():
     return FakeGraphQLClient()
+
+
+# ── catálogo de agências fictício (rotas CatalogAgencies / Names / TopAgencies) ──
+
+# (código, republicadora, nome humano). A ordem é a do topAgencies (mais ativas primeiro).
+CATALOG_AGENCIES: list[tuple[str, bool, str]] = [
+    ("agencia_brasil", True, "Agência Brasil"),
+    ("saude", False, "Ministério da Saúde"),
+    ("mec", False, "Ministério da Educação"),
+    ("secom", False, "Secretaria de Comunicação Social"),
+    ("cgu", False, "Controladoria-Geral da União"),
+    ("defesa", False, "Ministério da Defesa"),
+    ("pf", False, "Polícia Federal"),
+    ("trabalho-e-emprego", False, "Ministério do Trabalho e Emprego"),
+    ("mds", False, "Ministério do Desenvolvimento e Assistência Social"),
+    ("tvbrasil", True, "TV Brasil"),
+]
+
+
+def route_catalog(
+    client: FakeGraphQLClient,
+    agencies: list[tuple[str, bool, str]] | None = None,
+    *,
+    active: list[str] | None = None,
+) -> FakeGraphQLClient:
+    """Registra as 3 operações do ``AgencyCatalog`` no fake.
+
+    ``active`` = ordem do ``topAgencies`` (padrão: a ordem de ``agencies``).
+    """
+    agencies = CATALOG_AGENCIES if agencies is None else agencies
+    ranking = active if active is not None else [code for code, _, _ in agencies]
+    names = {code: name for code, _, name in agencies}
+    client.route(
+        "CatalogAgencies",
+        {"agencies": [{"code": c, "isRepublisher": r} for c, r, _ in agencies]},
+    )
+    client.route(
+        "CatalogAgencyNames",
+        lambda v: {
+            "agencyAnalytics": [
+                {"agencyKey": c, "agencyName": names[c]} for c in v["agencies"] if c in names
+            ]
+        },
+    )
+    client.route(
+        "CatalogTopAgencies",
+        lambda v: {
+            "topAgencies": [{"name": c, "count": 1000 - i} for i, c in enumerate(ranking)][
+                : v["limit"]
+            ]
+        },
+    )
+    return client

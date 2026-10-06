@@ -25,14 +25,9 @@ import gobus_mcp
 
 SNAPSHOT_PATH = Path(__file__).parent / "fixtures" / "schema.graphql"
 
-# Bugs conhecidos, consertados na etapa B do G1 (PLANO_FASE2_5 §6). O xfail é estrito:
-# quando o conserto entrar, o teste passa a "XPASS" e falha, lembrando de tirar daqui.
-KNOWN_BROKEN = {
-    "gobus_mcp.tools.get_readability_recommendations._SEARCH_QUERY": (
-        "search() não aceita limit: e rejeita query vazia — "
-        "troca por articles(limit, filter, sort) na etapa B do G1"
-    ),
-}
+# Bugs conhecidos ainda não consertados (constante → motivo). O xfail é estrito: quando o
+# conserto entrar, o teste passa a "XPASS" e falha, lembrando de tirar daqui.
+KNOWN_BROKEN: dict[str, str] = {}
 
 
 def _collect_queries() -> list[tuple[str, str]]:

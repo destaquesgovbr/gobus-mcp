@@ -96,3 +96,12 @@ async def test_tools_usam_o_cliente_do_conteiner(deps):
 
     assert "Título do conteiner" in result.content[0].text
     assert deps.client.calls("GetArticle") == [{"uniqueId": "abc"}]
+
+
+async def test_readability_aceita_date_to_e_nao_fixa_benchmark():
+    async with Client(server.mcp) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+
+    tool = tools["gobus_get_readability_recommendations"]
+    assert "date_to" in tool.inputSchema["properties"]
+    assert "~33" not in (tool.description or "")
