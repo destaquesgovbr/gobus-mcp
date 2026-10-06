@@ -22,7 +22,7 @@ from gobus_mcp.resources.taxonomy_queries import fetch_taxonomy_queries
 from gobus_mcp.resources.themes import fetch_themes
 from gobus_mcp.tools.detect_anomalies import build_anomaly_output, invalid_params
 from gobus_mcp.tools.detect_trends import detect_trends
-from gobus_mcp.tools.forecast_trends import forecast_trends
+from gobus_mcp.tools.forecast_trends import build_forecast_output
 from gobus_mcp.tools.get_agency_analytics import get_agency_analytics
 from gobus_mcp.tools.get_agency_summary import get_agency_summary
 from gobus_mcp.tools.get_article import get_article
@@ -451,8 +451,8 @@ async def gobus_detect_anomalies(
     return app_result(report, content=markdown)
 
 
-@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
-async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> str:
+@mcp.tool(**app_tool_kwargs("forecast_radar"))
+async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> ToolResult:
     """Projeta tendências de temas por share-of-voice em três janelas (3, 7 e 21 dias).
 
     Para cada tema: razão da fatia entre os artigos classificados na janela contra o
@@ -470,16 +470,22 @@ async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> str:
     Retorna: Markdown com a tabela Tema | Ritmo (×/semana) | Momentum | Confiança |
     Artigos esperados no horizonte (intervalo de 95%) | Razão por janela, mais os avisos
     de cobertura de classificação e de calendário.
+
+    MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o radar
+    ui://forecast-radar (ritmo semanal em escala log2 com o anel 1× e o top-3 com
+    momentum; no fullscreen, o horizonte 7/14/21/28); o texto devolvido é o Markdown
+    completo.
     """
     deps = get_deps()
-    return await forecast_trends(
+    report, markdown = await build_forecast_output(
         deps.client,
-        horizon_days,
-        limit,
+        horizon_days=horizon_days,
+        limit=limit,
         catalog=deps.catalog,
         activity=deps.activity,
         cache=deps.cache,
     )
+    return app_result(report, content=markdown)
 
 
 @mcp.tool(**app_tool_kwargs("article_scorecard"))

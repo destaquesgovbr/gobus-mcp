@@ -110,6 +110,19 @@ APPS: dict[str, AppSpec] = {
             tool="gobus_detect_anomalies",
             kind="gobus.anomalies",
         ),
+        AppSpec(
+            name="forecast_radar",
+            uri="ui://forecast-radar",
+            title="Radar de tendências",
+            description=(
+                "MCP App de gobus_forecast_trends: radar do ritmo semanal dos temas em escala "
+                "log2 com o anel 1× (baseline), top-3 com momentum e artigos esperados e, no "
+                "fullscreen, o horizonte 7/14/21/28 e as razões por janela. Template "
+                "estático: os dados chegam pelo structuredContent da tool."
+            ),
+            tool="gobus_forecast_trends",
+            kind="gobus.forecast",
+        ),
     )
 }
 

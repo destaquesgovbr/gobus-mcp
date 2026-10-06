@@ -1,0 +1,137 @@
+{
+  "app": "forecast_radar",
+  "state": "unavailable",
+  "description": "DEV — dados fictícios: graphql-api fora do ar",
+  "toolName": "gobus_forecast_trends",
+  "toolInput": {},
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "## Forecast de Tendências — Horizonte 21 dias (05/10 → 25/10/2026)\n**Janelas móveis até 05/10 22:00 (BRT; contagens em UTC):** 3d (peso 0,00) · 7d (peso 0,00) · 21d (peso 0,00) · share-of-voice entre os artigos classificados\n**Calendário:** o horizonte cruza o fim do defeso (25/10/2026) — o volume esperado sobe de ~177 para ~267 artigos por dia útil a partir de 26/10.\n\n> **Avisos**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n> - Temas: indisponível — falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 14 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar; 84 dias: GraphQL errors: graphql-api fora do ar)\n> - Atividade das agências: indisponível — snapshot indisponível (GraphQL errors: graphql-api fora do ar); perfil semanal padrão\n> - Janela 3d: indisponível (cobertura de classificação —); fora do composto.\n> - Janela 7d: indisponível (cobertura de classificação —); fora do composto.\n> - Janela 21d: indisponível (cobertura de classificação —); fora do composto.\n\nNenhum tema com dados suficientes nas janelas disponíveis.\n\n### Metodologia\nRazão de share-of-voice sem sobreposição (janela contra o baseline anterior a ela) e taxa log por dia ln(r)/(B/2); composto 0,5/0,3/0,2 renormalizado nas janelas com cobertura de classificação; momentum = taxa de 3 dias − taxa de 7 dias (±10% por semana). Projeção amortecida (φ = 0,9) sobre o volume esperado por dia (perfil de dia útil, feriado como domingo, nível por fase do calendário), com intervalo de Poisson de 95%."
+      }
+    ],
+    "structuredContent": {
+      "summary": "## Forecast de Tendências — Horizonte 21 dias (05/10 → 25/10/2026)\n**Janelas móveis até 05/10 22:00 (BRT; contagens em UTC):** 3d (peso 0,00) · 7d (peso 0,00) · 21d (peso 0,00) · share-of-voice entre os artigos classificados\n**Calendário:** o horizonte cruza o fim do defeso (25/10/2026) — o volume esperado sobe de ~177 para ~267 artigos por dia útil a partir de 26/10.\n\n> **Avisos**\n> - Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas.\n> - Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.\n> - Temas: indisponível — falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 14 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar; 84 dias: GraphQL errors: graphql-api fora do ar)\n> - Atividade das agências: indisponível — snapshot indisponível (GraphQL errors: graphql-api fora do ar); perfil semanal padrão\n> - Janela 3d: indisponível (cobertura de classificação —); fora do composto.\n> - Janela 7d: indisponível (cobertura de classificação —); fora do composto.\n> - Janela 21d: indisponível (cobertura de classificação —); fora do composto.\n\nNenhum tema com dados suficientes nas janelas disponíveis.\n\n### Metodologia\nRazão de share-of-voice sem sobreposição (janela contra o baseline anterior a ela) e taxa log por dia ln(r)/(B/2); composto 0,5/0,3/0,2 renormalizado nas janelas com cobertura de classificação; momentum = taxa de 3 dias − taxa de 7 dias (±10% por semana). Projeção amortecida (φ = 0,9) sobre o volume esperado por dia (perfil de dia útil, feriado como domingo, nível por fase do calendário), com intervalo de Poisson de 95%.",
+      "schemaVersion": 1,
+      "kind": "gobus.forecast",
+      "tool": "gobus_forecast_trends",
+      "status": "unavailable",
+      "generatedAt": "2026-10-05T22:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "horizon_days_requested": 21,
+        "horizon_days": 21,
+        "limit": 5
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": null,
+        "resumedAgencies": null
+      },
+      "dataStatus": [
+        {
+          "key": "themes",
+          "status": "unavailable",
+          "since": null,
+          "message": "Temas: indisponível — falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 14 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar; 84 dias: GraphQL errors: graphql-api fora do ar)",
+          "metric": {}
+        },
+        {
+          "key": "agency_activity",
+          "status": "unavailable",
+          "since": null,
+          "message": "Atividade das agências: indisponível — snapshot indisponível (GraphQL errors: graphql-api fora do ar); perfil semanal padrão",
+          "metric": {}
+        }
+      ],
+      "notices": [
+        {
+          "code": "ELECTORAL_BLACKOUT",
+          "severity": "info",
+          "message": "Defeso eleitoral 2026 de 04/07/2026 a 25/10/2026 (faltam 20 dias): o volume e a mistura de agências mudam, e as comparações com o período anterior são atenuadas.",
+          "since": "2026-07-04",
+          "affects": [
+            "themes",
+            "entities"
+          ]
+        },
+        {
+          "code": "CLASSIFIER_CHANGED",
+          "severity": "warn",
+          "message": "Troca do classificador de temas em 25/09/2026: comparações cujo baseline cruza essa data misturam dois modelos e podem mostrar picos ou quedas artificiais de tema.",
+          "since": "2026-09-25",
+          "affects": [
+            "themes"
+          ]
+        },
+        {
+          "code": "THEMES_UNCLASSIFIED",
+          "severity": "error",
+          "message": "Temas: indisponível — falha ao consultar a graphql-api (3 dias: GraphQL errors: graphql-api fora do ar; 7 dias: GraphQL errors: graphql-api fora do ar; 14 dias: GraphQL errors: graphql-api fora do ar; 21 dias: GraphQL errors: graphql-api fora do ar; 28 dias: GraphQL errors: graphql-api fora do ar; 84 dias: GraphQL errors: graphql-api fora do ar)",
+          "since": null,
+          "affects": [
+            "themes"
+          ]
+        }
+      ],
+      "windows": {
+        "3d": {
+          "windowDays": 3,
+          "baselineDays": 14,
+          "weight": 0.5,
+          "effectiveWeight": 0.0,
+          "classifiedCoverage": null,
+          "status": "unavailable",
+          "businessDays": 1.38,
+          "baselineOverlapsBlackout": true
+        },
+        "7d": {
+          "windowDays": 7,
+          "baselineDays": 28,
+          "weight": 0.3,
+          "effectiveWeight": 0.0,
+          "classifiedCoverage": null,
+          "status": "unavailable",
+          "businessDays": 5.38,
+          "baselineOverlapsBlackout": true
+        },
+        "21d": {
+          "windowDays": 21,
+          "baselineDays": 84,
+          "weight": 0.2,
+          "effectiveWeight": 0.0,
+          "classifiedCoverage": null,
+          "status": "unavailable",
+          "businessDays": 16.14,
+          "baselineOverlapsBlackout": true
+        }
+      },
+      "platform": {
+        "weekdayProfile": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.26,
+          "6": 0.12
+        },
+        "levelByPhase": {
+          "normal": 267.0,
+          "blackout": 177.0
+        },
+        "profileSource": "default"
+      },
+      "themes": [],
+      "horizonOptions": [7, 14, 21, 28]
+    },
+    "isError": false
+  },
+  "toolCalls": []
+}
