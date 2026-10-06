@@ -158,6 +158,18 @@ def test_ranking_corrigido_e_recente_e_ok():
     assert ds.metric["isNewShare"] == pytest.approx(1 / 11)
 
 
+def test_ranking_is_new_nulo_nao_conta_como_falso():
+    # Depois do GA-1 o campo existe, mas linhas gravadas antes da 029 (baseline nulo) vêm
+    # com isNew null: nulo não é "não novo". Sem nenhum valor, a fração não aparece.
+    pending = [_trending_row("2026-10-05 12:00:00+00", 3.2, 12, isNew=None) for _ in range(8)]
+    assert "isNewShare" not in entity_ranking_status(pending, now=NOW).metric
+    mixed = pending + [
+        _trending_row("2026-10-05 12:00:00+00", 3.2, 12, isNew=True),
+        _trending_row("2026-10-05 12:00:00+00", 3.2, 12, isNew=False),
+    ]
+    assert entity_ranking_status(mixed, now=NOW).metric["isNewShare"] == pytest.approx(0.5)
+
+
 def test_ranking_com_mais_de_13h_e_degradado_e_com_mais_de_7_dias_indisponivel():
     stale = (NOW - timedelta(hours=20)).isoformat()
     assert entity_ranking_status([_trending_row(stale, 2.0, 5)], now=NOW).status == "degraded"
