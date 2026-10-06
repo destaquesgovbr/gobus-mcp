@@ -405,9 +405,138 @@ O Claude Code não renderiza apps; ali só se verifica que o `summary` chega.
   - **DS-1:** NER no máximo uma vez por uid (checar `features ? 'entities'` antes do `extract_entities`); métrica de log de `update_failed` e de NER por uid.
   - **DLQ** `dgb.news.scraped--enrichment-dlq`: pode ter recebido mensagens dos 503. Não reprocessar sem filtro.
 - **INF-1 MERGEADO e APLICADO** (infra#215, 2026-10-06 00:19 UTC): `Apply complete! 0 added, 15 changed, 2 destroyed`.
-  - Por decisão do usuário, removido o acesso de <e-mail de colaboradora> do `terraform.auto.tfvars` (VM e IAM já tinham sido apagados fora do Terraform). Destruídos o disco `manoela-devvm-data` (100 GB, desanexado desde 16/07) e a policy de auto-shutdown.
+  - Por decisão do usuário, removido o acesso de <e-mail> do `terraform.auto.tfvars` (VM e IAM já tinham sido apagados fora do Terraform). Destruídos o disco `<disco da devvm>` (100 GB, desanexado desde 16/07) e a policy de auto-shutdown.
   - Drift explicado no PR: `client`/`client_version`, `CACHE_BUST` do portal, scaling do gobus/MLflow, descrição da SA.
 - **CL-1 aberto:** clipping#25, CI verde, aguardando OK de merge (prazo: EOL do Sonnet 4 em 14/10).
 - **Comentários postados** em data-science#38, data-platform#189/#184, infra#203 e embeddings#11.
 - **GA-1:** sentimento só existe na chave aninhada (39.547 contra 0), então o fallback plano no `COALESCE` é opcional.
 - **CL-1 MERGEADO** (clipping#25, 2026-10-06 00:37Z; deploy run 37395019889 com sucesso; revisão `destaquesgovbr-clipping-00108-8xg` pronta, sem erros). O clipping está fora do Sonnet 4 antes do EOL de 14/10. Conferir no próximo disparo (a cada 30 min) que o digest sai estruturado.
+
+### 2026-10-06 (madrugada): PRs, 029 e B1
+- **PRs abertos, todos com CI verde:**
+  - data-platform#202 (DP-B, 19 commits);
+  - graphql-api#28 (GA-1, 13 commits; a revisão pegou que o asyncpg entrega o JSONB como str, então o fix de sentimento nos mapeadores não funcionaria; já corrigido);
+  - gobus-mcp#8 (G1, 69 commits, 407 testes, smoke Docker em `/mcp`, `/sse` e `/messages/`; a revisão pegou o `dateTo` exclusivo do `agencyAnalytics` MONTH/WEEK, já corrigido com helpers no `calendario`).
+- **Migração 029 APLICADA** em produção (01:06Z, `db-migrate` a partir do branch do DP-B; `dry_run` antes; backup automático). As colunas `baseline_count` e `baseline_agencies` existem.
+- **B1 em execução:** 20.482 artigos na janela [20/05, 07/10) (14.864 sem Flesch, 20.293 sem `content_annotations`). Teste com `--limit 10` ok: 3 s, chaves preservadas, jsonb continua objeto. Ritmo de ~0,3 s/artigo, ~1h40 no total.
+- **DS-1 e G2** em implementação local (workflow com revisão e correção).
+- **MERGEADOS E EM PRODUÇÃO (06/10, ~01:13–01:35Z):**
+  - **data-platform#202 (DP-B):** os plugins do Composer foram deployados; a próxima execução às 03Z já roda o trending v2.
+  - **graphql-api#28 (GA-1):** `trendingEntities` com um único `computedAt`; `articlesTimeline` ok.
+  - **gobus-mcp#8 (G1):** 13 tools sem `outputSchema` e `readOnlyHint`; o health mostra temas `unavailable` desde 26/09 (6% em 7 dias) e legibilidade `ok`.
+- **Regressão do GA-1 em produção, corrigida pelo hotfix graphql-api#29** (merge e deploy às ~01:35Z).
+  - Causa: o `Float` do graphql-core 3.3 (instalado na imagem, que não tem lock) rejeita o `Decimal` do asyncpg em `pctPositive` e `avgWordCount`. O venv local tinha a 3.2.8, que aceita.
+  - Correção: `_as_float()` no resolver. TDD reproduzido num venv com as deps mais recentes.
+  - Verificado ao vivo: sem erros; set/2026 com sentimento, Flesch e `word_count`.
+  - **Follow-up:** lockfile ou faixa fixa de versão na graphql-api, para que o CI teste o mesmo que vai para produção.
+- **G2 está empilhado no G1, que foi mergeado por squash.** Antes do PR: `git rebase --onto origin/main feature/fase2.5-higiene feature/fase2.5-analytics`.
+- **B1 CONCLUÍDO** (06/10, ~02:32Z): 20.472 artigos processados, 0 falhas, 133 sem Flesch (menos de 10 palavras), 83 min.
+  - Aceite: 139 dias desde 20/05 com `word_count` e `content_annotations` em 100%; Flesch com mínimo de 94,5% (1 dia abaixo de 95%, por textos curtos).
+- **BigQuery `fato_noticias`:** tem dados só até 27/05, mais 28/05 (4 linhas), 29/06 (192) e 30/06 (2). O `sync_facts` é diário, sem catchup, processa só o dia anterior e faz load `WRITE_APPEND` (sem dedup).
+  - **Sync diário:** deve voltar sozinho às 07:00Z (o dia anterior agora tem `has_image`), e com ele o `compute_trending`.
+  - **Histórico (28/05→04/10):** reprocessar DEPOIS do B2, para entrar com tema e sentimento. Antes, `DELETE` no BigQuery das linhas parciais de 28/05, 29/06 e 30/06 (pedir OK); depois, `dags trigger -e <data>` por dia, com `max_active_runs=1`.
+  - Hardening de dtype no `write_to_parquet_gcs` (coluna toda nula vira INT32) continua no DP-A.
+- **DS-1 e G2 implementados e revisados** (workflow wf_ff8d5fb7-b90). Revisões aprovaram; os should_fix foram corrigidos.
+  - **data-science#43 (DS-1):** 12 commits, 347 testes. A guarda do NER (uma vez por uid) vale nos dois caminhos e usa `news_llm_raw` além de `features ? 'entities'`. Logs estáveis: `enrichment_combined_failed`, `enrichment_model_unavailable` (CRITICAL), `enrichment_update_failed` e `enrichment_ner status=…`.
+  - **gobus-mcp#9 (G2):** 62 commits, 718 testes, rebase sobre `main` depois do squash do G1; snapshot do SDL atualizado. Correções da revisão:
+    - "retomada" conta só quem volta depois do fim do defeso;
+    - baseline pequeno fica limitado a "atenção";
+    - `burst` e `new_entity` nunca passam de "atenção";
+    - `entityCoverage` soma em vez de deduplicar.
+  - Questões abertas:
+    - dona por cobertura dentro do defeso (estender o período da dona ao pré-defeso nas fases blackout/recovery?);
+    - teto de sinais no payload: com 30 candidatos deu 19,7 KB e o summary saiu truncado (o G3 deve reduzir);
+    - `agencyKey` errado no registry (PGF → Fundação Joaquim Nabuco).
+- **B2 em execução** (06/10 02:35Z, a partir do branch do DS-1):
+  - `--limit 10` ok (37 s; tema, resumo e sentimento gravados, entidades preservadas). Lotes de 500, 2 workers, ~2,3 s/artigo, mais recentes primeiro.
+  - Governador com cota de 12M e fração 0,8 (9,6M/dia, incluindo o worker ao vivo). A cota diária real do Haiku 4.5 é desconhecida (servicequotas AccessDenied); o loop para no primeiro throttling.
+  - Previsão: ~400 artigos/dia, término em ~3–4 dias UTC.
+- **Ledger confirma o fim da amplificação:** o Sonnet caiu de 8,7M (05/10) para 0,3M em 06/10 até 02:40Z.
+- **Gate F2 ATINGIDO** (06/10 03:01Z, primeira execução do trending v2 em produção):
+  - 1 execução, 32 linhas;
+  - `max(volume_ratio)` foi de **8571 para 24**;
+  - `baseline_count` 100% não nulo;
+  - linha de log `trend_detection v2 (laplace, snapshot): date_end=2026-10-06 baseline=[2026-09-01, 2026-09-29)`.
+  - O topo ainda tem 15 de 32 entidades com bc=0 (caso da D1). O G2 as classifica como `new_entity` (≤ atenção).
+- **B2, dia 1:** 435 artigos re-enriquecidos (do mais recente para trás: 01/10 parcial a 04/10), depois o governador parou em 9,6M. Retoma no próximo dia UTC.
+- **Mergeados e deployados (~09:55Z):** data-science#43 (DS-1, enrichment-worker revisão 00020-289) e gobus-mcp#9 (G2).
+  - G2 ao vivo: avisos de defeso e de troca de classificador presentes, nenhum "8571", baseline pequeno limitado a "atenção".
+- **B4 parcial** (10:02Z, `incremental-sync` 20/05→06/10): 22.834 indexados, 0 erros. `activeThemes` (7d) passou de 0 para 22. Repetir o B4 completo no fim do B2.
+- **NOVO, achado durante o B3: ~35% dos artigos têm tema e não têm resumo desde junho/2026** (jun 1.742, jul 1.552, ago 1.620, set 1.369, out 59 até agora).
+  - Continua no caminho ao vivo com o Haiku 4.5: `especial-chica-xavier_814659` saiu `enriched` às 00:30Z com summary NULL.
+  - O caminho do script do B2 grava resumo em 100%.
+  - Esses artigos também não têm `content_embedding`, logo ficam fora da busca semântica.
+  - **B3 segurado** até sair a causa raiz (agente `rca-resumo` investigando): gerar embedding sem resumo agora impediria regerar depois.
+- **Causa raiz dos resumos apagados** (agente `rca-resumo`, 06/10 ~10:05Z): o **re-scrape do scraper** apaga.
+  - `scraper/.../storage/postgres_manager.py`, `_update_existing_articles` (Phase 1, casamento por agency+url) faz `summary = v.summary` (sempre NULL) e `content_embedding = NULL` incondicional.
+  - Passou a valer em **02/06** com o `d406fee` (01/06), que consertou os casts do UPDATE.
+  - Escala: **6.935 artigos** (tema + sem resumo + sem embedding), em 7 agências; agencia_brasil e tvbrasil ~95%.
+  - É o mesmo caminho que republica `scraped` (~13×/dia por artigo).
+  - Os 445 artigos do B2 de hoje estão seguros (fora da janela de re-scrape de ~16 h).
+  - **Nova ordem:** SC-1 (scraper) → DS-2 (backfill só de resumo com prompt enxuto, ~2k tokens/artigo em vez de 19k, ~US$20) → B3 (embeddings, que dependem do resumo) → B4 completo.
+  - SC-1 e DS-2 em implementação local (workflow `wf_6f104f1c-ee7`).
+- O alerta de "scraper parado" foi falso: as DAGs de scrape rodam de dia (~10–24h UTC). Nenhum erro de import depois do deploy do DP-B.
+- **SC-1 e DS-2 mergeados e deployados** (06/10 ~11:58Z):
+  - **scraper#64:** re-scrape preserva `summary`, temas, `image_url` e embedding; republica só se o conteúdo mudou ou o artigo ainda não tem tema; CI com Postgres real. Miguel marcado como revisor pós-merge.
+  - **data-science#44:** `--select null-summary` com prompt enxuto.
+  - Verificado: a revisão `scraper-api-00045` grava normalmente (6 inserções e 17 atualizações, sem erro de SQL); a contagem "tema sem resumo" de hoje parou de subir.
+  - Os 500 em `/scrape/agencies` já existiam (11,6% na revisão anterior) e vêm de falhas da API gov.br.
+- **DS-2:**
+  - `dry-run`: 6.342 artigos (jun→05/10), 0 antes de junho, `com_embedding=0` (o passo 4 do runbook não é necessário), `sem_sentimento=0`.
+  - `--limit 10`: 10 ok em 24 s, resumos com boa qualidade.
+- **Decisão do usuário:** governador sobe para cota 20M × 0,8 = **16M/dia** (havia 9,78M/dia sem throttling); prioridade é DS-2, depois B2.
+- **Executor desacoplado** (`scratchpad/backfill_runner.sh`, iniciado às 12:42Z):
+  - Sequência: DS-2 principal → passada final de D+1 (06/10, liberada a partir de 07/10 BRT) → B2.
+  - Espera o próximo dia UTC quando o orçamento acaba; para no primeiro throttling ou em passada sem `ok`.
+  - Estado em `backfill_runner.state`, log em `backfill_runner.log`.
+- **Depois do executor:** trava (`dry-run` com 0) → B3 (embeddings, `--end-date 2026-10-07`) → B4 completo → histórico do BigQuery (com OK para o DELETE das linhas parciais).
+- **Issues abertas** (06/10):
+  - infra#216: métricas de log e alert policies para falhas silenciosas (enriquecimento, workers, DAGs);
+  - data-platform#203: `readability_flesch_ptbr` (Martins/1996);
+  - graphql-api#30: lockfile/pin de dependências (incidente Decimal/graphql-core 3.3).
+- **G3 e DP-A em implementação local** (workflow `wf_39a7612c-7f1`):
+  - G3 em 3 etapas: infra `ui/` + readability/scorecard, depois radares + preview dev + conformance, depois coerência F5;
+  - DP-A: caminho GraphQL latente, contrato, dtype do parquet do BigQuery, COALESCE no `allow_update` do `PostgresManager`, descrição do Flesch.
+- **G3 pronto — gobus-mcp#10 (aberto, sem merge):**
+  - 39 commits; 968 testes, mais 197 de navegador (mini-host Playwright).
+  - 4 MCP Apps (readability, scorecard, anomaly-radar, forecast-radar), previews dev só com `GOBUS_DEV_PREVIEW=1`, MCPJam conformance no CI, validado no basic-host (ext-apps 2.0.3).
+  - `gobus_get_message_coherence` (14ª tool) com `INDEXING_LAG`, porque o Typesense não tem `entityCanonical` antes de ~20/05.
+  - Calibração por tema não reproduz o UC-03 (E≈0,03–0,07); pesos e cortes seguem provisórios.
+  - **Falta a validação visual do usuário** no Claude Desktop e no claude.ai antes do merge (roteiro em `docs/apps/desenvolvimento.md`).
+- **DP-A pronto — data-platform#204 (aberto; merge só depois de 27/10):**
+  - 12 commits, 1.026 testes.
+  - A revisão pegou o `newsById` devolvendo `features` como string JSON (o merge `||` corromperia o jsonb); corrigido.
+  - Escopo de deploy: 4 workers, mais `composer-deploy-dags`, mais `postgres-docker-build`.
+- **Issues novas:**
+  - graphql-api#31: `newsBatchForBigquery` (datas str no asyncpg; bloqueia o INF-2);
+  - data-platform#205: teste de integração do BigQuery roda DDL em produção com ADC;
+  - data-platform#206: reindex do `entity_canonical` no Typesense para o acervo anterior a ~20/05.
+- **Restrição temporária do usuário (06/10):** nada que dependa de autenticação no gcloud por enquanto.
+  - Em espera: SQL de verificação, leitura de logs, B3 (secrets de embeddings), histórico do BigQuery.
+  - O executor dos backfills segue rodando com as credenciais carregadas no início.
+- **DS-2 CONCLUÍDO** (06/10 14:12Z): **6.332 resumos recuperados**, 0 falhas, ~950 tokens/artigo (~6M tokens). De junho a agosto não sobrou nenhum artigo com tema e sem resumo.
+  - Restam ~160 artigos de jun–ago e ~102 de 05/10 **sem tema** (falhas antigas e 05/10 antes do INF-1). O B2 foi ampliado para [2026-06-01, 2026-10-07) e o executor foi reiniciado às 18:24Z; retoma às 03Z de 07/10 (passada D+1 → B2).
+  - Haiku em 06/10: 16,5M tokens sem throttling.
+- **B3 iniciado** (06/10 ~15:27Z):
+  - A embeddings-api agora exige **IAM do Cloud Run** (403 sem identity token).
+  - Script versionado e corrigido em embeddings#13: `--require-summary` e identity token via gcloud com cache.
+  - Janela [2026-03-01, 2026-10-06) com `--require-summary`: 6.807 artigos. Teste com `--limit 10` ok (768 dimensões).
+- **B3 CONCLUÍDO** (06/10 15:38Z): **6.797 embeddings**, 0 erros, 11 min (~10 artigos/s, 3 workers). Em [01/03, 06/10) não sobra artigo com resumo e sem embedding. Os 1.245 sem embedding são os que ainda esperam resumo pelo B2.
+- **B4 parcial nº 2** (06/10 18:47Z, `incremental-sync` [2026-03-01, 2026-10-06]): 38.833 indexados, 0 erros. Busca semântica ok.
+- **Pendente:** B2 (executor, a partir de 07/10 03Z) → B3 e B4 da sobra (`--require-summary`, janela do B2) → histórico do BigQuery (pedir OK do DELETE das linhas parciais de 28/05, 29/06 e 30/06).
+- **G3 EM PRODUÇÃO** (gobus-mcp#10, 06/10 ~19:35Z, depois da validação visual do usuário):
+  - 14 tools, 4 com MCP App;
+  - 4 resources `ui://` com `text/html;profile=mcp-app`, sem previews dev;
+  - payload do forecast com 9,8 KB (summary primeiro);
+  - **MCPJam conformance 7/7 contra produção**.
+  - embeddings#13 mergeado (só scripts e tests, sem deploy).
+- **BigQuery:**
+  - Achado: o `sync_facts` carregava 2 dias por execução (`end` inclusivo + `logical_date` = horário da execução no Airflow 3), o que dava duplicatas de 2–6% em mar–mai.
+  - Correção `previous_day_window()` (TDD) adicionada ao DP-A (data-platform#204, merge após 27/10). Issue de dedup do histórico aberta.
+  - Teste do mecanismo: DELETE de 28/05 (4 linhas), depois DAG com `logical_date` 29/05 → 28/05 = 248 e 29/05 = 274, **iguais ao Postgres**, sem duplicatas.
+- **Executor pós-B2** (`scratchpad/post_runner.sh`, iniciado às 19:46Z):
+  1. espera o B2 → B3 da sobra (`--require-summary`, [01/03, 07/10)) → B4 (`incremental-sync` [01/03, 07/10]);
+  2. DELETE no BigQuery das linhas parciais de 29/06 e 30/06;
+  3. 64 execuções do DAG (logical dates de 31/05 a 04/10, de 2 em 2 dias, sem sobreposição);
+  4. conferência BigQuery × Postgres por dia.
+  - Estado em `post_runner.state`, log em `post_runner.log`.
