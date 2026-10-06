@@ -1,6 +1,6 @@
 # Tools
 
-O Gobus MCP expõe **13 tools**, todas somente leitura (`readOnlyHint`) e sem `outputSchema`: o cliente recebe o Markdown direto no `content`. Quatro são tools de [MCP App](../apps/index.md) (`get_readability_recommendations`, `score_article`, `detect_anomalies` e `forecast_trends`): além do Markdown completo no `content`, devolvem o payload estruturado (`structuredContent`, com o mesmo Markdown até 6 KB em `summary`) que o painel desenha. As tools de preview `gobus_dev_preview_*` só existem em desenvolvimento ([Desenvolvimento e validação](../apps/desenvolvimento.md)).
+O Gobus MCP expõe **14 tools**, todas somente leitura (`readOnlyHint`) e sem `outputSchema`: o cliente recebe o Markdown direto no `content`. Quatro são tools de [MCP App](../apps/index.md) (`get_readability_recommendations`, `score_article`, `detect_anomalies` e `forecast_trends`): além do Markdown completo no `content`, devolvem o payload estruturado (`structuredContent`, com o mesmo Markdown até 6 KB em `summary`) que o painel desenha. As tools de preview `gobus_dev_preview_*` só existem em desenvolvimento ([Desenvolvimento e validação](../apps/desenvolvimento.md)).
 
 | Tool | Descrição | Quando usar |
 |------|-----------|-------------|
@@ -17,6 +17,7 @@ O Gobus MCP expõe **13 tools**, todas somente leitura (`readOnlyHint`) e sem `o
 | [get_policy_lifecycle](get-policy-lifecycle.md) | Ciclo de vida mensal de uma política pública | Saber se uma política está em anúncio, implementação ou rotina |
 | [detect_anomalies](detect-anomalies.md) | Picos/quedas de temas e sinais de entidade (silêncio coordenado, concentrada, rajada), cientes do defeso | Achar assuntos fora do padrão, por domínio de política |
 | [forecast_trends](forecast-trends.md) | Projeção de temas por share-of-voice em 3 janelas, com horizonte de 1 a 28 dias | Antecipar pautas e o volume esperado |
+| [get_message_coherence](get-message-coherence.md) | Coerência de mensagem entre agências sobre uma entidade ou um tema (índice 1–5: entidades, timing, enquadramento e tom), com as republicadoras à parte | Saber se o governo fala em sintonia sobre um programa ou pauta |
 
 ## Convenções de saída
 

@@ -2,7 +2,7 @@
 
 ## Visão geral
 
-O Gobus MCP é um servidor [FastMCP](https://github.com/jlowin/fastmcp) fino. O `server.py` é o único entrypoint: registra as 13 tools (4 delas abrem MCP Apps), 10 resources (4 deles `ui://`) e 4 prompts e mantém um contêiner de dependências (`Deps`: cliente GraphQL, catálogo de agências, snapshot de atividade das agências e o cache das tools de anomalia e forecast) que toda chamada lê via `get_deps()`.
+O Gobus MCP é um servidor [FastMCP](https://github.com/jlowin/fastmcp) fino. O `server.py` é o único entrypoint: registra as 14 tools (4 delas abrem MCP Apps), 10 resources (4 deles `ui://`) e 4 prompts e mantém um contêiner de dependências (`Deps`: cliente GraphQL, catálogo de agências, snapshot de atividade das agências e o cache das tools de anomalia e forecast) que toda chamada lê via `get_deps()`.
 
 ```mermaid
 flowchart TB
@@ -43,12 +43,12 @@ Fundações compartilhadas (Fase 2.5):
 | `readability.py` | escala do Flesch (`flesch_en_textstat`), clamp em 0–100, faixas únicas 0/25/50/75, médias ponderadas que ignoram nulo, janela efetiva |
 | `readability_data.py` | leitura de legibilidade por agência: janela pedida, histórico e janela efetiva |
 | `data_status.py` | avaliadores de saúde das fontes (`ok \| degraded \| unavailable`), detecção dinâmica e mapeamento para avisos |
-| `payloads/` | modelos pydantic dos relatórios estruturados (`common`, `readability`, `scorecard`, `anomalies`, `forecast`), o `structuredContent` dos MCP Apps; `compact_anomaly_payload` e `compact_forecast_payload` deixam no payload só o que o app desenha |
+| `payloads/` | modelos pydantic dos relatórios estruturados (`common`, `readability`, `scorecard`, `anomalies`, `forecast`, `coherence`), o `structuredContent` dos MCP Apps (o `CoherenceReport` ainda sem app); `compact_anomaly_payload` e `compact_forecast_payload` deixam no payload só o que o app desenha |
 | `agency_activity.py` | snapshot `agencyAnalytics` DAY das 156 agências (cache de 6 h): agências silenciadas e retomadas, volume diário da plataforma |
 | `domains.py` | os 7 domínios de `policies.domain` mais `OTHER`, aliases em português, mapas curados de tema e de agência |
 | `theme_data.py` | contagens de temas por range móvel (`topThemes` + `analyticsKpis`), cache de 5 min |
 | `ui/` | MCP Apps: `render_app` (HTML único, estático, com guards de CSP e XSS), `app_tool_kwargs`, `register_ui_resources`, `app_result` e os assets (`_bridge.js` JSON-RPC raw, `_dom.js`, `_svg.js`, `_tokens.css` e o JS/CSS de cada app); `ui/preview.py` com as tools `gobus_dev_preview_*` (só com `GOBUS_DEV_PREVIEW=1`). Ver [MCP Apps](apps/index.md) |
-| `analytics/` | funções puras: razões (Laplace, share-of-voice, taxa log por dia, severidade), perfil de dia útil e feriados, temas, entidades, forecast e o Markdown de anomalias e forecast |
+| `analytics/` | funções puras: razões (Laplace, share-of-voice, taxa log por dia, severidade), perfil de dia útil e feriados, temas, entidades, forecast, coerência de mensagem (`coherence`: salience×idf, timing BRT, JSD; `framing`: léxico pt-BR de enquadramento) e o Markdown de anomalias, forecast e coerência |
 
 ## Transport
 

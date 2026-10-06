@@ -1,0 +1,226 @@
+[
+  {
+    "case": "uc03-defesa-jun",
+    "params": {
+      "entity_id": null,
+      "theme": "Defesa e Forças Armadas",
+      "agencies": null,
+      "date_from": "2026-06-01",
+      "date_to": "2026-06-30"
+    },
+    "reference_uc03": 4,
+    "index_status": "scored",
+    "score": 0.355,
+    "level": 2,
+    "dimensions": {
+      "entities": 0.0328,
+      "timing": 0.3068,
+      "framing": 0.5074,
+      "tone": 0.9333
+    },
+    "emitters": 8,
+    "found": 47,
+    "republisher_share": 0.234,
+    "hhi": 0.2737,
+    "seconds": 2.0,
+    "markdown_bytes": 2527,
+    "notices": []
+  },
+  {
+    "case": "uc03-minorias-jun",
+    "params": {
+      "entity_id": null,
+      "theme": "Minorias e Grupos Especiais",
+      "agencies": null,
+      "date_from": "2026-06-01",
+      "date_to": "2026-06-30"
+    },
+    "reference_uc03": 3,
+    "index_status": "scored",
+    "score": 0.3404,
+    "level": 2,
+    "dimensions": {
+      "entities": 0.0706,
+      "timing": 0.2069,
+      "framing": 0.4915,
+      "tone": 0.9409
+    },
+    "emitters": 11,
+    "found": 107,
+    "republisher_share": 0.1028,
+    "hhi": 0.1521,
+    "seconds": 1.78,
+    "markdown_bytes": 3875,
+    "notices": []
+  },
+  {
+    "case": "uc03-justica-jun",
+    "params": {
+      "entity_id": null,
+      "theme": "Justiça e Direitos Humanos",
+      "agencies": null,
+      "date_from": "2026-06-01",
+      "date_to": "2026-06-30"
+    },
+    "reference_uc03": 2,
+    "index_status": "scored",
+    "score": 0.3864,
+    "level": 2,
+    "dimensions": {
+      "entities": 0.0594,
+      "timing": 0.2409,
+      "framing": 0.697,
+      "tone": 0.8741
+    },
+    "emitters": 10,
+    "found": 225,
+    "republisher_share": 0.5333,
+    "hhi": 0.2428,
+    "seconds": 2.12,
+    "markdown_bytes": 3382,
+    "notices": []
+  },
+  {
+    "case": "q575545-ago-set",
+    "params": {
+      "entity_id": "Q575545",
+      "theme": null,
+      "agencies": null,
+      "date_from": "2026-08-01",
+      "date_to": "2026-09-30"
+    },
+    "reference_uc03": null,
+    "index_status": "scored",
+    "score": 0.2736,
+    "level": 2,
+    "dimensions": {
+      "entities": 0.3203,
+      "timing": 0.0,
+      "framing": 0.3216,
+      "tone": 0.5409
+    },
+    "emitters": 2,
+    "found": 58,
+    "republisher_share": 0.6897,
+    "hhi": 0.645,
+    "seconds": 0.81,
+    "markdown_bytes": 2330,
+    "notices": [
+      "ELECTORAL_BLACKOUT"
+    ]
+  },
+  {
+    "case": "q575545-jun",
+    "params": {
+      "entity_id": "Q575545",
+      "theme": null,
+      "agencies": null,
+      "date_from": "2026-06-01",
+      "date_to": "2026-06-30"
+    },
+    "reference_uc03": null,
+    "index_status": "scored",
+    "score": 0.3386,
+    "level": 2,
+    "dimensions": {
+      "entities": 0.1356,
+      "timing": 0.1322,
+      "framing": 0.4416,
+      "tone": 0.9845
+    },
+    "emitters": 6,
+    "found": 81,
+    "republisher_share": 0.1111,
+    "hhi": 0.6133,
+    "seconds": 1.1,
+    "markdown_bytes": 3142,
+    "notices": []
+  },
+  {
+    "case": "pe-de-meia-jun",
+    "params": {
+      "entity_id": "dgb_pe-de-meia",
+      "theme": null,
+      "agencies": null,
+      "date_from": "2026-06-01",
+      "date_to": "2026-06-30"
+    },
+    "reference_uc03": null,
+    "index_status": "scored",
+    "score": 0.5777,
+    "level": 3,
+    "dimensions": {
+      "entities": 0.5359,
+      "timing": 0.2184,
+      "framing": 0.7555,
+      "tone": 0.9776
+    },
+    "emitters": 5,
+    "found": 130,
+    "republisher_share": 0.0923,
+    "hhi": 0.422,
+    "seconds": 1.44,
+    "markdown_bytes": 2800,
+    "notices": []
+  },
+  {
+    "case": "pe-de-meia-abr",
+    "params": {
+      "entity_id": "dgb_pe-de-meia",
+      "theme": null,
+      "agencies": null,
+      "date_from": "2026-04-01",
+      "date_to": "2026-04-30"
+    },
+    "reference_uc03": null,
+    "index_status": "unavailable",
+    "score": null,
+    "level": null,
+    "dimensions": {
+      "entities": null,
+      "timing": null,
+      "framing": null,
+      "tone": null
+    },
+    "emitters": 0,
+    "found": 0,
+    "republisher_share": null,
+    "hhi": null,
+    "seconds": 0.28,
+    "markdown_bytes": 617,
+    "notices": [
+      "INDEXING_LAG"
+    ]
+  },
+  {
+    "case": "saude-tema-set-out",
+    "params": {
+      "entity_id": null,
+      "theme": "Saúde",
+      "agencies": null,
+      "date_from": "2026-09-22",
+      "date_to": "2026-10-05"
+    },
+    "reference_uc03": null,
+    "index_status": "scored",
+    "score": 0.4532,
+    "level": 3,
+    "dimensions": {
+      "entities": 0.0484,
+      "timing": 0.6698,
+      "framing": 0.5899,
+      "tone": 0.8088
+    },
+    "emitters": 6,
+    "found": 93,
+    "republisher_share": 0.2151,
+    "hhi": 0.3453,
+    "seconds": 1.36,
+    "markdown_bytes": 3567,
+    "notices": [
+      "CLASSIFIER_CHANGED",
+      "ELECTORAL_BLACKOUT",
+      "THEMES_UNCLASSIFIED"
+    ]
+  }
+]

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Servidor MCP (Model Context Protocol) que expõe o acervo do Destaques Gov.BR — ~300k artigos, grafo de entidades NER canonicalizadas, analytics por agência — como tools/resources/prompts para LLMs. Toda leitura de dados passa pela `graphql-api`; não há acesso direto a Postgres, Typesense ou Neo4j.
 
-**Capacidades:** 13 tools (`gobus_*`, todas somente leitura; 4 delas abrem MCP Apps), 10 resources (6 `gobus://` e 4 `ui://`) e 4 prompts (`prompt_*`). Em desenvolvimento (`GOBUS_DEV_PREVIEW=1`), mais 4 tools `gobus_dev_preview_*`.
+**Capacidades:** 14 tools (`gobus_*`, todas somente leitura; 4 delas abrem MCP Apps), 10 resources (6 `gobus://` e 4 `ui://`) e 4 prompts (`prompt_*`). Em desenvolvimento (`GOBUS_DEV_PREVIEW=1`), mais 4 tools `gobus_dev_preview_*`.
 
 **Deploy:** Cloud Run (`destaquesgovbr-gobus-mcp`). Push em `main` com mudanças em `src/`, `Dockerfile`, `pyproject.toml`, `poetry.lock` ou nos workflows dispara o CI (`test.yaml`: lock, ruff, pytest, mkdocs) e, se verde, o build da imagem a partir do lock e o deploy. Env vars do serviço são geridas pelo Terraform (repo `infra/`).
 
@@ -53,6 +53,7 @@ pytest                                          # todos (sem live e ui)
 pytest tests/test_tools/test_search_news.py     # um arquivo
 pytest -k test_retorna_artigos                  # um teste por nome
 pytest -m live                                  # contra a graphql-api de produção (só leitura)
+pytest -m live tests/test_live_coherence.py -s  # F5: Q575545 em ago–set (≤ 3 s, ≤ 5 KB)
 python -m playwright install chromium           # 1x: browser do mini-host dos MCP Apps
 pytest -m ui                                    # MCP Apps no mini-host headless (Playwright)
 
@@ -120,7 +121,8 @@ theme_data.py        # ThemeRangeCounts (topThemes + analyticsKpis por range mó
 data_status.py       # saúde das fontes (ok|degraded|unavailable), detecção dinâmica → Notice;
                      #   indexing_lag_status, worst_status, failed_status
 payloads/            # pydantic: common (ReportBase, DataStatus, Notice, MAX_PAYLOAD_BYTES…),
-                     #   readability, scorecard, anomalies (AnomalyReport), forecast (ForecastReport)
+                     #   readability, scorecard, anomalies (AnomalyReport), forecast (ForecastReport),
+                     #   coherence (CoherenceReport, sem app nesta fase)
 ui/                  # MCP Apps (SEP-1865): render_app (HTML único, estático, guards de CSP/XSS,
                      #   ≤ 60 KB), APPS (4 apps), app_tool_kwargs, register_ui_resources,
                      #   app_result(report, content=); preview.py: gobus_dev_preview_* (só dev);
@@ -129,10 +131,13 @@ ui/                  # MCP Apps (SEP-1865): render_app (HTML único, estático, 
                      #   JS do app que os usa)
 analytics/           # funções puras: ratios (Laplace, share-of-voice, severidade/faixa), weekday
                      #   (perfil de dia útil, feriados, nível por fase), themes, entities, forecast,
+                     #   coherence (E/T/F/S e índice 1–5), framing (léxico pt-BR de enquadramento),
                      #   render (Markdown a partir dos modelos; max_bytes=None = completo)
-tools/               # 13 tools (funções async puras, recebem client/catalog como arg);
+tools/               # 14 tools (funções async puras, recebem client/catalog como arg);
                      #   detect_anomalies/forecast_trends: build_*_output → (payload compacto,
-                     #   Markdown completo); build_*_report = só o payload
+                     #   Markdown completo); build_*_report = só o payload;
+                     #   get_message_coherence: build_coherence_output → (CoherenceReport,
+                     #   Markdown); a tool é -> str (sem app nesta fase)
 resources/           # 6 resources: agencies, themes, platform-stats, taxonomy-queries,
                      #   readability-report (JSON), health/pipelines (JSON: + indexing_lag e
                      #   agency_activity); os 4 ui:// (readability-dashboard, article-scorecard,
@@ -152,7 +157,7 @@ prompts/             # 4 prompts: monitor_agency, trace_entity, weekly_digest, d
 
 ## Queries GraphQL
 
-As queries ficam embutidas como constantes `*_QUERY` nos módulos. Toda query é **nomeada e só de leitura**; `tests/test_graphql_contract.py` valida todas contra o snapshot do SDL (`tests/fixtures/schema.graphql`). **Nunca enviar mutation** (nem como sonda).
+As queries ficam embutidas como constantes `*_QUERY` nos módulos. Toda query é **nomeada e só de leitura**; `tests/test_graphql_contract.py` valida todas contra o snapshot do SDL (`tests/fixtures/schema.graphql`). **Nunca enviar mutation** (nem como sonda). A única query gerada em runtime é a de aliases de contagem da coerência (`counts_query(n)` → `CoherenceCounts`); a forma dela entra no teste de contrato por `_COUNTS_SAMPLE_QUERY`.
 
 Gotchas conhecidos do schema atual:
 - Enum de tipo de entidade: `EntityKind` (não `EntityType`)
@@ -165,6 +170,9 @@ Gotchas conhecidos do schema atual:
 - `trendingThemes`: `TrendingThemeResult { themeLabel themeCode windowCount baselineDailyAvg growthScore topArticles }` — **`baselineDailyAvg`** (não `baseDailyAvg`, nem `baselineCount`); `themeCode` sempre `null`; o baseline **inclui a janela**: converta o limiar do usuário com `analytics.ratios.overlap_growth_threshold` e nunca envie `growthThreshold: 0` (dispara N+1 de `topArticles`)
 - `trendingEntities`: `{ entityId canonicalName type trendingScore volumeRatio windowCount windowAgencies computedAt baselineCount baselineAgencies isNew }` (os três últimos vieram com o GA-1 e são nulos em linha gravada antes da migração 029); o resolver limita a 50 e, desde o GA-1, devolve só a última execução, que ainda pode trazer linhas no piso antigo (ver `data_status.entity_ranking_status`)
 - `features { trendingScore viewCount }` estão nulos em quase todo o acervo; não use como sinal
+- `Article.agencyName` vem `null`: nome de agência só pelo `AgencyCatalog`
+- `articles.filter.entityCanonical` (Typesense) não tem a marcação antes de ~20/05/2026 (histórico não reindexado; o Postgres/`entityCoverage` tem). Confira contra o `entityCoverage` antes de afirmar "nenhum artigo"
+- `articles.filter.themes` com as 25 labels L1 estoura o limite de 4000 caracteres da query do Typesense; para contar artigos classificados, some aliases `articles(limit:1, filter:{themeLabel})`
 
 ## Dados (estado e convenções)
 
@@ -174,6 +182,7 @@ Gotchas conhecidos do schema atual:
 - **Janelas:** "últimos N dias" = dias fechados em BRT `[D−N, D−1]` (`calendario.closed_window`); `today`/`now` sempre injetáveis.
 - **Anomalias e forecast (G2):** temas por share-of-voice de `topThemes` + `analyticsKpis` em janelas **móveis** (UTC), com gate de cobertura de classificação na janela e no baseline; entidades por `entityCoverage(DAY)` em janela **fechada** `[D−7, D−1]` (contagens em dias UTC), sem republicadoras, com precedência burst → new_entity → calendar_explained → coordinated_silence → concentrated_coverage → normal. O `volumeRatio` do upstream nunca aparece no Markdown; linhas do piso antigo (`vr/wc ≥ 100`) e de execuções antigas não viram candidatas. Concentrada e silêncio exigem o `min_count` da sensibilidade; abaixo dele a severidade é proporcional ao volume; `calendar_explained` e entidade sem menções próprias têm severidade 0; `burst`, `new_entity` e concentrada/normal com baseline < `min_count` (flag `thin_baseline`) ficam no máximo em `watch` (`SEVERITY_WATCH_MAX`). Linhas do `entityCoverage` da mesma (dia, agência) somam (o resolver agrupa também por nome); o dedup `(period, agencyKey)` é só do `agencyAnalytics` DAY. Na recuperação, só `resumed_after_blackout` (calada no último dia do defeso e de volta depois) explica sinal e conta em `resumed_agencies`; o `resumed` genérico é só informativo no health. No forecast, a razão de uma janela só conta com ≥ 5 artigos do tema (`w + b_prev`). Detalhes em `docs/tools/detect-anomalies.md` e `forecast-trends.md`.
 - **Health:** `indexing_lag` compara o Typesense (`articles{found}`) com o Postgres (`agencyAnalytics` DAY) no dia D em **UTC** (D−1..D com menos de 20 artigos em D); `agency_activity` reaproveita o snapshot do `Deps.activity`; `entity_ranking` pede `isNew` (GA-1) e reporta `isNewShare` só entre as linhas com valor.
+- **Coerência (F5):** emissores = agências não republicadoras com ≥ 2 artigos; republicadoras sempre em seção à parte; tom por aliases de contagem (agência × rótulo); no caminho por entidade, um `entityCoverage(DAY)` cobre os 30 dias antes (início truncado) e a janela (confere o Typesense: `INDEXING_LAG`, e 0 contra N vira indisponível); no caminho por tema, a cobertura de classificação da janela é medida (`THEMES_UNCLASSIFIED` dinâmico). Índice 1–5 provisório; calibração em `_experiments/coherence-calibration-2026-10/`. Detalhes em `docs/tools/get-message-coherence.md`.
 - Estado em 05/10/2026: Flesch/wordCount parados desde 30/06; temas/resumo/sentimento desde 26/09; ranking de entidades com linhas legadas. Ver `gobus://health/pipelines` e `_plan/PLANO_FASE2_5.md`.
 
 ## Testes

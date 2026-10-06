@@ -56,6 +56,7 @@ nav:
     - get_policy_lifecycle: tools/get-policy-lifecycle.md
     - detect_anomalies: tools/detect-anomalies.md
     - forecast_trends: tools/forecast-trends.md
+    - get_message_coherence: tools/get-message-coherence.md
   - Resources:
     - agencies: resources/agencies.md
     - themes: resources/themes.md
