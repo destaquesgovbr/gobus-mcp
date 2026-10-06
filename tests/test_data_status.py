@@ -67,6 +67,15 @@ def test_theme_coverage_status(classified, total, expected):
     assert "7" in ds.message
 
 
+def test_theme_coverage_status_com_escopo_explicito():
+    # baseline anterior à janela: o texto não é "dos últimos N dias"
+    ds = theme_coverage_status(10, 1000, days=21, scope="do baseline (18 dias antes da janela)")
+    assert ds.status == "unavailable"
+    assert "do baseline (18 dias antes da janela)" in ds.message
+    assert "últimos" not in ds.message
+    assert ds.metric["days"] == 21
+
+
 # ── metric_coverage_status (legibilidade, word_count) ───────────────────────
 
 
