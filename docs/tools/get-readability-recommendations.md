@@ -2,6 +2,9 @@
 
 Diagnóstico de legibilidade (índice Flesch) por agência, com recomendações de estilo. Sem `agency_key`, devolve o ranking das agências ativas; com `agency_key`, o diagnóstico da agência, o benchmark da Agência Brasil na mesma janela, o pior e o melhor artigo de uma amostra e 3 recomendações.
 
+!!! info "MCP App"
+    Tool de app: em hosts com suporte abre o painel [`ui://readability-dashboard`](../resources/readability-dashboard.md) (barras com as metas, detalhe da agência por clique). O `content` é o Markdown abaixo; o `structuredContent` traz o `ReadabilityReport` com o mesmo Markdown em `summary`, como primeiro campo.
+
 ## Parâmetros
 
 | Parâmetro | Tipo | Obrigatório | Default | Descrição |
@@ -53,4 +56,4 @@ Markdown. No modo ranking, uma tabela `# · Agência · Flesch · Nível · Arti
 - **Metas:** ≥50 para textos de serviço ao cidadão; ≥30 para institucionais.
 - **Agência inválida** devolve sugestão: `"ms"` → `saude`, `"trabalho"` → `trabalho-e-emprego`; `tcu`, `camara`, `senado` e `ibge` estão fora do catálogo.
 - O pior e o melhor artigo são escolhidos no cliente entre os 100 artigos mais recentes da janela efetiva (`articles(sort: DATE)`).
-- Payload estruturado: `build_readability_payload` devolve um `ReadabilityReport` (pydantic, `payloads/readability.py`), base do app `ui://readability-dashboard` do G3.
+- Payload estruturado: `build_readability_payload` devolve um `ReadabilityReport` (pydantic, `payloads/readability.py`), entregue como `structuredContent`. Cabe em 20 KB mesmo com `limit=50`: as agências cortadas ficam contadas em `omittedWithData`/`omittedWithoutData` (o Markdown, até 6 KB, traz o ranking).

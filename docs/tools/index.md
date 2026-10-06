@@ -1,6 +1,6 @@
 # Tools
 
-O Gobus MCP expõe **13 tools**, todas somente leitura (`readOnlyHint`) e sem `outputSchema`: o cliente recebe o Markdown direto no `content`.
+O Gobus MCP expõe **13 tools**, todas somente leitura (`readOnlyHint`) e sem `outputSchema`: o cliente recebe o Markdown direto no `content`. Duas são tools de [MCP App](../apps.md) (`get_readability_recommendations` e `score_article`): além do Markdown, devolvem o payload estruturado (`structuredContent`, com o Markdown em `summary`) que o painel desenha.
 
 | Tool | Descrição | Quando usar |
 |------|-----------|-------------|
@@ -20,7 +20,7 @@ O Gobus MCP expõe **13 tools**, todas somente leitura (`readOnlyHint`) e sem `o
 
 ## Convenções de saída
 
-- **Markdown, não JSON** — o texto já vem pronto para o LLM apresentar ao usuário.
+- **Markdown, não JSON** — o texto já vem pronto para o LLM apresentar ao usuário. Nas tools de app, o `structuredContent` traz o mesmo texto em `summary` (primeiro campo, até 6 KB) e os dados do painel (até 20 KB).
 - **Nulo nunca vira 0.** Métrica sem dado aparece como "indisponível", com um aviso `> …` explicando a fonte e, quando conhecido, "desde dd/mm/aaaa". O estado das fontes está em [`gobus://health/pipelines`](../resources/health-pipelines.md).
 - **Flesch:** escala inglesa do `textstat`, limitada a 0–100 (o valor bruto aparece quando foi limitado), com faixas únicas 0–25 muito difícil · 25–50 difícil · 50–75 médio · 75–100 fácil.
 - **Agências:** códigos do catálogo (`gobus://agencies`); um código inválido devolve sugestões (`"ms"` → `saude`, `"trabalho"` → `trabalho-e-emprego`).

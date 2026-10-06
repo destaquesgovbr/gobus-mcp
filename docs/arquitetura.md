@@ -2,7 +2,7 @@
 
 ## Visão geral
 
-O Gobus MCP é um servidor [FastMCP](https://github.com/jlowin/fastmcp) fino. O `server.py` é o único entrypoint: registra as 13 tools, 7 resources e 4 prompts e mantém um contêiner de dependências (`Deps`: cliente GraphQL, catálogo de agências, snapshot de atividade das agências e o cache das tools de anomalia e forecast) que toda chamada lê via `get_deps()`.
+O Gobus MCP é um servidor [FastMCP](https://github.com/jlowin/fastmcp) fino. O `server.py` é o único entrypoint: registra as 13 tools, 8 resources (2 deles MCP Apps) e 4 prompts e mantém um contêiner de dependências (`Deps`: cliente GraphQL, catálogo de agências, snapshot de atividade das agências e o cache das tools de anomalia e forecast) que toda chamada lê via `get_deps()`.
 
 ```mermaid
 flowchart TB
@@ -47,6 +47,7 @@ Fundações compartilhadas (Fase 2.5):
 | `agency_activity.py` | snapshot `agencyAnalytics` DAY das 156 agências (cache de 6 h): agências silenciadas e retomadas, volume diário da plataforma |
 | `domains.py` | os 7 domínios de `policies.domain` mais `OTHER`, aliases em português, mapas curados de tema e de agência |
 | `theme_data.py` | contagens de temas por range móvel (`topThemes` + `analyticsKpis`), cache de 5 min |
+| `ui/` | MCP Apps: `render_app` (HTML único, estático, com guards de CSP e XSS), `app_tool_kwargs`, `register_ui_resources`, `app_result` e os assets (`_bridge.js` JSON-RPC raw, `_dom.js`, `_svg.js`, `_tokens.css` e o JS/CSS de cada app). Ver [MCP Apps](apps.md) |
 | `analytics/` | funções puras: razões (Laplace, share-of-voice, taxa log por dia, severidade), perfil de dia útil e feriados, temas, entidades, forecast e o Markdown de anomalias e forecast |
 
 ## Transport
@@ -89,7 +90,14 @@ async def gobus_get_agency_summary(agency_key: str, days: int = 30) -> str:
     return await get_agency_summary(agency_key, deps.client, days, catalog=deps.catalog)
 ```
 
-`output_schema=None` faz o cliente receber o Markdown cru no `content` (sem o `{"result": "…"}` que o fastmcp 3.4 gera para tools `-> str`). As tools que viram MCP App (G3) separam `build_*_payload` (I/O, devolve o modelo pydantic) de `render_*_markdown` (puro).
+`output_schema=None` faz o cliente receber o Markdown cru no `content` (sem o `{"result": "…"}` que o fastmcp 3.4 gera para tools `-> str`). As tools de MCP App separam `build_*_payload` (I/O, devolve o modelo pydantic) de `render_*_markdown` (puro) e são registradas com `app_tool_kwargs`, devolvendo `ToolResult` (o `-> ToolResult` também suprime o `outputSchema`):
+
+```python
+@mcp.tool(**app_tool_kwargs("article_scorecard"))  # app, meta ui/resourceUri, readOnlyHint
+async def gobus_score_article(unique_id: str, compare_with: str = "") -> ToolResult:
+    report = await build_score_payload(get_deps().client, unique_id, compare_with=compare_with or None)
+    return app_result(report)  # content = summary; structuredContent = payload (summary primeiro)
+```
 
 ```python
 # tools/search_news.py
@@ -108,7 +116,7 @@ async def test_exemplo(fake_client):
     assert fake_client.calls("AgencySummaryAnalytics")[0]["agencies"] == ["saude"]
 ```
 
-As tools retornam **Markdown formatado**, não JSON — são consumidas diretamente pelo LLM. Datas de referência (`today`/`now`) são injetáveis.
+As tools retornam **Markdown formatado**, não JSON — são consumidas diretamente pelo LLM. A exceção são as tools de MCP App, que somam ao Markdown o payload do painel. Datas de referência (`today`/`now`) são injetáveis.
 
 ## Schema drift
 

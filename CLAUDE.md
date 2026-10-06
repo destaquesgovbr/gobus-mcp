@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Servidor MCP (Model Context Protocol) que expõe o acervo do Destaques Gov.BR — ~300k artigos, grafo de entidades NER canonicalizadas, analytics por agência — como tools/resources/prompts para LLMs. Toda leitura de dados passa pela `graphql-api`; não há acesso direto a Postgres, Typesense ou Neo4j.
 
-**Capacidades:** 13 tools (`gobus_*`, todas somente leitura), 7 resources e 4 prompts (`prompt_*`).
+**Capacidades:** 13 tools (`gobus_*`, todas somente leitura; 2 delas abrem MCP Apps), 8 resources (6 `gobus://` e 2 `ui://`) e 4 prompts (`prompt_*`).
 
 **Deploy:** Cloud Run (`destaquesgovbr-gobus-mcp`). Push em `main` com mudanças em `src/`, `Dockerfile`, `pyproject.toml`, `poetry.lock` ou nos workflows dispara o CI (`test.yaml`: lock, ruff, pytest, mkdocs) e, se verde, o build da imagem a partir do lock e o deploy. Env vars do serviço são geridas pelo Terraform (repo `infra/`).
 
@@ -49,10 +49,12 @@ poetry install --with dev
 # (não existe extra "[dev]": as deps de dev são um grupo do Poetry)
 
 # Testes (os marcadores live e ui ficam fora por padrão)
-pytest                                          # todos
+pytest                                          # todos (sem live e ui)
 pytest tests/test_tools/test_search_news.py     # um arquivo
 pytest -k test_retorna_artigos                  # um teste por nome
 pytest -m live                                  # contra a graphql-api de produção (só leitura)
+python -m playwright install chromium           # 1x: browser do mini-host dos MCP Apps
+pytest -m ui                                    # MCP Apps no mini-host headless (Playwright)
 
 # Em worktree: a venv principal tem install editável apontando para o checkout principal
 PYTHONPATH=$PWD/src .venv/bin/python3.12 -m pytest
@@ -61,6 +63,11 @@ PYTHONPATH=$PWD/src .venv/bin/python3.12 -m pytest
 ruff check src/ tests/
 ruff format src/ tests/
 mkdocs build --strict
+
+# Atalhos (Makefile; PY=<python da venv> e PYTHONPATH=src já embutido)
+make test lint ui            # suíte, ruff, mini-host
+make ui-fixtures             # regera tests/fixtures/ui/*.json (depois de mudar builder/payload)
+make conformance             # MCPJam apps conformance contra o servidor local (PORT=8000)
 
 # Snapshot do SDL da graphql-api (introspecção, só leitura; o teste de contrato usa)
 python tests/fixtures/refresh_schema.py
@@ -102,22 +109,29 @@ readability_data.py  # legibilidade por agência via agencyAnalytics (janela ped
 theme_data.py        # ThemeRangeCounts (topThemes + analyticsKpis por range móvel), cache 5 min
 data_status.py       # saúde das fontes (ok|degraded|unavailable), detecção dinâmica → Notice;
                      #   indexing_lag_status, worst_status, failed_status
-payloads/            # pydantic: common (ReportBase, DataStatus, Notice…), readability, scorecard,
-                     #   anomalies (AnomalyReport), forecast (ForecastReport)
+payloads/            # pydantic: common (ReportBase, DataStatus, Notice, MAX_PAYLOAD_BYTES…),
+                     #   readability, scorecard, anomalies (AnomalyReport), forecast (ForecastReport)
+ui/                  # MCP Apps (SEP-1865): render_app (HTML único, estático, guards de CSP/XSS,
+                     #   ≤ 60 KB), APPS, app_tool_kwargs, register_ui_resources, app_result;
+                     #   assets/: _base.html, _tokens.css, _bridge.js (JSON-RPC raw 2026-01-26),
+                     #   _dom.js, _svg.js e <app>.{js,css}
 analytics/           # funções puras: ratios (Laplace, share-of-voice, severidade/faixa), weekday
                      #   (perfil de dia útil, feriados, nível por fase), themes, entities, forecast,
                      #   render (Markdown a partir dos modelos, ≤ 6 KB)
 tools/               # 13 tools (funções async puras, recebem client/catalog como arg);
                      #   detect_anomalies/forecast_trends: build_*_report (I/O → modelo) + render
-resources/           # 7 resources: agencies, themes, platform-stats, taxonomy-queries,
+resources/           # 6 resources: agencies, themes, platform-stats, taxonomy-queries,
                      #   readability-report (JSON), health/pipelines (JSON: + indexing_lag e
-                     #   agency_activity), ui://readability-dashboard (HTML)
+                     #   agency_activity); os 2 ui:// (readability-dashboard, article-scorecard)
+                     #   vêm de ui.register_ui_resources
 prompts/             # 4 prompts: monitor_agency, trace_entity, weekly_digest, draft_press_release
 ```
 
-**Padrão de separação:** cada tool é uma função async pura em `tools/<nome>.py` que recebe `GobusGraphQLClient` (e `catalog=` quando precisa de nomes/validação). O `server.py` lê `get_deps()` a cada chamada e repassa `deps.client`/`deps.catalog` (e, nas tools do G2 e no health, `deps.activity`/`deps.cache`); os testes trocam `server._deps` (o `Deps` sem `activity` cria o serviço a partir de `client` e `catalog`). Tools que viram MCP App no G3 separam o builder (I/O → modelo pydantic: `build_*_payload`, `build_anomaly_report`, `build_forecast_report`) do render (puro); o Markdown vai em `summary` e é o que a tool `-> str` devolve.
+**Padrão de separação:** cada tool é uma função async pura em `tools/<nome>.py` que recebe `GobusGraphQLClient` (e `catalog=` quando precisa de nomes/validação). O `server.py` lê `get_deps()` a cada chamada e repassa `deps.client`/`deps.catalog` (e, nas tools do G2 e no health, `deps.activity`/`deps.cache`); os testes trocam `server._deps` (o `Deps` sem `activity` cria o serviço a partir de `client` e `catalog`). Tools de MCP App separam o builder (I/O → modelo pydantic: `build_*_payload`, `build_anomaly_report`, `build_forecast_report`) do render (puro); o Markdown vai em `summary`.
 
-**Registro:** toda tool usa `@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})` — sem isso o fastmcp 3.4 embrulha o retorno `-> str` em `{"result": "…"}`. Resources JSON declaram `mime_type="application/json"`.
+**Registro:** toda tool sem app usa `@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})` — sem isso o fastmcp 3.4 embrulha o retorno `-> str` em `{"result": "…"}`. Resources JSON declaram `mime_type="application/json"`.
+
+**MCP Apps** (`gobus_get_readability_recommendations` → `ui://readability-dashboard`, `gobus_score_article` → `ui://article-scorecard`): `@mcp.tool(**app_tool_kwargs(<app>))` (`app=AppConfig(resource_uri)`, `meta={"ui/resourceUri": …}`, `readOnlyHint`) e `-> ToolResult` via `app_result(report)`: `content` = `summary` (≤ 6 KB) e `structuredContent` = payload camelCase com `summary` como **primeiro** campo (≤ 20 KB). O resource é `render_app(<app>)`: HTML estático, sem dado e sem I/O (`resources/read` não chama a GraphQL); `prefersBorder`. Campo opcional novo no payload mantém `schemaVersion=1`; a URI `ui://` só muda em quebra. O Claude Code não renderiza apps (mostra o `structuredContent`). Detalhes em `docs/apps.md`.
 
 **Transport:** determinado em runtime pelo env var `PORT`:
 - `PORT` ausente → `stdio`
@@ -163,10 +177,13 @@ async def test_exemplo(fake_client):
     assert fake_client.calls("AgencySummaryAnalytics")[0]["agencies"] == ["saude"]
 ```
 
+**MCP Apps (marker `ui`):** `tests/browser/` sobe um mini-host Playwright (`minihost.html`: iframe `sandbox="allow-scripts"` + CSP padrão da spec) e roda cada fixture de `tests/fixtures/ui/<app>/<estado>.json` em claro/escuro × 320/760 px, falhando com erro de console, violação de CSP, `alert()` ou altura fora de 100–2000 px. As fixtures saem dos builders reais (`tests/fixtures/ui/build.py`); `tests/test_ui/test_fixtures_contract.py` exige que estejam em dia (`make ui-fixtures`). O formato no fio fica em `tests/test_server/test_apps_wire.py`.
+
 ## Convenções
 
 - **Idioma:** português em docstrings, comentários e mensagens; inglês em identificadores Python e nos enums dos payloads (rótulos PT só em texto).
 - **Commits:** português, prefixos `fix:` / `feature:` / `refactor:` / `chore:` / `test:` / `docs:`; TDD com `test: … (red)` antes de `fix:`/`feature: … (green)`.
 - **Sem Co-Authored-By** nos commits deste repo.
-- Tools retornam Markdown formatado (não JSON) — são consumidas diretamente por LLMs. Exceção futura (G3): as tools de MCP App devolvem `summary` (= Markdown) + payload estruturado.
+- Tools retornam Markdown formatado (não JSON) — são consumidas diretamente por LLMs. **Exceção:** as tools de MCP App devolvem `summary` (= o Markdown) + payload estruturado no `structuredContent`; no Claude Code isso custa até ~20 KB (~7k tokens) por chamada, por isso o `summary` vem primeiro e é limitado a 6 KB.
+- **JS dos apps:** só `createElement`/`textContent` (o `render_app` recusa `innerHTML`, `eval`, storage do navegador, URL externa e template literal); limiares e cores vêm do payload, nunca codificados no JS.
 - O repositório é público: nunca versionar IPs, ids de conta ou segredos (redigir como `<IP-CLOUD-SQL>`, `<AWS-ACCOUNT-ID>`).

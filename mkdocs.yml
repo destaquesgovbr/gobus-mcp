@@ -64,6 +64,8 @@ nav:
     - readability_report: resources/readability-report.md
     - health_pipelines: resources/health-pipelines.md
     - readability_dashboard: resources/readability-dashboard.md
+    - article_scorecard: resources/article-scorecard.md
+  - MCP Apps: apps.md
   - Prompts:
     - monitor_agency: prompts/monitor-agency.md
     - trace_entity: prompts/trace-entity.md
