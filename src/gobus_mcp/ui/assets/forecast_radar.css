@@ -1,6 +1,6 @@
 /* ui://forecast-radar */
 .fr-chart { margin: 4px 0 8px; }
-.fr-chart .gb-chart { margin: 0 auto; }
+.fr-chart .gb-chart { margin: 0 auto; max-width: 600px; } /* = maior viewBox: não amplia */
 .gb-chart .fr-ring { fill: none; stroke: var(--gb-border-strong); stroke-width: 0.8; opacity: 0.6; }
 .gb-chart .fr-ring-1x { stroke: var(--gb-text-2); stroke-width: 1.4; stroke-dasharray: 4 3; opacity: 1; }
 .gb-chart .fr-axis { stroke: var(--gb-border); stroke-width: 1; }

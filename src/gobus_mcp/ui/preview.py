@@ -29,6 +29,8 @@ DEV_NOTE = "DEV — dados fictícios"
 PREVIEW_PREFIX = "gobus_dev_preview_"
 # src/gobus_mcp/ui/preview.py → raiz do clone → tests/fixtures/ui
 DEFAULT_FIXTURES = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "ui"
+# fixture principal (o estado sem argumento): "ok" ou, no scorecard, "scored"
+MAIN_STATES = ("ok", "scored")
 
 
 def fixtures_dir(configured: str = "") -> Path:
@@ -37,9 +39,9 @@ def fixtures_dir(configured: str = "") -> Path:
 
 
 def preview_states(directory: Path, app: str) -> list[str]:
-    """Estados com fixture de ``app`` (nomes dos JSON), ``ok`` primeiro."""
+    """Estados com fixture de ``app`` (nomes dos JSON), o principal primeiro."""
     states = sorted(p.stem for p in (directory / app).glob("*.json"))
-    return sorted(states, key=lambda s: s != "ok")
+    return sorted(states, key=lambda s: s not in MAIN_STATES)
 
 
 def _banner(app: str, state: str) -> str:
@@ -47,8 +49,10 @@ def _banner(app: str, state: str) -> str:
 
 
 def preview_result(directory: Path, app: str, state: str) -> ToolResult:
-    """A fixture como resultado de tool, com o aviso no texto e no ``summary``."""
+    """A fixture como resultado de tool, com o aviso no texto e no ``summary``. Estado vazio
+    = a fixture principal do app."""
     states = preview_states(directory, app)
+    state = state.strip() or (states[0] if states else "")
     if state not in states:
         return ToolResult(
             content=f"{_banner(app, state)}\n\nEstado inexistente. Opções: {', '.join(states)}."
@@ -79,7 +83,8 @@ def register_dev_previews(mcp, directory: Path) -> list[str]:
         name = f"{PREVIEW_PREFIX}{app}"
         description = (
             f"{DEV_NOTE}. Preview do MCP App {spec.uri} (o mesmo de {spec.tool}) com uma "
-            f"fixture de teste, para validar o render no host. Estados: {', '.join(states)}. "
+            f"fixture de teste, para validar o render no host. Estados: {', '.join(states)} "
+            f"(vazio = {states[0]}). "
             "Não use para análise: os números são fictícios. As interações dentro do app "
             f"chamam a tool real ({spec.tool})."
         )
@@ -92,7 +97,7 @@ def register_dev_previews(mcp, directory: Path) -> list[str]:
 
 
 def _preview_fn(directory: Path, app: str):
-    async def preview(state: str = "ok") -> ToolResult:
+    async def preview(state: str = "") -> ToolResult:
         return preview_result(directory, app, state)
 
     preview.__name__ = f"{PREVIEW_PREFIX}{app}"
