@@ -142,6 +142,7 @@ async def get_agency_analytics(
         if status.status != "ok":
             lines.append(f"> {status.message}")
 
+    names = await catalog.display_names()  # uma vez: a falha do catálogo não é cacheada
     current_period = None
     for row in rows:
         period = _period(row.get("period"))
@@ -149,7 +150,7 @@ async def get_agency_analytics(
             current_period = period
             lines.append(f"\n## {current_period}")
         key = row.get("agencyKey") or ""
-        agency = await catalog.display_name(key, row.get("agencyName"))
+        agency = names.get(key) or row.get("agencyName") or key
         lines.append(f"- **{agency}**: {' · '.join(_row_metrics(row))}")
 
     return "\n".join(lines)

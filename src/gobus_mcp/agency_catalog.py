@@ -175,20 +175,28 @@ class AgencyCatalog:
         agency = await self.get(code)
         return agency.name if agency else code
 
+    async def display_names(self) -> dict[str, str]:
+        """``{código: nome}`` das agências com nome no catálogo; ``{}`` se o catálogo está
+        fora do ar (**nunca levanta**).
+
+        Para exibir muitas linhas, resolva o mapa uma vez e use
+        ``names.get(code) or fallback or code``: a falha do catálogo não é cacheada, e
+        resolver linha a linha repetiria a consulta (e o timeout) a cada linha.
+        """
+        try:
+            agencies = await self.all()
+        except Exception as exc:  # exibição não pode derrubar a tool
+            logger.warning("catálogo indisponível para nomes de exibição (%s)", exc)
+            return {}
+        return {a.code: a.name for a in agencies if a.name != a.code}
+
     async def display_name(self, code: str | None, fallback: str | None = None) -> str:
         """Nome para exibição que **nunca levanta**: o do catálogo; se o catálogo não tem
         nome (ou está fora do ar), ``fallback`` (ex.: ``agencyName`` da API); senão o código.
         """
         if not code:
             return fallback or ""
-        try:
-            agency = await self.get(code)
-        except Exception as exc:  # exibição não pode derrubar a tool
-            logger.warning("catálogo indisponível para o nome de %s (%s)", code, exc)
-            agency = None
-        if agency is not None and agency.name != agency.code:
-            return agency.name
-        return fallback or code
+        return (await self.display_names()).get(code) or fallback or code
 
     async def codes(self) -> frozenset[str]:
         return frozenset(r["code"] for r in await self._agency_rows())
