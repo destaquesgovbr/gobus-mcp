@@ -8,6 +8,7 @@ import pytest
 
 from gobus_mcp.analytics.render import fit_summary
 from gobus_mcp.payloads.anomalies import AnomalyReport
+from gobus_mcp.payloads.forecast import ForecastReport
 from gobus_mcp.payloads.readability import ReadabilityReport
 from gobus_mcp.payloads.scorecard import ScoreReport
 from tests.fixtures.ui.build import FIXTURES_DIR, build_all, dumps
@@ -16,6 +17,7 @@ MODELS = {
     "gobus.readability": ReadabilityReport,
     "gobus.scorecard": ScoreReport,
     "gobus.anomalies": AnomalyReport,
+    "gobus.forecast": ForecastReport,
 }
 FILES = sorted(FIXTURES_DIR.glob("*/*.json"))
 

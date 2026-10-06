@@ -21,6 +21,7 @@ from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.analytics.render import fit_summary
 from gobus_mcp.client import GobusGraphQLError
 from gobus_mcp.payloads.anomalies import AnomalyReport
+from gobus_mcp.payloads.forecast import ForecastReport
 from gobus_mcp.payloads.readability import ReadabilityReport
 from gobus_mcp.payloads.scorecard import ScoreReport
 from tests.conftest import FakeGraphQLClient
@@ -51,6 +52,7 @@ APP_TOOLS = {
     "gobus_get_readability_recommendations": ("ui://readability-dashboard", ReadabilityReport),
     "gobus_score_article": ("ui://article-scorecard", ScoreReport),
     "gobus_detect_anomalies": ("ui://anomaly-radar", AnomalyReport),
+    "gobus_forecast_trends": ("ui://forecast-radar", ForecastReport),
 }
 # tools de app cujo builder propaga a falha da GraphQL (os radares degradam por bloco)
 RAISING_TOOLS = ("gobus_get_readability_recommendations", "gobus_score_article")
@@ -92,6 +94,12 @@ APP_CALLS = {
         ({"sensitivity": "high", "domain_filter": "saude"}, _route_anomalies),
         ({}, _route_anomalies_0510),
     ],
+    "gobus_forecast_trends": [
+        ({}, route_g2),
+        ({"horizon_days": 7, "limit": 8}, route_g2),
+        ({"horizon_days": 28, "limit": 10}, route_g2),
+        ({}, lambda client: route_g2(client, themes=theme_ranges_0510())),
+    ],
 }
 CALL_CASES = [
     pytest.param(name, args, route, id=f"{name}-{i}")
@@ -107,6 +115,7 @@ def deps(monkeypatch):
     monkeypatch.setattr(server, "_deps", container)
     # relógio dos radares no dia dos cenários do G2 (as janelas dependem de "agora")
     monkeypatch.setattr("gobus_mcp.tools.detect_anomalies.now_brt", lambda: NOW_0510)
+    monkeypatch.setattr("gobus_mcp.tools.forecast_trends.now_brt", lambda: NOW_0510)
     return container
 
 

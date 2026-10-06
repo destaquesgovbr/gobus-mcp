@@ -16,6 +16,7 @@ APPS = {
     "readability_dashboard": "ok",
     "article_scorecard": "scored",
     "anomaly_radar": "ok",
+    "forecast_radar": "ok",
 }
 
 

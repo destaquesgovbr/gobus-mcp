@@ -630,12 +630,100 @@ async def anomaly_fixtures() -> dict[str, dict]:
     }
 
 
+# ── forecast radar ──────────────────────────────────────────────────────────
+
+FORECAST_TOOL = "gobus_forecast_trends"
+FORECAST_LIMIT = 8
+
+
+def sparse_theme_ranges() -> dict[int, dict]:
+    """Um artigo por dia, todo classificado, cada dia num tema diferente (60 temas): as
+    janelas têm cobertura, mas nenhum tema chega a 5 artigos (lista vazia)."""
+    labels = [f"Tema raro {k:02d}" for k in range(60)]
+    index = {label: k for k, label in enumerate(labels)}
+    return ranges_from_daily(lambda label, i: int(i % 60 == index[label]), lambda i: 1, labels)
+
+
+async def _forecast(client: FakeGraphQLClient, now: datetime = NOW_0510, **kwargs) -> dict:
+    from gobus_mcp.tools.forecast_trends import build_forecast_output
+
+    report, markdown = await build_forecast_output(client, now=now, **kwargs)
+    return call_result(ui.app_result(report, content=markdown))
+
+
+def forecast_args(horizon_days: int = 21, limit: int = FORECAST_LIMIT) -> dict:
+    """Argumentos do ``tools/call`` do app (horizonte do controle e o ``limit`` atual)."""
+    return {"horizon_days": horizon_days, "limit": limit}
+
+
+async def forecast_fixtures() -> dict[str, dict]:
+    def healthy(**kw) -> FakeGraphQLClient:
+        return route_g2(FakeGraphQLClient(), **kw)
+
+    by_horizon = {
+        h: await _forecast(healthy(), horizon_days=h, limit=FORECAST_LIMIT) for h in (7, 14, 21, 28)
+    }
+    partial = await _forecast(
+        healthy(themes=theme_ranges_0510()), horizon_days=21, limit=FORECAST_LIMIT
+    )
+    unavailable = await _forecast(route_graphql_down(FakeGraphQLClient()))
+    empty = await _forecast(healthy(themes=sparse_theme_ranges()), limit=FORECAST_LIMIT)
+    recovery = await _forecast(healthy(), now=RECOVERY_NOW, horizon_days=14, limit=FORECAST_LIMIT)
+    xss = await _forecast(healthy(themes=xss_theme_ranges()), limit=FORECAST_LIMIT)
+
+    def fixture(state, description, tool_input, result, tool_calls=()):
+        return {
+            "app": "forecast_radar",
+            "state": state,
+            "description": f"{DEV_NOTE}: {description}",
+            "toolName": FORECAST_TOOL,
+            "toolInput": tool_input,
+            "result": result,
+            "toolCalls": [
+                {"name": FORECAST_TOOL, "arguments": args, "result": res}
+                for args, res in tool_calls
+            ],
+        }
+
+    return {
+        "ok": fixture(
+            "ok",
+            "temas 95% classificados: Saúde acelerando, Educação desacelerando, o resto estável; "
+            "horizonte 21 dias, com as respostas de 7, 14 e 28",
+            forecast_args(21),
+            by_horizon[21],
+            [(forecast_args(h), by_horizon[h]) for h in (7, 14, 21, 28)],
+        ),
+        "partial": fixture(
+            "partial",
+            "estado medido em 05/10: janelas de 3 e 7 dias sem classificação, 21 dias degradada",
+            forecast_args(21),
+            partial,
+        ),
+        "unavailable": fixture("unavailable", "graphql-api fora do ar", {}, unavailable),
+        "empty": fixture(
+            "empty",
+            "janelas com cobertura, mas nenhum tema com 5 artigos (lista vazia)",
+            forecast_args(21),
+            empty,
+        ),
+        "recovery": fixture(
+            "recovery",
+            "03/11/2026, recuperação pós-defeso: confiança reduzida em um nível; horizonte 14",
+            forecast_args(14),
+            recovery,
+        ),
+        "xss": fixture("xss", "rótulos de tema com HTML e </script>", forecast_args(21), xss),
+    }
+
+
 # ── geração ─────────────────────────────────────────────────────────────────
 
 BUILDERS: dict[str, Callable[[], Awaitable[dict[str, dict]]]] = {
     "readability_dashboard": readability_fixtures,
     "article_scorecard": scorecard_fixtures,
     "anomaly_radar": anomaly_fixtures,
+    "forecast_radar": forecast_fixtures,
 }
 
 

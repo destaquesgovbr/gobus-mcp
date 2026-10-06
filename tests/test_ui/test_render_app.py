@@ -199,6 +199,7 @@ EXPECTED_APPS = {
     ),
     "article_scorecard": ("ui://article-scorecard", "gobus_score_article", "gobus.scorecard"),
     "anomaly_radar": ("ui://anomaly-radar", "gobus_detect_anomalies", "gobus.anomalies"),
+    "forecast_radar": ("ui://forecast-radar", "gobus_forecast_trends", "gobus.forecast"),
 }
 
 
