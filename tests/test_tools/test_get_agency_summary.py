@@ -72,7 +72,8 @@ async def test_janela_fechada_e_limiar_convertido(fake_client):
 
     (analytics,) = fake_client.calls("AgencySummaryAnalytics")
     assert analytics["agencies"] == ["saude"]
-    assert (analytics["dateFrom"], analytics["dateTo"]) == ("2026-09-05", "2026-10-04")
+    # MONTH: dateTo exclusivo na API → D (05/10) para cobrir D−1 inteiro
+    assert (analytics["dateFrom"], analytics["dateTo"]) == ("2026-09-05", "2026-10-05")
     assert "baselineDailyAvg" in _TRENDS_QUERY
     (trends,) = fake_client.calls("AgencySummaryTrends")
     assert trends["agencyKey"] == "saude"

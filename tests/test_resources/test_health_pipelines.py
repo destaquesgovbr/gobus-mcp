@@ -174,7 +174,8 @@ async def test_analytics_das_agencias_ativas_nos_ultimos_7_dias_fechados(fake_cl
 
     (call,) = fake_client.calls("HealthAnalytics")
     assert call["agencies"] == ["agencia_brasil", "saude", "mec", "secom", "cgu"]
-    assert (call["dateFrom"], call["dateTo"]) == ("2026-09-28", "2026-10-04")
+    # MONTH: dateTo exclusivo na API → D, para os 7 dias fechados inteiros
+    assert (call["dateFrom"], call["dateTo"]) == ("2026-09-28", "2026-10-05")
 
 
 async def test_falha_de_uma_consulta_nao_derruba_as_outras(fake_client):

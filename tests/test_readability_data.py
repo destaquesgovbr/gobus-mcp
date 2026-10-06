@@ -11,7 +11,8 @@ from gobus_mcp.readability_data import (
 
 REQUESTED = DateRange(date(2026, 7, 7), date(2026, 10, 4))  # closed_window(90, 05/10)
 LOOKBACK_FROM = "2025-10-04"
-EFFECTIVE_FROM, EFFECTIVE_TO = "2026-04-02", "2026-06-30"
+# MONTH: dateTo exclusivo na API → o dia seguinte ao fim da janela
+EFFECTIVE_FROM, EFFECTIVE_TO = "2026-04-02", "2026-07-01"
 
 
 def _row(period, key, count, flesch, wc=450.0, name=None):
@@ -48,7 +49,7 @@ async def test_janela_com_dado_nao_desloca(fake_client):
     assert window.coverage.last_period_with_data.startswith("2026-10")
     calls = fake_client.calls("ReadabilityWindow")
     assert {c["dateFrom"] for c in calls} == {"2026-07-07", LOOKBACK_FROM}
-    assert all(c["dateTo"] == "2026-10-04" for c in calls)
+    assert all(c["dateTo"] == "2026-10-05" for c in calls)
     assert window.data_status.status == "degraded"  # 100 de 150 artigos com valor
 
 

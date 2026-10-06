@@ -231,7 +231,7 @@ async def test_date_to_define_o_fim_da_janela_pedida(fake_client):
     )
 
     first = fake_client.calls("ReadabilityWindow")[0]
-    assert (first["dateFrom"], first["dateTo"]) == ("2026-04-02", "2026-06-30")
+    assert (first["dateFrom"], first["dateTo"]) == ("2026-04-02", "2026-07-01")  # MONTH: exclusivo
     assert report.window_shifted is False
     assert report.params["date_to"] == "2026-06-30"
 

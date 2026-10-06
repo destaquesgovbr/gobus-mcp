@@ -314,3 +314,29 @@ async def test_analytics_sem_dados_sugere_codigo(fake_client):
 def test_docstring_usa_codigos_validos():
     assert '"ms"' not in get_agency_analytics.__doc__
     assert '"saude"' in get_agency_analytics.__doc__
+
+
+@pytest.mark.parametrize(
+    ("granularity", "sent_to"),
+    [("MONTH", "2026-10-01"), ("week", "2026-10-01"), ("DAY", "2026-09-30")],
+)
+async def test_analytics_date_to_inclusivo_em_toda_granularidade(fake_client, granularity, sent_to):
+    # MONTH/WEEK: a API trata dateTo como exclusivo (00:00) → a tool soma 1 dia
+    _route_analytics(fake_client, [_metrics()])
+
+    result = await get_agency_analytics(
+        ["mec"], "2026-09-01", "2026-09-30", fake_client, granularity
+    )
+
+    (call,) = fake_client.calls("AgencyAnalytics")
+    assert (call["dateFrom"], call["dateTo"]) == ("2026-09-01", sent_to)
+    assert "2026-09-01 → 2026-09-30" in result  # o cabeçalho mostra o período pedido
+
+
+async def test_analytics_date_to_invalida_segue_para_a_api(fake_client):
+    _route_analytics(fake_client, [])
+
+    await get_agency_analytics(["mec"], "2026-09-01", "30/09/2026", fake_client)
+
+    (call,) = fake_client.calls("AgencyAnalytics")
+    assert call["dateTo"] == "30/09/2026"

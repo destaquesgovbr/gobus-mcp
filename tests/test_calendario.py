@@ -15,6 +15,8 @@ from gobus_mcp.calendario import (
     HOLIDAYS,
     BlackoutPeriod,
     DateRange,
+    agency_analytics_bounds,
+    agency_analytics_date_to,
     as_window,
     baseline_for,
     brt_bounds,
@@ -119,6 +121,22 @@ def test_utc_day_bounds_fim_exclusivo_ou_inclusivo():
     r = DateRange(D(2026, 9, 28), D(2026, 10, 4))
     assert utc_day_bounds(r) == ("2026-09-28", "2026-10-05")  # entityCoverage
     assert utc_day_bounds(r, end_exclusive=False) == ("2026-09-28", "2026-10-04")  # DAY
+
+
+def test_agency_analytics_bounds_cobre_o_ultimo_dia_em_toda_granularidade():
+    # MONTH/WEEK: o resolver faz ``published_at BETWEEN from::timestamptz AND to::timestamptz``
+    # e o asyncpg converte a data em 00:00 → dateTo exclusivo na prática; DAY é inclusivo.
+    r = DateRange(D(2026, 9, 5), D(2026, 10, 4))
+    assert agency_analytics_bounds(r, "MONTH") == ("2026-09-05", "2026-10-05")
+    assert agency_analytics_bounds(r, "week") == ("2026-09-05", "2026-10-05")
+    assert agency_analytics_bounds(r, "DAY") == ("2026-09-05", "2026-10-04")
+    assert agency_analytics_bounds(r) == ("2026-09-05", "2026-10-05")  # padrão: MONTH
+
+
+def test_agency_analytics_date_to_converte_o_ultimo_dia_inclusivo():
+    assert agency_analytics_date_to(D(2026, 9, 30), "MONTH") == "2026-10-01"
+    assert agency_analytics_date_to(D(2026, 12, 31), "WEEK") == "2027-01-01"
+    assert agency_analytics_date_to(D(2026, 9, 30), "DAY") == "2026-09-30"
 
 
 def test_as_window_fechada_em_brt():
