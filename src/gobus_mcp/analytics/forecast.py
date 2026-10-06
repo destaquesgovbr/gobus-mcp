@@ -3,7 +3,9 @@
 Janelas (``WINDOWS``): 3 dias dentro de 14, 7 dentro de 28 e 21 dentro de 84
 (``topThemes`` + ``analyticsKpis`` por range, D7 do plano). Para cada tema e janela:
 razão de share-of-voice sem sobreposição e taxa log por dia (``ratios.per_day_log_rate``),
-comparáveis entre janelas.
+comparáveis entre janelas. A razão só conta com ``MIN_WINDOW_ARTICLES`` artigos do tema
+na janela e no baseline anterior (``w + b_prev ≥ 5``); tema sem nenhuma janela assim fica
+fora da lista.
 
 - ``composite``: média ponderada das taxas (0,5/0,3/0,2), **renormalizada** nas janelas
   presentes (janela sem cobertura ou sem o tema fica de fora);
@@ -63,6 +65,9 @@ DEFAULT_HORIZON = 21
 MOMENTUM_DELTA = math.log(1.10) / 7  # ±10% por semana
 Z = 1.96
 HIGH_COUNT7, MEDIUM_COUNT7 = 20, 5
+# Artigos do tema na janela mais o baseline anterior (w + b_prev) para a razão contar:
+# abaixo disso o share-of-voice de 1 contra 0 é ruído (como o minArticles do trendingThemes).
+MIN_WINDOW_ARTICLES = 5
 
 _CONFIDENCE = ("low", "medium", "high")
 
@@ -174,7 +179,7 @@ def project(
 
 def _window_ratio(pair: WindowPair, label: str, k_themes: int) -> WindowRatio | None:
     stat = pair.stats().get(label)
-    if stat is None or (stat.w == 0 and stat.b_prev == 0):
+    if stat is None or stat.w + stat.b_prev < MIN_WINDOW_ARTICLES:
         return None
     ratio = share_of_voice_ratio(stat, k_themes=k_themes)
     return WindowRatio(
