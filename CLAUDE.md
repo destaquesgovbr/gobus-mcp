@@ -93,12 +93,17 @@ config.py            # Settings (pydantic-settings, prefixo GOBUS_)
 client.py            # GobusGraphQLClient — wrapper httpx; lança GobusGraphQLError em errors[]
 cache.py             # TTLCache assíncrono, single-flight, relógio injetável
 agency_catalog.py    # AgencyCatalog: nomes, republicadoras, validate (aliases curados + difflib), active()
+agency_activity.py   # snapshot agencyAnalytics DAY de todas as agências (cache 6 h): silenciadas, retomadas, platform_daily
+domains.py           # 7 domínios de policies.domain + OTHER, aliases PT, mapas curados de tema e agência
 calendario.py        # BRT, defeso 2026 (04/07–25/10), recuperação até 29/11, feriados, janelas fechadas
 readability.py       # Flesch: escala (textstat-en), clamp 0–100, faixas 0/25/50/75, médias null-aware, janela efetiva
 readability_data.py  # legibilidade por agência via agencyAnalytics (janela pedida/efetiva, agregação)
 data_status.py       # saúde das fontes (ok|degraded|unavailable), detecção dinâmica → Notice
-payloads/            # pydantic: common (ReportBase, DataStatus, Notice…), readability, scorecard
-analytics/ratios.py  # limiar convertido do trendingThemes e razão sem sobreposição
+payloads/            # pydantic: common (ReportBase, DataStatus, Notice…), readability, scorecard,
+                     #   anomalies (AnomalyReport), forecast (ForecastReport)
+analytics/           # funções puras: ratios (Laplace, share-of-voice, severidade/faixa), weekday
+                     #   (perfil de dia útil, feriados, nível por fase), themes, entities, forecast,
+                     #   render (Markdown a partir dos modelos, ≤ 6 KB)
 tools/               # 13 tools (funções async puras, recebem client/catalog como arg)
 resources/           # 7 resources: agencies, themes, platform-stats, taxonomy-queries,
                      #   readability-report (JSON), health/pipelines (JSON), ui://readability-dashboard (HTML)
@@ -135,6 +140,7 @@ Gotchas conhecidos do schema atual:
 - **Flesch:** fórmula inglesa do `textstat` (`FLESCH_SCALE_ID = "flesch_en_textstat"`), limitado a 0–100 com o bruto exibido quando houve clamp; faixas únicas 0/25/50/75.
 - **Detecção dinâmica:** o estado das fontes é medido na resposta (`data_status`); datas de incidente (`SINCE_HINTS`) só redigem "desde dd/mm".
 - **Janelas:** "últimos N dias" = dias fechados em BRT `[D−N, D−1]` (`calendario.closed_window`); `today`/`now` sempre injetáveis.
+- **Anomalias e forecast (G2):** temas por share-of-voice de `topThemes` + `analyticsKpis` em janelas **móveis** (UTC), com gate de cobertura de classificação na janela e no baseline; entidades por `entityCoverage(DAY)` em janela **fechada** `[D−7, D−1]` (contagens em dias UTC), sem republicadoras, com precedência burst → new_entity → calendar_explained → coordinated_silence → concentrated_coverage → normal. O `volumeRatio` do upstream nunca aparece no Markdown; linhas do piso antigo (`vr/wc ≥ 100`) e de execuções antigas não viram candidatas.
 - Estado em 05/10/2026: Flesch/wordCount parados desde 30/06; temas/resumo/sentimento desde 26/09; ranking de entidades com linhas legadas. Ver `gobus://health/pipelines` e `_plan/PLANO_FASE2_5.md`.
 
 ## Testes
