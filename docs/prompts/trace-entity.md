@@ -6,10 +6,10 @@ Reconstrói a trajetória completa de uma entidade (órgão, pessoa, programa, l
 
 O prompt guia o LLM por 5 passos sequenciais:
 
-1. **Identificação da entidade** — [`resolve_entity`](../tools/resolve-entity.md) com `query` (e `entity_type`, se informado) — encontra o ID canônico da entidade.
-2. **Perfil e cobertura temporal** — [`get_entity_profile`](../tools/get-entity-profile.md) com o intervalo de datas — obtém a série temporal de menções.
-3. **Rede de relacionamentos** — [`get_entity_network`](../tools/get-entity-network.md) com o `entityId` canônico e `depth=2` — mapeia as entidades conectadas.
-4. **Artigos âncoras** — [`search_news`](../tools/search-news.md) + [`get_article`](../tools/get-article.md) nos 3 mais relevantes — extrai detalhes das publicações-chave.
+1. **Identificação da entidade** — [`gobus_resolve_entity`](../tools/resolve-entity.md) com `query` (e `entity_type`, se informado) — encontra o ID canônico da entidade.
+2. **Perfil e cobertura temporal** — [`gobus_get_entity_profile`](../tools/get-entity-profile.md) com o intervalo de datas — obtém a série temporal de menções.
+3. **Rede de relacionamentos** — [`gobus_get_entity_network`](../tools/get-entity-network.md) com o `entityId` canônico e `depth=2` — mapeia as entidades conectadas.
+4. **Artigos âncoras** — [`gobus_search_news`](../tools/search-news.md) + [`gobus_get_article`](../tools/get-article.md) nos 3 mais relevantes — extrai detalhes das publicações-chave.
 5. **Linha do tempo narrativa** — síntese — o LLM monta um relatório com contexto inicial, momentos-chave, rede institucional, estado atual e conclusão sobre a relevância da entidade.
 
 ## Como ativar

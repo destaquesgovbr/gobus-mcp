@@ -1,108 +1,146 @@
+"""gobus://health/pipelines — saúde das fontes de dados que alimentam as tools.
+
+Só ``data_status`` (G1): temas, legibilidade, sentimento (analytics) e ranking de
+entidades. Atraso de indexação e atividade das agências entram no G2.
+
+A detecção é sempre dinâmica, na própria resposta da API:
+- ``themes``: Σ ``topThemes`` / ``analyticsKpis.total`` dos últimos 7 dias;
+- ``readability``: fração de artigos (das agências mais ativas, últimos 7 dias fechados)
+  em linhas com Flesch — **nulo não é dado** (antes, nulo virava 0.0 e contava como ok);
+- ``sentiment_analytics``: nulidade de ``avgSentimentScore``; ``pctPositive`` é fração
+  0..1 e pode vir 0.0 sem dado, então só entra como métrica;
+- ``entity_ranking``: linhas no piso antigo (``volumeRatio/windowCount ≥ 100``), execuções
+  misturadas (``computedAt`` espalhado) e idade da última execução.
+
+Uma consulta que falha deixa só a sua chave ``unavailable``.
+"""
+
+from __future__ import annotations
+
 import asyncio
-import datetime
 import json
+from datetime import datetime
 
+from gobus_mcp.agency_catalog import AgencyCatalog
+from gobus_mcp.calendario import (
+    agency_analytics_bounds,
+    calendar_context,
+    closed_window,
+    now_brt,
+    reference_date,
+)
 from gobus_mcp.client import GobusGraphQLClient
+from gobus_mcp.data_status import (
+    KEY_LABELS,
+    entity_ranking_status,
+    metric_coverage_status,
+    notices_for,
+    sentiment_analytics_status,
+    theme_coverage,
+)
+from gobus_mcp.payloads.common import DataKey, DataStatus
+from gobus_mcp.readability import weighted_metric
 
-_HEALTH_AGENCIES = ["secom", "agencia_brasil", "saude"]
+SCHEMA_VERSION = 2
+WINDOW_DAYS = 7
+SAMPLE_AGENCIES = 5  # agências mais ativas amostradas no agencyAnalytics
+ACTIVE_DAYS = 30
+_STATUS_RANK = {"ok": 0, "degraded": 1, "unavailable": 2}
 
 _ANALYTICS_QUERY = """
-query HealthAnalytics($agencies: [String!]!, $dateFrom: String!, $dateTo: String!, $granularity: Granularity!) {
-    agencyAnalytics(agencies: $agencies, dateFrom: $dateFrom, dateTo: $dateTo, granularity: $granularity) {
-        agencyKey
-        articleCount
-        pctPositive
-        avgReadabilityFlesch
-    }
+query HealthAnalytics($agencies: [String!]!, $dateFrom: String!, $dateTo: String!) {
+  agencyAnalytics(agencies: $agencies, dateFrom: $dateFrom, dateTo: $dateTo, granularity: MONTH) {
+    agencyKey
+    articleCount
+    avgSentimentScore
+    pctPositive
+    avgReadabilityFlesch
+  }
 }
 """
 
-_ENTITIES_QUERY = """
-query HealthEntities($limit: Int!) {
-    trendingEntities(limit: $limit) {
-        entityId
-        trendingScore
-    }
+_RANKING_QUERY = """
+query HealthTrendingEntities {
+  trendingEntities(limit: 50) {
+    entityId
+    volumeRatio
+    windowCount
+    computedAt
+  }
 }
 """
 
 
-def _check_trending_score(entities: list[dict]) -> dict:
-    """Diagnóstico do pipeline de trendingScore a partir de trendingEntities."""
-    scores = [e.get("trendingScore") for e in entities]
-    if scores and all(s is not None and s < 1.0 for s in scores):
-        return {"status": "DEAD", "note": "todos os trendingScore < 1.0 (campo degenerado/nulo)"}
-    if any(s is None for s in scores):
-        return {"status": "DEGRADED", "note": "alguns trendingScore nulos"}
-    return {"status": "OK", "note": "trendingScore com variância utilizável"}
-
-
-def _check_sentiment(agency_pct: list[float]) -> dict:
-    """Diagnóstico do pipeline de sentimento a partir da média de pctPositive."""
-    mean = sum(agency_pct) / len(agency_pct) if agency_pct else 0.0
-    if mean <= 0.0:
-        return {"status": "DEAD", "note": "pctPositive médio <= 0 (pipeline de sentimento parado)"}
-    if mean < 5.0:
-        return {"status": "DEGRADED", "note": f"pctPositive médio baixo ({mean:.1f})"}
-    return {"status": "OK", "note": f"pctPositive médio {mean:.1f}"}
-
-
-def _check_flesch(agency_flesch: list[float]) -> dict:
-    """Diagnóstico do pipeline de legibilidade a partir de Fleschs negativos."""
-    negatives = sum(1 for f in agency_flesch if f < 0)
-    if agency_flesch and negatives == len(agency_flesch):
-        return {"status": "DEAD", "note": "todas as agências com Flesch negativo"}
-    if negatives > 0:
-        return {"status": "DEGRADED", "note": f"{negatives} agência(s) com Flesch negativo"}
-    return {"status": "OK", "note": "Flesch positivo em todas as agências amostradas"}
-
-
-async def fetch_health_pipelines(client: GobusGraphQLClient) -> str:
-    """Health-check JSON dos pipelines de dados que alimentam o Gobus.
-
-    Amostra agencyAnalytics (30 dias) e trendingEntities para diagnosticar três
-    pipelines conhecidamente frágeis: trendingScore, sentimento e legibilidade.
-
-    Args:
-        client: Cliente GraphQL.
-
-    Returns:
-        JSON string com checkedAt e status por pipeline (OK | DEGRADED | DEAD).
-    """
-    today = datetime.date.today()
-    date_from = (today - datetime.timedelta(days=30)).isoformat()
-    date_to = today.isoformat()
-
-    analytics_data, entities_data = await asyncio.gather(
-        client.execute(_ANALYTICS_QUERY, {
-            "agencies": _HEALTH_AGENCIES,
-            "dateFrom": date_from,
-            "dateTo": date_to,
-            "granularity": "MONTH",
-        }),
-        client.execute(_ENTITIES_QUERY, {"limit": 5}),
+def _failed(key: DataKey, exc: BaseException) -> DataStatus:
+    return DataStatus(
+        key=key,
+        status="unavailable",
+        message=f"{KEY_LABELS[key]}: indisponível — falha ao consultar a graphql-api ({exc})",
+        metric={},
     )
-    rows = analytics_data.get("agencyAnalytics") or []
-    entities = entities_data.get("trendingEntities") or []
 
-    by_agency: dict[str, dict] = {}
-    for row in rows:
-        key = row.get("agencyKey") or ""
-        agg = by_agency.setdefault(key, {"count": 0, "fleschW": 0.0, "pctW": 0.0})
-        count = row.get("articleCount") or 0
-        agg["count"] += count
-        agg["fleschW"] += (row.get("avgReadabilityFlesch") or 0.0) * count
-        agg["pctW"] += (row.get("pctPositive") or 0.0) * count
 
-    agency_flesch = [a["fleschW"] / a["count"] for a in by_agency.values() if a["count"] > 0]
-    agency_pct = [a["pctW"] / a["count"] for a in by_agency.values() if a["count"] > 0]
+def _analytics_statuses(rows: list[dict]) -> list[DataStatus]:
+    readability = metric_coverage_status("readability", rows, "avgReadabilityFlesch")
+    sentiment = sentiment_analytics_status(rows)
+    pct = weighted_metric(rows, "pctPositive").value
+    sentiment.metric["pctPositive"] = None if pct is None else round(pct, 4)
+    return [readability, sentiment]
 
+
+async def fetch_health_pipelines(
+    client: GobusGraphQLClient,
+    *,
+    catalog: AgencyCatalog | None = None,
+    now: datetime | None = None,
+) -> str:
+    """JSON (``schemaVersion`` 2) com o ``DataStatus`` de cada fonte e os avisos."""
+    catalog = catalog or AgencyCatalog(client)
+    now = now or now_brt()
+    today = reference_date(now)
+    window = closed_window(WINDOW_DAYS, today)
+    date_from, date_to = agency_analytics_bounds(window, "MONTH")  # inclui D−1
+
+    async def analytics() -> list[DataStatus]:
+        agencies = await catalog.active(ACTIVE_DAYS, limit=SAMPLE_AGENCIES)
+        data = await client.execute(
+            _ANALYTICS_QUERY,
+            {"agencies": agencies, "dateFrom": date_from, "dateTo": date_to},
+        )
+        return _analytics_statuses(data.get("agencyAnalytics") or [])
+
+    async def ranking() -> DataStatus:
+        data = await client.execute(_RANKING_QUERY)
+        return entity_ranking_status(data.get("trendingEntities") or [], now=now)
+
+    themes_r, analytics_r, ranking_r = await asyncio.gather(
+        theme_coverage(client, WINDOW_DAYS),
+        analytics(),
+        ranking(),
+        return_exceptions=True,
+    )
+    statuses: list[DataStatus] = [
+        _failed("themes", themes_r) if isinstance(themes_r, BaseException) else themes_r
+    ]
+    if isinstance(analytics_r, BaseException):
+        statuses += [
+            _failed("readability", analytics_r),
+            _failed("sentiment_analytics", analytics_r),
+        ]
+    else:
+        statuses += analytics_r
+    statuses.append(
+        _failed("entity_ranking", ranking_r) if isinstance(ranking_r, BaseException) else ranking_r
+    )
+
+    worst = max((s.status for s in statuses), key=_STATUS_RANK.__getitem__)
     result = {
-        "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "pipelines": {
-            "trendingScore": _check_trending_score(entities),
-            "sentiment": _check_sentiment(agency_pct),
-            "flesch": _check_flesch(agency_flesch),
-        },
+        "schemaVersion": SCHEMA_VERSION,
+        "checkedAt": now.isoformat(),
+        "referenceDate": today.isoformat(),
+        "calendar": calendar_context(today).model_dump(mode="json"),
+        "status": worst,
+        "pipelines": {s.key: s.model_dump(mode="json") for s in statuses},
+        "notices": [n.model_dump(mode="json") for n in notices_for(statuses)],
     }
     return json.dumps(result, ensure_ascii=False, indent=2)

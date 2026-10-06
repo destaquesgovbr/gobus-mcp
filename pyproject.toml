@@ -7,15 +7,20 @@ license = "AGPL-3.0-or-later"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-fastmcp = "^3.0"
-httpx = ">=0.28.1"
-pydantic = "^2.0"
+# <3.5: o server.py usa API privada do fastmcp (_mcp_server, _additional_http_routes) no /sse
+fastmcp = ">=3.4.2,<3.5"
+httpx = ">=0.28.1,<1"
+# >=2.11: ConfigDict(validate_by_name, serialize_by_alias) nos payloads
+pydantic = "^2.11"
 pydantic-settings = "^2.0"
+# zoneinfo("America/Sao_Paulo") na imagem slim
+tzdata = ">=2025.2"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0"
-pytest-asyncio = "^0.23"
-ruff = "^0.3"
+pytest = "^9.1"
+pytest-asyncio = "^1.4"
+ruff = "^0.16"
+graphql-core = "^3.2"
 mkdocs-material = ">=9.5"
 
 [tool.poetry.scripts]
@@ -27,7 +32,21 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "live: consulta a graphql-api de produção (fora do CI; rodar com -m live)",
+    "ui: render headless dos MCP Apps (Playwright; rodar com -m ui)",
+]
+addopts = "-m 'not live and not ui'"
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint]
+# Conjunto explícito: o default do ruff 0.16 ficou bem maior e mudaria a cada release.
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+# Explícito: sem isso, um módulo ainda inexistente (teste red do TDD) vira third-party.
+known-first-party = ["gobus_mcp", "tests"]

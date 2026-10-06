@@ -7,3 +7,7 @@ dist/
 .env
 .env.local
 site/
+
+# Notas locais de sessões do Claude Code (não versionar)
+.claude/handoffs/
+.claude/worktrees/

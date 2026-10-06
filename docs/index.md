@@ -22,17 +22,17 @@ flowchart LR
     API --> NEO
 ```
 
-O cliente conversa com o Gobus MCP via protocolo MCP (stdio localmente, HTTP em produção). O Gobus MCP traduz cada chamada em uma query GraphQL e a `graphql-api` resolve contra os bancos de dados subjacentes.
+O cliente conversa com o Gobus MCP via protocolo MCP (stdio localmente; em produção, HTTP stateless em `/mcp` mais `/sse` por compatibilidade). O Gobus MCP traduz cada chamada em uma query GraphQL e a `graphql-api` resolve contra os bancos de dados subjacentes.
 
 ## Capacidades
 
 | Categoria | Quantidade | Exemplos |
 |-----------|:----------:|----------|
-| Tools     | 7 | `gobus_search_news`, `gobus_resolve_entity`, `gobus_get_entity_network`, `gobus_get_agency_analytics`, `gobus_detect_trends` |
-| Resources | 3 | `gobus://agencies`, `gobus://themes`, `gobus://platform-stats` |
+| Tools     | 13 | `gobus_search_news`, `gobus_get_article`, `gobus_resolve_entity`, `gobus_get_entity_profile`, `gobus_get_entity_network`, `gobus_get_agency_analytics`, `gobus_get_agency_summary`, `gobus_detect_trends`, `gobus_get_readability_recommendations`, `gobus_score_article`, `gobus_get_policy_lifecycle`, `gobus_detect_anomalies`, `gobus_forecast_trends` |
+| Resources | 7 | `gobus://agencies`, `gobus://themes`, `gobus://platform-stats`, `gobus://taxonomy-queries`, `gobus://readability-report`, `gobus://health/pipelines`, `ui://readability-dashboard` |
 | Prompts   | 4 | `prompt_monitor_agency`, `prompt_trace_entity`, `prompt_weekly_digest`, `prompt_draft_press_release` |
 
-As _tools_ retornam Markdown formatado (não JSON), pensado para ser lido diretamente pelo LLM.
+As _tools_ são somente leitura e retornam Markdown formatado (não JSON), pensado para ser lido diretamente pelo LLM. Métrica sem dado aparece como "indisponível" — nunca 0 —, e o estado das fontes de dados fica em [`gobus://health/pipelines`](resources/health-pipelines.md).
 
 ## Por onde começar
 

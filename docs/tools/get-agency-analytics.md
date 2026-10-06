@@ -6,27 +6,30 @@ Retorna métricas de publicação de uma ou mais agências num período: volume 
 
 | Parâmetro | Tipo | Obrigatório | Default | Descrição |
 |-----------|------|-------------|---------|-----------|
-| `agencies` | `list[str]` | Sim | — | Lista de agency_keys (ex: `["mec", "ms"]`) |
+| `agencies` | `list[str]` | Sim | — | Lista de agency_keys (ex: `["mec", "saude"]`) |
 | `date_from` | `str` | Sim | — | Data de início ISO (ex: `"2024-01-01"`) |
-| `date_to` | `str` | Sim | — | Data de fim ISO (ex: `"2024-12-31"`) |
+| `date_to` | `str` | Sim | — | Data de fim ISO, inclusiva (ex: `"2024-12-31"`) |
 | `granularity` | `str` | Não | `"MONTH"` | Granularidade — `DAY`, `WEEK` ou `MONTH` |
 
 ## Retorno
 
-Retorna Markdown com um cabeçalho do período e granularidade, seguido de seções por período. Em cada período, cada agência aparece com volume de artigos, percentual de positivos, sentimento médio e legibilidade.
+Retorna Markdown com um cabeçalho do período e granularidade, avisos de cobertura de dados (quando não estão ok) e seções por período. Em cada período, cada agência aparece com volume de artigos, sentimento médio e percentual de positivos, legibilidade e palavras por artigo.
 
 **Exemplo de saída:**
 
 ```
-# Analytics: mec, ms
-**2024-01-01 → 2024-06-30** (granularity: MONTH)
+# Analytics: saude, mec
+**2026-06-01 → 2026-07-31** (granularity: MONTH)
 
-## 2024-01
-- **Ministério da Educação**: **112** artigos · 😊 64% positivos · sentimento 0.18 · legibilidade médio
-- **Ministério da Saúde**: **98** artigos · 😊 58% positivos · sentimento 0.11 · legibilidade difícil
+> Legibilidade (Flesch): degradado — 53% dos artigos com valor (352 de 666) (desde 30/06/2026)
+> Sentimento (analytics): indisponível — 0% dos artigos com valor (0 de 666)
 
-## 2024-02
-- **Ministério da Educação**: **103** artigos · 😊 61% positivos · sentimento 0.14 · legibilidade médio
+## 2026-06-01
+- **Ministério da Educação**: **270** artigos · sentimento indisponível · legibilidade 12.3 (muito difícil) · 📝 644 palavras/artigo
+- **Ministério da Saúde**: **82** artigos · sentimento indisponível · legibilidade 14.8 (muito difícil) · 📝 734 palavras/artigo
+
+## 2026-07-01
+- **Ministério da Educação**: **164** artigos · sentimento indisponível · legibilidade indisponível · 📝 palavras/artigo indisponível
 ```
 
 ## Exemplos
@@ -42,7 +45,8 @@ Retorna Markdown com um cabeçalho do período e granularidade, seguido de seç�
 
 ## Notas
 
-- As datas devem estar no formato ISO `"YYYY-MM-DD"`.
+- As datas devem estar no formato ISO `"YYYY-MM-DD"`. O `date_to` é inclusivo em toda granularidade: em `MONTH`/`WEEK` a API trata o `dateTo` como exclusivo (00:00 do dia), e a tool envia o dia seguinte. Os dias são UTC, como na API.
 - Granularidades válidas: `DAY`, `WEEK`, `MONTH` (convertidas para maiúsculas automaticamente).
-- A legibilidade é classificada pelo índice Flesch: acima de 70 "fácil", acima de 50 "médio", abaixo "difícil".
-- Informe as agências pela `agency_key` (código curto), não pelo nome completo.
+- A legibilidade usa o índice Flesch limitado a 0–100, com as faixas únicas 0–25 muito difícil · 25–50 difícil · 50–75 médio · 75–100 fácil (o valor bruto aparece quando foi limitado).
+- **Nulo não é zero:** métrica sem dado aparece como "indisponível". Sem `avgSentimentScore`, o `pctPositive` 0.0 da API é artefato e não é exibido. Um aviso no topo mostra a cobertura de legibilidade e de sentimento no período.
+- Os nomes das agências vêm do catálogo. Informe as agências pelo código (`agency_key`); sem dados, a tool sugere o código certo para chaves inválidas (ex: `"ms"` → `saude`).

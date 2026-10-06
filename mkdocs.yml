@@ -49,11 +49,21 @@ nav:
     - get_entity_profile: tools/get-entity-profile.md
     - get_entity_network: tools/get-entity-network.md
     - get_agency_analytics: tools/get-agency-analytics.md
+    - get_agency_summary: tools/get-agency-summary.md
     - detect_trends: tools/detect-trends.md
+    - get_readability_recommendations: tools/get-readability-recommendations.md
+    - score_article: tools/score-article.md
+    - get_policy_lifecycle: tools/get-policy-lifecycle.md
+    - detect_anomalies: tools/detect-anomalies.md
+    - forecast_trends: tools/forecast-trends.md
   - Resources:
     - agencies: resources/agencies.md
     - themes: resources/themes.md
     - platform_stats: resources/platform-stats.md
+    - taxonomy_queries: resources/taxonomy-queries.md
+    - readability_report: resources/readability-report.md
+    - health_pipelines: resources/health-pipelines.md
+    - readability_dashboard: resources/readability-dashboard.md
   - Prompts:
     - monitor_agency: prompts/monitor-agency.md
     - trace_entity: prompts/trace-entity.md
@@ -62,3 +72,15 @@ nav:
   - Casos de Uso: casos-de-uso.md
   - Arquitetura: arquitetura.md
   - Deploy & Config: deploy.md
+  - Experimentos:
+    - "2026-06-24 — 10 Use Cases": experimentos/2026-06-24/index.md
+    - "UC-01 Briefing Diário (Saúde)": experimentos/2026-06-24/uc-01.md
+    - "UC-02 Comparativo Fazenda × Planejamento": experimentos/2026-06-24/uc-02.md
+    - "UC-03 Trajetória Mais Médicos": experimentos/2026-06-24/uc-03.md
+    - "UC-04 Radar de Tendências": experimentos/2026-06-24/uc-04.md
+    - "UC-05 Release Emprego Formal": experimentos/2026-06-24/uc-05.md
+    - "UC-06 Rede Institucional (Comunicações)": experimentos/2026-06-24/uc-06.md
+    - "UC-07 Sentimento em Saúde": experimentos/2026-06-24/uc-07.md
+    - "UC-08 Coordenação Cross-Agency": experimentos/2026-06-24/uc-08.md
+    - "UC-09 Benchmark de Legibilidade": experimentos/2026-06-24/uc-09.md
+    - "UC-10 Boletim Semanal": experimentos/2026-06-24/uc-10.md

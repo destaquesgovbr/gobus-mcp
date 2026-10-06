@@ -1,6 +1,7 @@
 import pytest
-from tests.conftest import FakeGraphQLClient
+
 from gobus_mcp.tools.search_news import search_news
+from tests.conftest import FakeGraphQLClient
 
 
 def _make_article(i: int, agency_code: str = "mec", agency_name: str = "MEC") -> dict:
@@ -20,10 +21,15 @@ class TestSearchNews:
     @pytest.mark.asyncio
     async def test_retorna_artigos_formatados(self):
         client = FakeGraphQLClient()
-        client.set_response({"search": {
-            "articles": [_make_article(1, "mec", "Ministério da Educação")],
-            "found": 1, "page": 1,
-        }})
+        client.set_response(
+            {
+                "search": {
+                    "articles": [_make_article(1, "mec", "Ministério da Educação")],
+                    "found": 1,
+                    "page": 1,
+                }
+            }
+        )
         result = await search_news("educação", client)
         assert "Artigo 1" in result
         assert "Ministério da Educação" in result
@@ -40,10 +46,15 @@ class TestSearchNews:
     async def test_campo_agency_code_exibido(self):
         """agency code (ex: 'mec') deve aparecer no Markdown."""
         client = FakeGraphQLClient()
-        client.set_response({"search": {
-            "articles": [_make_article(1, "saude", "Ministério da Saúde")],
-            "found": 1, "page": 1,
-        }})
+        client.set_response(
+            {
+                "search": {
+                    "articles": [_make_article(1, "saude", "Ministério da Saúde")],
+                    "found": 1,
+                    "page": 1,
+                }
+            }
+        )
         result = await search_news("saúde", client)
         assert "[saude]" in result
 
@@ -70,7 +81,9 @@ class TestSearchNews:
         """date_from + agency_key devem ir no mesmo filter."""
         client = FakeGraphQLClient()
         client.set_response({"search": {"articles": [], "found": 0, "page": 1}})
-        await search_news("saúde", client, agency_key="saude", date_from="2026-06-01", date_to="2026-06-24")
+        await search_news(
+            "saúde", client, agency_key="saude", date_from="2026-06-01", date_to="2026-06-24"
+        )
         variables = client.execute.call_args[0][1]
         assert "saude" in variables["filter"]["agencies"]
         assert variables["filter"]["startDate"] == "2026-06-01"
@@ -80,10 +93,15 @@ class TestSearchNews:
     async def test_limit_fatia_resultados_cliente(self):
         """limit deve fatiar a lista após receber a resposta do servidor."""
         client = FakeGraphQLClient()
-        client.set_response({"search": {
-            "articles": [_make_article(i) for i in range(20)],
-            "found": 20, "page": 1,
-        }})
+        client.set_response(
+            {
+                "search": {
+                    "articles": [_make_article(i) for i in range(20)],
+                    "found": 20,
+                    "page": 1,
+                }
+            }
+        )
         result = await search_news("test", client, limit=5)
         assert "Artigo 0" in result
         assert "Artigo 4" in result
@@ -93,10 +111,15 @@ class TestSearchNews:
     async def test_limit_cap_em_50(self):
         """limit > 50 deve ser silenciosamente capado em 50."""
         client = FakeGraphQLClient()
-        client.set_response({"search": {
-            "articles": [_make_article(i) for i in range(60)],
-            "found": 60, "page": 1,
-        }})
+        client.set_response(
+            {
+                "search": {
+                    "articles": [_make_article(i) for i in range(60)],
+                    "found": 60,
+                    "page": 1,
+                }
+            }
+        )
         result = await search_news("test", client, limit=100)
         assert "Artigo 49" in result
         assert "Artigo 50" not in result

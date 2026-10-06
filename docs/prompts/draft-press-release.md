@@ -6,8 +6,8 @@ Gera um rascunho de release de imprensa a partir de artigos já publicados no ac
 
 O prompt guia o LLM por 4 passos sequenciais:
 
-1. **Pesquisa de base** — [`search_news`](../tools/search-news.md) com `query=topic` (e `agency_key`, se informado) — encontra os artigos de referência mais relevantes.
-2. **Aprofundamento** — [`get_article`](../tools/get-article.md) nos 3 mais relevantes — obtém o conteúdo completo.
+1. **Pesquisa de base** — [`gobus_search_news`](../tools/search-news.md) com `query=topic` (e `agency_key`, se informado) — encontra os artigos de referência mais relevantes.
+2. **Aprofundamento** — [`gobus_get_article`](../tools/get-article.md) nos 3 mais relevantes — obtém o conteúdo completo.
 3. **Síntese de fatos** — análise — extrai dados e estatísticas, ações anunciadas, declarações de autoridades e impactos para a população.
 4. **Rascunho do release** — síntese — o LLM escreve título, lead, corpo, citação e notas para editores, marcando com `[VERIFICAR]` todo dado não confirmado.
 
@@ -26,7 +26,7 @@ ou
 | Parâmetro | Descrição | Exemplo |
 |-----------|-----------|---------|
 | `topic` | Tema ou assunto do release | `"emprego formal"` |
-| `agency_key` | Filtrar artigos por agência (opcional) | `"mte"` |
+| `agency_key` | Filtrar artigos por agência (opcional) | `"trabalho-e-emprego"` |
 | `limit` | Número de artigos de referência a usar (default `5`) | `5` |
 
 ## Notas

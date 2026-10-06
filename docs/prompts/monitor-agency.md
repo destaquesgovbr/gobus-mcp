@@ -6,9 +6,9 @@ Briefing diário de comunicação para uma agência governamental. Atende o caso
 
 O prompt guia o LLM por 4 passos sequenciais:
 
-1. **Busca de publicações recentes** — [`search_news`](../tools/search-news.md) com `agency_key` — recupera as últimas publicações da agência na janela de dias informada.
-2. **Análise de volume e performance** — [`get_agency_analytics`](../tools/get-agency-analytics.md) com `agencies=[agency_key]` e `granularity=DAY` — extrai métricas diárias de publicação.
-3. **Destaques em alta** — análise dos resultados da busca — identifica artigos com `trending_score > 1.0`.
+1. **Busca de publicações recentes** — [`gobus_search_news`](../tools/search-news.md) com `agency_key` — recupera as últimas publicações da agência na janela de dias informada.
+2. **Análise de volume e performance** — [`gobus_get_agency_analytics`](../tools/get-agency-analytics.md) com `agencies=[agency_key]` e `granularity=DAY` — extrai métricas diárias de publicação.
+3. **Destaques** — análise dos resultados da busca — identifica os artigos de maior impacto (anúncios de programas, valores, prazos e serviços ao cidadão). O `trendingScore` por artigo está nulo no acervo e não é usado.
 4. **Resumo narrativo** — síntese — o LLM escreve um briefing executivo de 200-300 palavras cobrindo volume, temas principais, artigos de destaque, sentimento geral e recomendações para a equipe.
 
 ## Como ativar

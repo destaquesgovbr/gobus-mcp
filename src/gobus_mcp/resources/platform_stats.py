@@ -1,7 +1,7 @@
 from gobus_mcp.client import GobusGraphQLClient
 
 _STATS_QUERY = """
-{
+query PlatformStats {
   analyticsKpis(range: { days: 30 }) {
     total
     activeThemes

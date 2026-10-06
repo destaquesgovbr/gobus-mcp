@@ -35,14 +35,13 @@ async def get_entity_network(
     if depth >= 2:
         warnings.append(
             "⚠️ **depth=2** pode retornar centenas de nós. "
-            "Use `node_types` (ex: `\"PER,ORG\"`) para filtrar."
+            'Use `node_types` (ex: `"PER,ORG"`) para filtrar.'
         )
 
     if node_types:
         allowed = {t.strip().upper() for t in node_types.split(",") if t.strip()}
         nodes = [
-            n for n in nodes
-            if n.get("type", "").upper() in allowed or n["entityId"] == entity_id
+            n for n in nodes if n.get("type", "").upper() in allowed or n["entityId"] == entity_id
         ]
 
     total_nodes = len(nodes)
@@ -62,7 +61,8 @@ async def get_entity_network(
         marker = " ← **[CENTRO]**" if node["entityId"] == entity_id else ""
         wikidata = (
             f" ([W](https://www.wikidata.org/wiki/{node.get('wikidataId')}))"
-            if node.get("wikidataId") else ""
+            if node.get("wikidataId")
+            else ""
         )
         lines.append(
             f"- `{node['entityId']}` **{node.get('canonicalName', '')}** "
@@ -77,7 +77,9 @@ async def get_entity_network(
 
     if edges:
         lines.append("\n## Conexões mais fortes")
-        top_edges = sorted(edges, key=lambda e: e.get("weight", 0), reverse=True)[:_MAX_OUTPUT_EDGES]
+        top_edges = sorted(edges, key=lambda e: e.get("weight", 0), reverse=True)[
+            :_MAX_OUTPUT_EDGES
+        ]
         for edge in top_edges:
             src_name = node_map.get(edge["src"], edge["src"])
             dst_name = node_map.get(edge["dst"], edge["dst"])

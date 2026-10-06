@@ -1,68 +1,56 @@
-import json
-import datetime
+"""ui://readability-dashboard — dashboard HTML auto-contido de legibilidade por agência.
 
-from gobus_mcp.client import GobusGraphQLClient
-
-_ACTIVE_AGENCIES = [
-    "agencia_brasil", "secom", "saude", "mec", "fazenda", "trabalho", "mj",
-    "defesa", "mre", "planejamento", "cgcom", "cgu", "agu", "tcu", "planalto",
-    "mcom", "ibge", "anp", "inss", "caixa",
-]
-
-_ANALYTICS_QUERY = """
-query AgencyAnalytics(
-    $agencies: [String!]!
-    $dateFrom: String!
-    $dateTo: String!
-    $granularity: Granularity!
-) {
-    agencyAnalytics(
-        agencies: $agencies
-        dateFrom: $dateFrom
-        dateTo: $dateTo
-        granularity: $granularity
-    ) {
-        period
-        agencyKey
-        agencyName
-        articleCount
-        avgReadabilityFlesch
-        avgWordCount
-    }
-}
+Agências ativas do catálogo, médias null-aware (sem dado → "—", nunca barra de 0.0) e
+janela efetiva quando o Flesch parou. O HTML atual é mantido; a migração para MCP App
+(SEP-1865) é do G3.
 """
 
+from __future__ import annotations
 
-def _flesch_color(flesch: float) -> str:
-    """Retorna cor CSS de acordo com o nível Flesch."""
-    if flesch < 0:
-        return "#c0392b"
-    elif flesch < 25:
-        return "#e74c3c"
-    elif flesch < 50:
-        return "#e67e22"
-    elif flesch < 75:
-        return "#f1c40f"
-    else:
-        return "#2ecc71"
+import html
+import json
+from datetime import date
+
+from gobus_mcp.agency_catalog import AgencyCatalog
+from gobus_mcp.calendario import closed_window, reference_date
+from gobus_mcp.client import GobusGraphQLClient
+from gobus_mcp.readability import flesch_band
+from gobus_mcp.readability_data import load_agency_readability, rank_agencies
+
+WINDOW_DAYS = 90
+AGENCY_LIMIT = 20
+_BAND_COLORS = {
+    "very_hard": "#e74c3c",
+    "hard": "#e67e22",
+    "medium": "#f1c40f",
+    "easy": "#2ecc71",
+}
+_NO_DATA_COLOR = "#999999"
+
+
+def _flesch_color(flesch: float | None) -> str:
+    """Cor CSS da faixa do Flesch (já limitado a 0–100); cinza sem dado."""
+    band = flesch_band(flesch)
+    return _BAND_COLORS[band.key] if band else _NO_DATA_COLOR
 
 
 def _render_bar_chart_svg(agencies_data: list[dict]) -> str:
-    """Gera SVG de barchart horizontal com agências × Flesch médio."""
+    """SVG de barras horizontais (agências com dado × Flesch limitado a 0–100)."""
+    agencies_data = [d for d in agencies_data if d["flesch"] is not None]
     if not agencies_data:
         return "<svg width='600' height='50'><text x='10' y='30'>Sem dados</text></svg>"
 
     bar_height = 30
     padding = 120
     max_chart_width = 350
-    max_flesch = max(abs(d["flesch"]) for d in agencies_data) or 50
+    max_flesch = max(d["flesch"] for d in agencies_data) or 50
 
     svgs = []
     for i, d in enumerate(agencies_data):
         y = i * (bar_height + 8) + 10
-        bar_width = abs(d["flesch"]) / max_flesch * max_chart_width
+        bar_width = d["flesch"] / max_flesch * max_chart_width
         color = _flesch_color(d["flesch"])
-        label = d["agency"][:18]
+        label = html.escape(d["agency"][:18])
         svgs.append(
             f'<rect x="{padding}" y="{y}" width="{bar_width:.0f}" height="{bar_height}" '
             f'fill="{color}" rx="3"/>'
@@ -81,67 +69,54 @@ def _render_bar_chart_svg(agencies_data: list[dict]) -> str:
     return (
         f'<svg width="600" height="{total_height}" xmlns="http://www.w3.org/2000/svg" '
         f'role="img" aria-label="Gráfico de legibilidade por agência">'
-        f'{svg_content}'
+        f"{svg_content}"
         f"</svg>"
     )
 
 
-async def fetch_readability_dashboard(client: GobusGraphQLClient) -> str:
-    """Gera dashboard HTML auto-contido com barchart de legibilidade por agência.
+def _cell(value: float | None, fmt: str) -> str:
+    return "—" if value is None else format(value, fmt)
 
-    Args:
-        client: Cliente GraphQL.
+
+async def fetch_readability_dashboard(
+    client: GobusGraphQLClient,
+    *,
+    catalog: AgencyCatalog | None = None,
+    today: date | None = None,
+) -> str:
+    """Gera dashboard HTML auto-contido com barchart de legibilidade por agência.
 
     Returns:
         HTML auto-contido (sem referências externas) com gráfico SVG e JSON island.
     """
-    today = datetime.date.today()
-    date_from = (today - datetime.timedelta(days=90)).isoformat()
-    date_to = today.isoformat()
+    catalog = catalog or AgencyCatalog(client)
+    today = today or reference_date()
+    requested = closed_window(WINDOW_DAYS, today)
+    agencies = await catalog.active(WINDOW_DAYS, limit=AGENCY_LIMIT)
+    window, items = await load_agency_readability(client, catalog, agencies, requested)
+    with_data, without = rank_agencies(items)
 
-    data = await client.execute(_ANALYTICS_QUERY, {
-        "agencies": _ACTIVE_AGENCIES,
-        "dateFrom": date_from,
-        "dateTo": date_to,
-        "granularity": "MONTH",
-    })
-    rows = data.get("agencyAnalytics") or []
-
-    # Agrega múltiplos períodos por agência (média ponderada)
-    by_agency: dict[str, dict] = {}
-    for row in rows:
-        key = row.get("agencyKey") or ""
-        if key not in by_agency:
-            by_agency[key] = {
-                "agencyKey": key,
-                "agencyName": row.get("agencyName") or key,
-                "totalArticles": 0,
-                "fleschSum": 0.0,
-                "wcSum": 0.0,
-                "avgReadabilityFlesch": 0.0,
-                "avgWordCount": 0.0,
-            }
-        count = row.get("articleCount") or 0
-        flesch = row.get("avgReadabilityFlesch") or 0.0
-        wc = row.get("avgWordCount") or 0.0
-        by_agency[key]["totalArticles"] += count
-        by_agency[key]["fleschSum"] += flesch * count
-        by_agency[key]["wcSum"] += wc * count
-
-    agencies_data = []
-    for key, agg in by_agency.items():
-        total = agg["totalArticles"]
-        avg_f = agg["fleschSum"] / total if total > 0 else 0.0
-        avg_wc = agg["wcSum"] / total if total > 0 else 0.0
-        agencies_data.append({
-            "agencyKey": key,
-            "agencyName": agg["agencyName"],
-            "articleCount": total,
-            "avgReadabilityFlesch": round(avg_f, 2),
-            "avgWordCount": round(avg_wc, 1),
-        })
-
-    agencies_data.sort(key=lambda r: r["avgReadabilityFlesch"], reverse=True)
+    agencies_data = [
+        {
+            "agencyKey": a.code,
+            "agencyName": a.name,
+            "articleCount": a.article_count,
+            "avgReadabilityFlesch": None if a.flesch.value is None else round(a.flesch.value, 2),
+            "avgReadabilityFleschRaw": None if a.flesch.raw is None else round(a.flesch.raw, 2),
+            "avgWordCount": None if a.avg_word_count is None else round(a.avg_word_count, 1),
+        }
+        for a in [*with_data, *without]
+    ]
+    effective = window.effective.effective
+    if effective is None:
+        period_note = "sem dados de legibilidade no histórico consultado"
+    elif window.effective.shifted:
+        period_note = (
+            f"janela efetiva {effective.start:%d/%m/%Y}–{effective.end:%d/%m/%Y} "
+            f"({window.effective.note})"
+        )
+    else:
+        period_note = f"{requested.start:%d/%m/%Y}–{requested.end:%d/%m/%Y}"
 
     # Prepara dados para o SVG
     chart_items = [
@@ -151,7 +126,8 @@ async def fetch_readability_dashboard(client: GobusGraphQLClient) -> str:
     svg_chart = _render_bar_chart_svg(chart_items)
 
     # JSON island — contém avgReadabilityFlesch para que os testes possam verificar
-    json_island = json.dumps(agencies_data, ensure_ascii=False, indent=2)
+    # "</" escapado: um nome com "</script>" não fecha o bloco
+    json_island = json.dumps(agencies_data, ensure_ascii=False, indent=2).replace("</", "<\\/")
 
     # JS inline minimal — implementa classe Chart para uso com canvas
     # (sem CDN; o canvas fica oculto pois usamos SVG, mas Chart está disponível para extensão)
@@ -193,7 +169,7 @@ class Chart {
 })();
 """
 
-    html = f"""<!DOCTYPE html>
+    page = f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -215,7 +191,9 @@ class Chart {
 </head>
 <body>
 <h1>Dashboard de Legibilidade por Agência</h1>
-<p class="subtitle">Índice Flesch médio dos últimos 90 dias · Fonte: Destaques Gov.BR</p>
+<p class="subtitle">Índice Flesch médio (escala inglesa, limitado a 0–100) · {
+        html.escape(period_note)
+    } · Fonte: Destaques Gov.BR</p>
 
 <!-- JSON data island -->
 <script type="application/json" id="readability-data">
@@ -227,11 +205,11 @@ class Chart {
 
 <div class="card">
   <div class="legend">
-    <span class="legend-item"><span class="swatch" style="background:#c0392b"></span> &lt; 0 (abaixo do piso)</span>
     <span class="legend-item"><span class="swatch" style="background:#e74c3c"></span> 0–25 (muito difícil)</span>
     <span class="legend-item"><span class="swatch" style="background:#e67e22"></span> 25–50 (difícil)</span>
     <span class="legend-item"><span class="swatch" style="background:#f1c40f"></span> 50–75 (médio)</span>
     <span class="legend-item"><span class="swatch" style="background:#2ecc71"></span> ≥ 75 (fácil)</span>
+    <span class="legend-item"><span class="swatch" style="background:#999999"></span> sem dado</span>
   </div>
   {svg_chart}
 </div>
@@ -242,12 +220,15 @@ class Chart {
       <tr><th>#</th><th>Agência</th><th>Flesch</th><th>Artigos</th><th>Palavras/art.</th></tr>
     </thead>
     <tbody>
-      {"".join(
-          f'<tr><td>{i+1}</td><td>{d["agencyName"]}</td>'
-          f'<td style="color:{_flesch_color(d["avgReadabilityFlesch"])};font-weight:600">{d["avgReadabilityFlesch"]:.1f}</td>'
-          f'<td>{d["articleCount"]}</td><td>{d["avgWordCount"]:.0f}</td></tr>'
-          for i, d in enumerate(agencies_data)
-      )}
+      {
+        "\n      ".join(
+            f"<tr><td>{i + 1}</td><td>{html.escape(d['agencyName'])}</td>"
+            f'<td style="color:{_flesch_color(d["avgReadabilityFlesch"])};font-weight:600">'
+            f"{_cell(d['avgReadabilityFlesch'], '.1f')}</td>"
+            f"<td>{d['articleCount']}</td><td>{_cell(d['avgWordCount'], '.0f')}</td></tr>"
+            for i, d in enumerate(agencies_data)
+        )
+    }
     </tbody>
   </table>
 </div>
@@ -258,4 +239,4 @@ class Chart {
 </body>
 </html>"""
 
-    return html
+    return page

@@ -32,14 +32,18 @@ def _entity(name, volume_ratio, window_agencies, entity_id="Q1", etype="ORG"):
 
 
 async def test_pico_sustentado_quando_tema_em_ambas_as_janelas(fake_client):
-    themes_3d = {"trendingThemes": [
-        _theme("Saúde Digital", "saude_digital", 2.5),
-        _theme("Educação", "educacao", 1.8),
-    ]}
-    themes_7d = {"trendingThemes": [
-        _theme("Saúde Digital", "saude_digital", 2.1),
-        _theme("Defesa", "defesa", 1.6),
-    ]}
+    themes_3d = {
+        "trendingThemes": [
+            _theme("Saúde Digital", "saude_digital", 2.5),
+            _theme("Educação", "educacao", 1.8),
+        ]
+    }
+    themes_7d = {
+        "trendingThemes": [
+            _theme("Saúde Digital", "saude_digital", 2.1),
+            _theme("Defesa", "defesa", 1.6),
+        ]
+    }
     entities = {"trendingEntities": []}
     fake_client.set_responses([themes_3d, themes_7d, entities])
 
@@ -54,9 +58,11 @@ async def test_pico_sustentado_quando_tema_em_ambas_as_janelas(fake_client):
 
 async def test_silencio_concentrado_alto_volume_poucas_agencias(fake_client):
     themes = {"trendingThemes": []}
-    entities = {"trendingEntities": [
-        _entity("Ministério X", volume_ratio=4.5, window_agencies=2),
-    ]}
+    entities = {
+        "trendingEntities": [
+            _entity("Ministério X", volume_ratio=4.5, window_agencies=2),
+        ]
+    }
     fake_client.set_responses([themes, themes, entities])
 
     result = await detect_anomalies(fake_client)  # sensitivity medium (>3.0, <5)
@@ -67,9 +73,11 @@ async def test_silencio_concentrado_alto_volume_poucas_agencias(fake_client):
 
 async def test_sensitivity_high_threshold_mais_baixo(fake_client):
     themes = {"trendingThemes": []}
-    entities = {"trendingEntities": [
-        _entity("Órgão Y", volume_ratio=2.5, window_agencies=6),
-    ]}
+    entities = {
+        "trendingEntities": [
+            _entity("Órgão Y", volume_ratio=2.5, window_agencies=6),
+        ]
+    }
 
     # medium: 2.5 não passa de 3.0 → não concentrado
     fake_client.set_responses([themes, themes, entities])
@@ -85,9 +93,11 @@ async def test_sensitivity_high_threshold_mais_baixo(fake_client):
 async def test_sem_anomalias_retorna_tendencias_normais(fake_client):
     themes_3d = {"trendingThemes": [_theme("Agricultura", "agro", 1.5)]}
     themes_7d = {"trendingThemes": [_theme("Turismo", "turismo", 1.4)]}
-    entities = {"trendingEntities": [
-        _entity("Entidade Comum", volume_ratio=1.2, window_agencies=12),
-    ]}
+    entities = {
+        "trendingEntities": [
+            _entity("Entidade Comum", volume_ratio=1.2, window_agencies=12),
+        ]
+    }
     fake_client.set_responses([themes_3d, themes_7d, entities])
 
     result = await detect_anomalies(fake_client)

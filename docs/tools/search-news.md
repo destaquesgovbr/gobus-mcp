@@ -7,7 +7,7 @@ Busca notícias no acervo do Gov.BR por texto livre e, opcionalmente, por agênc
 | Parâmetro | Tipo | Obrigatório | Default | Descrição |
 |-----------|------|-------------|---------|-----------|
 | `query` | `str` | Sim | — | Texto livre para busca semântica/full-text |
-| `agency_key` | `str` | Não | — | Chave da agência para filtrar (ex: `"mec"`, `"ms"`) |
+| `agency_key` | `str` | Não | — | Chave da agência para filtrar (ex: `"mec"`, `"saude"`) |
 | `page` | `int` | Não | `1` | Página de resultados |
 | `limit` | `int` | Não | `10` | Resultados por página (máx 50) |
 

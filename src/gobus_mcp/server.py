@@ -1,34 +1,36 @@
 import logging
+from dataclasses import dataclass
 
 from fastmcp import FastMCP
 from fastmcp.server.http import Mount, Request, Response, SseServerTransport
 
+from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.config import settings
-from gobus_mcp.tools.search_news import search_news
-from gobus_mcp.tools.get_article import get_article
-from gobus_mcp.tools.resolve_entity import resolve_entity
-from gobus_mcp.tools.get_entity_profile import get_entity_profile
-from gobus_mcp.tools.get_entity_network import get_entity_network
-from gobus_mcp.tools.get_agency_analytics import get_agency_analytics
-from gobus_mcp.tools.detect_trends import detect_trends
-from gobus_mcp.tools.get_agency_summary import get_agency_summary
-from gobus_mcp.tools.get_readability_recommendations import get_readability_recommendations
-from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
-from gobus_mcp.tools.detect_anomalies import detect_anomalies
-from gobus_mcp.tools.forecast_trends import forecast_trends
-from gobus_mcp.tools.score_article import score_article
-from gobus_mcp.resources.agencies import fetch_agencies
-from gobus_mcp.resources.readability_dashboard import fetch_readability_dashboard
-from gobus_mcp.resources.readability_report import fetch_readability_report
-from gobus_mcp.resources.health_pipelines import fetch_health_pipelines
-from gobus_mcp.resources.themes import fetch_themes
-from gobus_mcp.resources.platform_stats import fetch_platform_stats
-from gobus_mcp.resources.taxonomy_queries import fetch_taxonomy_queries
-from gobus_mcp.prompts.monitor_agency import monitor_agency_prompt
 from gobus_mcp.prompts.draft_press_release import draft_press_release_prompt
+from gobus_mcp.prompts.monitor_agency import monitor_agency_prompt
 from gobus_mcp.prompts.trace_entity import trace_entity_prompt
 from gobus_mcp.prompts.weekly_digest import weekly_digest_prompt
+from gobus_mcp.resources.agencies import fetch_agencies
+from gobus_mcp.resources.health_pipelines import fetch_health_pipelines
+from gobus_mcp.resources.platform_stats import fetch_platform_stats
+from gobus_mcp.resources.readability_dashboard import fetch_readability_dashboard
+from gobus_mcp.resources.readability_report import fetch_readability_report
+from gobus_mcp.resources.taxonomy_queries import fetch_taxonomy_queries
+from gobus_mcp.resources.themes import fetch_themes
+from gobus_mcp.tools.detect_anomalies import detect_anomalies
+from gobus_mcp.tools.detect_trends import detect_trends
+from gobus_mcp.tools.forecast_trends import forecast_trends
+from gobus_mcp.tools.get_agency_analytics import get_agency_analytics
+from gobus_mcp.tools.get_agency_summary import get_agency_summary
+from gobus_mcp.tools.get_article import get_article
+from gobus_mcp.tools.get_entity_network import get_entity_network
+from gobus_mcp.tools.get_entity_profile import get_entity_profile
+from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
+from gobus_mcp.tools.get_readability_recommendations import get_readability_recommendations
+from gobus_mcp.tools.resolve_entity import resolve_entity
+from gobus_mcp.tools.score_article import score_article
+from gobus_mcp.tools.search_news import search_news
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
@@ -48,26 +50,54 @@ _sse = SseServerTransport("/messages/")
 async def _sse_compat(request: Request) -> Response:
     async with _sse.connect_sse(request.scope, request.receive, request._send) as streams:
         await mcp._mcp_server.run(
-            streams[0], streams[1],
+            streams[0],
+            streams[1],
             mcp._mcp_server.create_initialization_options(),
         )
     return Response()
 
 
-mcp._additional_http_routes.append(Mount("/messages", app=_sse.handle_post_message))  # Starlette redireciona /messages → /messages/ sem trailing slash
+mcp._additional_http_routes.append(
+    Mount("/messages", app=_sse.handle_post_message)
+)  # Starlette redireciona /messages → /messages/ sem trailing slash
 
 # ─────────────────────────────────────────────────────────────────────────────
 
-_client = GobusGraphQLClient(
-    url=settings.graphql_url,
-    api_key=settings.graphql_api_key,
-    timeout=settings.request_timeout,
-)
+
+@dataclass
+class Deps:
+    """Dependências compartilhadas pelas tools e resources.
+
+    Um único contêiner por processo; os testes trocam ``server._deps`` (monkeypatch) e
+    tudo que é lido via ``get_deps()`` passa a usar o fake.
+    """
+
+    client: GobusGraphQLClient
+    catalog: AgencyCatalog
+    activity: object | None = None  # AgencyActivityService (G2)
+
+
+def _build_deps() -> Deps:
+    client = GobusGraphQLClient(
+        url=settings.graphql_url,
+        api_key=settings.graphql_api_key,
+        timeout=settings.request_timeout,
+    )
+    return Deps(client=client, catalog=AgencyCatalog(client))
+
+
+_deps = _build_deps()
+
+
+def get_deps() -> Deps:
+    """Contêiner de dependências corrente (lido a cada chamada)."""
+    return _deps
 
 
 # ── Tools ────────────────────────────────────────────────────────────────────
 
-@mcp.tool()
+
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_search_news(
     query: str,
     agency_key: str = "",
@@ -90,10 +120,18 @@ async def gobus_search_news(
 
     Dica: Execute em paralelo com gobus_get_agency_analytics para a mesma agência.
     """
-    return await search_news(query, _client, agency_key or None, page, limit, date_from or None, date_to or None)
+    return await search_news(
+        query,
+        get_deps().client,
+        agency_key or None,
+        page,
+        limit,
+        date_from or None,
+        date_to or None,
+    )
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_get_article(unique_id: str) -> str:
     """Retorna conteúdo completo de um artigo pelo seu unique_id.
 
@@ -105,10 +143,11 @@ async def gobus_get_article(unique_id: str) -> str:
     Restrições: Não use para descoberta — primeiro busque com gobus_search_news,
     depois use este tool para ler os artigos de interesse.
     """
-    return await get_article(unique_id, _client)
+    deps = get_deps()
+    return await get_article(unique_id, deps.client, catalog=deps.catalog)
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_resolve_entity(query: str, entity_type: str = "", limit: int = 5) -> str:
     """Resolve nome ou alias de entidade para o ID canônico (Wikidata QID).
 
@@ -122,10 +161,10 @@ async def gobus_resolve_entity(query: str, entity_type: str = "", limit: int = 5
     Fluxo: SEMPRE use este tool antes de gobus_get_entity_profile ou
     gobus_get_entity_network — ambos precisam do entityId canônico.
     """
-    return await resolve_entity(query, _client, entity_type or None, limit)
+    return await resolve_entity(query, get_deps().client, entity_type or None, limit)
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_get_entity_profile(
     entity_name: str,
     entity_type: str = "",
@@ -149,12 +188,16 @@ async def gobus_get_entity_profile(
     Use summary_only=True quando precisar apenas de um overview rápido.
     """
     return await get_entity_profile(
-        entity_name, _client,
-        entity_type or None, date_from or None, date_to or None, summary_only
+        entity_name,
+        get_deps().client,
+        entity_type or None,
+        date_from or None,
+        date_to or None,
+        summary_only,
     )
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_get_entity_network(
     entity_id: str,
     depth: int = 1,
@@ -176,10 +219,12 @@ async def gobus_get_entity_network(
     Atenção: depth=2 pode retornar centenas de nós — use sempre max_nodes ≤ 15
     e node_types para filtrar quando depth=2.
     """
-    return await get_entity_network(entity_id, _client, depth, limit, max_nodes, node_types or "")
+    return await get_entity_network(
+        entity_id, get_deps().client, depth, limit, max_nodes, node_types or ""
+    )
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_get_agency_analytics(
     agencies: list[str],
     date_from: str,
@@ -191,19 +236,23 @@ async def gobus_get_agency_analytics(
     Parâmetros:
     - agencies: Lista de chaves de agência (ex: ["saude", "mec"]) — ver gobus://agencies
     - date_from: Data de início ISO (ex: "2024-01-01")
-    - date_to: Data de fim ISO (ex: "2024-12-31")
+    - date_to: Data de fim ISO, inclusiva em toda granularidade (ex: "2024-12-31")
     - granularity: Agrupamento temporal — "DAY", "WEEK" ou "MONTH" (default "MONTH")
 
-    Retorna: Markdown com tabela de métricas por período: artigos publicados,
-    sentimento médio, % positivo e índice de legibilidade Flesch.
+    Retorna: Markdown com métricas por período: artigos publicados, sentimento médio,
+    % positivo e índice de legibilidade Flesch (faixa única 0/25/50/75, limitado a 0–100).
+    Métrica sem dado aparece como "indisponível" (nunca 0), com aviso no topo.
 
     Dica de paralelismo: Execute em paralelo com gobus_search_news para a mesma agência.
     Para overview rápido sem granularidade, prefira gobus_get_agency_summary.
     """
-    return await get_agency_analytics(agencies, date_from, date_to, _client, granularity)
+    deps = get_deps()
+    return await get_agency_analytics(
+        agencies, date_from, date_to, deps.client, granularity, catalog=deps.catalog
+    )
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_detect_trends(
     window_days: int = 7,
     baseline_days: int = 28,
@@ -216,22 +265,36 @@ async def gobus_detect_trends(
 
     Parâmetros:
     - window_days: Janela RECENTE em dias (default 7 — "esta semana")
-    - baseline_days: Período de REFERÊNCIA em dias (default 28 — "último mês")
+    - baseline_days: Período de REFERÊNCIA em dias (default 28 — "último mês"); deve ser
+      maior que window_days
     - min_articles: Mínimo de artigos na janela recente para considerar (default 3)
-    - growth_threshold: Multiplicador mínimo de crescimento, ex: 1.5 = 50% a mais (default 1.5)
+    - growth_threshold: Razão mínima de crescimento sem sobreposição, ex: 1.5 = 50% a mais
+      por dia que nos dias anteriores do baseline (default 1.5; mínimo 1.0)
     - agency_key: Filtrar por agência específica (opcional) — ver gobus://agencies
     - limit: Máximo de temas retornados (default 10)
 
-    Retorna: Markdown com temas em alta, growthScore e artigos representativos.
-    growthScore = count(window) / count(baseline) — valores > 1.5 indicam tendência real.
+    Retorna: Markdown com temas em alta, a razão sem sobreposição (artigos/dia na janela
+    ÷ artigos/dia nos dias anteriores do baseline), o growthScore da API (cujo baseline
+    inclui a janela) e artigos representativos. Se a classificação de temas não cobre a
+    janela, avisa "Temas: indisponível" em vez de dizer que nada cresceu.
 
     Dica: Use gobus://taxonomy-queries para mapear temas detectados a termos de busca.
     Para cada tema, execute gobus_search_news em paralelo com o nome do tema.
     """
-    return await detect_trends(_client, window_days, baseline_days, min_articles, growth_threshold, agency_key or None, limit)
+    deps = get_deps()
+    return await detect_trends(
+        deps.client,
+        window_days,
+        baseline_days,
+        min_articles,
+        growth_threshold,
+        agency_key or None,
+        limit,
+        catalog=deps.catalog,
+    )
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_get_agency_summary(agency_key: str, days: int = 30) -> str:
     """Resumo executivo de uma agência: volume + métricas + temas em alta em uma única chamada.
 
@@ -242,46 +305,68 @@ async def gobus_get_agency_summary(agency_key: str, days: int = 30) -> str:
     - agency_key: chave da agência (ex: "saude", "mec") — ver gobus://agencies
     - days: janela em dias (default 30)
 
-    Retorna: Markdown com volume total de artigos, índice de legibilidade e
-    temas em alta com links para artigos representativos.
+    Retorna: Markdown com volume total de artigos, índice de legibilidade, sentimento
+    e temas em alta (razão ≥ 1.5× sem sobreposição, últimos 7 dias) com artigos
+    representativos. Métrica sem dado aparece como "indisponível" (nunca 0). Chave de
+    agência inválida devolve sugestões (ex: "trabalho" → "trabalho-e-emprego").
 
     Restrições: Não substitui gobus_get_agency_analytics quando precisar de
     granularidade por dia/semana ou comparar múltiplas agências.
     """
-    return await get_agency_summary(agency_key, _client, days)
+    deps = get_deps()
+    return await get_agency_summary(agency_key, deps.client, days, catalog=deps.catalog)
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_get_readability_recommendations(
     agency_key: str = "",
     days: int = 90,
     limit: int = 10,
+    date_to: str = "",
 ) -> str:
-    """Diagnóstico de legibilidade por agência com recomendações de estilo.
+    """Diagnóstico de legibilidade (índice Flesch) por agência com recomendações de estilo.
 
     Parâmetros:
-    - agency_key: Chave da agência (ex: "cgu", "defesa") — se vazio, retorna ranking geral
-    - days: Janela de análise em dias (default 90)
+    - agency_key: Chave da agência (ex: "saude", "defesa") — se vazio, retorna o ranking
+      das agências ativas. Chave inválida devolve sugestões (ex: "ms" → "saude").
+    - days: Tamanho da janela de análise em dias (default 90)
     - limit: Máximo de agências no ranking geral (default 10)
+    - date_to: Último dia da janela, ISO (ex: "2026-06-30") — opcional; o padrão é ontem
 
-    Retorna: Ranking de agências por Flesch × volume com gap vs meta (≥50 para serviço,
-    ≥30 para institucional) e 3 recomendações de estilo priorizadas. A Agência Brasil
-    (Flesch ~33) é o benchmark interno — nenhuma outra agência a supera hoje.
+    Retorna: Ranking por Flesch com gap até a meta (≥50 para serviço ao cidadão, ≥30 para
+    institucional) ou, com agency_key, o diagnóstico da agência: média, benchmark da
+    Agência Brasil calculado na mesma janela, pior e melhor artigo de uma amostra e 3
+    recomendações de estilo.
+
+    Dados: agência sem Flesch aparece como "sem dado" (nunca 0.0). Se o cálculo do Flesch
+    parou antes do fim da janela, a análise usa a janela efetiva (mesmo tamanho, até o
+    último mês com dado) e avisa "dados até MM/AAAA". Escala: fórmula inglesa do textstat,
+    limitada a 0–100.
     """
-    return await get_readability_recommendations(agency_key or None, _client, days, limit)
+    deps = get_deps()
+    return await get_readability_recommendations(
+        agency_key or None,
+        deps.client,
+        days,
+        limit,
+        date_to=date_to or None,
+        catalog=deps.catalog,
+    )
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_get_policy_lifecycle(
     policy_name: str,
     date_from: str = "2024-01-01",
 ) -> str:
     """Ciclo de vida comunicacional de uma política pública no portal Gov.BR.
 
-    Analisa a série temporal de cobertura mensal para identificar fases:
-    ANNOUNCED (pico de lançamento), IMPLEMENTATION (sustentação), ROUTINE (queda).
-    Identifica as agências dominantes por fase (âncoras narrativos) e apresenta
-    artigos representativos do período de maior cobertura.
+    Analisa a série mensal de cobertura (somando as agências de cada mês; meses sem
+    artigos, até o mês corrente, entram com 0) para identificar fases: ANNOUNCED (mês de
+    pico), IMPLEMENTATION (≥40% do pico) e ROUTINE (abaixo disso). A fase atual é a do
+    último mês fechado; o mês corrente aparece como parcial, fora da classificação, e
+    há aviso quando a cobertura parou. Identifica as agências dominantes por mês e por
+    fase (âncoras narrativos) e apresenta artigos publicados no mês de pico.
 
     Parâmetros:
     - policy_name: Nome ou alias da política (ex: "Pé-de-Meia", "Bolsa Família")
@@ -293,10 +378,10 @@ async def gobus_get_policy_lifecycle(
     Dica: Use gobus_resolve_entity com entity_type="POLICY" para descobrir o
     nome canônico antes de chamar este tool.
     """
-    return await get_policy_lifecycle(policy_name, _client, date_from)
+    return await get_policy_lifecycle(policy_name, get_deps().client, date_from)
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_detect_anomalies(sensitivity: str = "medium") -> str:
     """Detecta anomalias comunicacionais: picos sustentados e cobertura concentrada.
 
@@ -310,10 +395,10 @@ async def gobus_detect_anomalies(sensitivity: str = "medium") -> str:
 
     Retorna: Markdown com picos sustentados, cobertura concentrada e tendências normais.
     """
-    return await detect_anomalies(_client, sensitivity)
+    return await detect_anomalies(get_deps().client, sensitivity)
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> str:
     """Projeta tendências combinando três janelas de detecção de temas (3d, 7d, 21d).
 
@@ -328,42 +413,53 @@ async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> str:
     Retorna: Markdown com tabela Tema | Score Composto | Momentum | Confiança.
     Atenção: a janela de 3 dias sofre viés de borda de fim de semana.
     """
-    return await forecast_trends(_client, horizon_days, limit)
+    return await forecast_trends(get_deps().client, horizon_days, limit)
 
 
-@mcp.tool()
+@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_score_article(unique_id: str) -> str:
     """Atribui uma nota editorial (0-10) a um artigo comparando-o ao benchmark da agência.
 
-    Combina legibilidade (Flesch), concisão (tamanho vs. média da agência) e
-    densidade de entidades numa nota ponderada (50/30/20).
+    Combina legibilidade (Flesch limitado a 0–100), concisão (palavras contra a mediana
+    da agência) e densidade de entidades (por 100 palavras) numa nota ponderada 50/30/20.
+
+    O benchmark é calculado a cada chamada: amostra de artigos da agência e da Agência
+    Brasil nos 90 dias antes da publicação do artigo, com medianas (null com menos de 10
+    artigos).
+
+    Estados: "scored" (3 dimensões); "parcial" (sem benchmark de concisão, nota
+    renormalizada); "Nota indisponível" quando o artigo não tem Flesch ou contagem de
+    palavras — nunca uma nota neutra inventada.
 
     Parâmetros:
     - unique_id: ID único do artigo (obtido via gobus_search_news)
 
     Retorna: Markdown com nota geral, notas por dimensão e benchmark da agência.
     """
-    return await score_article(unique_id, _client)
+    deps = get_deps()
+    return await score_article(unique_id, deps.client, catalog=deps.catalog)
 
 
 # ── Resources ────────────────────────────────────────────────────────────────
 
+
 @mcp.resource("gobus://agencies")
 async def agencies_resource() -> str:
-    """Lista completa de agências governamentais com suas chaves."""
-    return await fetch_agencies(_client)
+    """Lista completa de agências governamentais: nome, código e republicadoras."""
+    deps = get_deps()
+    return await fetch_agencies(deps.client, catalog=deps.catalog)
 
 
 @mcp.resource("gobus://themes")
 async def themes_resource() -> str:
     """Taxonomia completa de temas do portal Gov.BR."""
-    return await fetch_themes(_client)
+    return await fetch_themes(get_deps().client)
 
 
 @mcp.resource("gobus://platform-stats")
 async def platform_stats_resource() -> str:
     """Estatísticas gerais da plataforma (últimos 30 dias)."""
-    return await fetch_platform_stats(_client)
+    return await fetch_platform_stats(get_deps().client)
 
 
 @mcp.resource("gobus://taxonomy-queries")
@@ -375,22 +471,28 @@ async def taxonomy_queries_resource() -> str:
 @mcp.resource("ui://readability-dashboard")
 async def readability_dashboard_resource() -> str:
     """Dashboard interativo de legibilidade por agência (HTML/JS auto-contido)."""
-    return await fetch_readability_dashboard(_client)
+    deps = get_deps()
+    return await fetch_readability_dashboard(deps.client, catalog=deps.catalog)
 
 
-@mcp.resource("gobus://readability-report")
+@mcp.resource("gobus://readability-report", mime_type="application/json")
 async def readability_report_resource() -> str:
-    """Relatório JSON de legibilidade por agência com gap até a meta (Flesch 50)."""
-    return await fetch_readability_report(_client)
+    """Relatório JSON de legibilidade das agências ativas, com gap até a meta (Flesch 50),
+    janela efetiva e cobertura (sem dado → null, nunca 0)."""
+    deps = get_deps()
+    return await fetch_readability_report(deps.client, catalog=deps.catalog)
 
 
-@mcp.resource("gobus://health/pipelines")
+@mcp.resource("gobus://health/pipelines", mime_type="application/json")
 async def health_pipelines_resource() -> str:
-    """Health-check dos pipelines de dados (trendingScore, sentimento, legibilidade)."""
-    return await fetch_health_pipelines(_client)
+    """Saúde das fontes de dados (JSON): temas, legibilidade, sentimento e ranking de
+    entidades, cada uma ok | degraded | unavailable, com avisos."""
+    deps = get_deps()
+    return await fetch_health_pipelines(deps.client, catalog=deps.catalog)
 
 
 # ── Prompts ──────────────────────────────────────────────────────────────────
+
 
 @mcp.prompt()
 def prompt_monitor_agency(agency_key: str, agency_name: str = "", days: int = 1) -> list[dict]:
@@ -405,7 +507,9 @@ def prompt_draft_press_release(topic: str, agency_key: str = "", limit: int = 5)
 
 
 @mcp.prompt()
-def prompt_trace_entity(entity_name: str, entity_type: str = "", date_from: str = "", date_to: str = "") -> list[dict]:
+def prompt_trace_entity(
+    entity_name: str, entity_type: str = "", date_from: str = "", date_to: str = ""
+) -> list[dict]:
     """Trajetória completa de uma entidade no portal Gov.BR."""
     return trace_entity_prompt(entity_name, entity_type, date_from, date_to)
 

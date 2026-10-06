@@ -41,15 +41,33 @@ async def forecast_trends(
         Markdown com tabela Tema | Score Composto | Momentum | Confiança.
     """
     r3_data, r7_data, r21_data = await asyncio.gather(
-        client.execute(_THEMES_QUERY, {
-            "windowDays": 3, "baselineDays": 14, "growthThreshold": 0.3, "limit": 20,
-        }),
-        client.execute(_THEMES_QUERY, {
-            "windowDays": 7, "baselineDays": 28, "growthThreshold": 0.3, "limit": 20,
-        }),
-        client.execute(_THEMES_QUERY, {
-            "windowDays": 21, "baselineDays": 84, "growthThreshold": 0.2, "limit": 20,
-        }),
+        client.execute(
+            _THEMES_QUERY,
+            {
+                "windowDays": 3,
+                "baselineDays": 14,
+                "growthThreshold": 0.3,
+                "limit": 20,
+            },
+        ),
+        client.execute(
+            _THEMES_QUERY,
+            {
+                "windowDays": 7,
+                "baselineDays": 28,
+                "growthThreshold": 0.3,
+                "limit": 20,
+            },
+        ),
+        client.execute(
+            _THEMES_QUERY,
+            {
+                "windowDays": 21,
+                "baselineDays": 84,
+                "growthThreshold": 0.2,
+                "limit": 20,
+            },
+        ),
     )
 
     windows = {
@@ -62,10 +80,13 @@ async def forecast_trends(
     for window_key, theme_list in windows.items():
         for t in theme_list:
             code = t.get("themeCode") or t.get("themeLabel")
-            entry = themes.setdefault(code, {
-                "label": t.get("themeLabel") or code,
-                "scores": {},
-            })
+            entry = themes.setdefault(
+                code,
+                {
+                    "label": t.get("themeLabel") or code,
+                    "scores": {},
+                },
+            )
             entry["scores"][window_key] = t.get("growthScore") or 0.0
 
     ranked = []
@@ -81,12 +102,14 @@ async def forecast_trends(
         else:
             momentum = "estavel"
         confidence = _CONFIDENCE.get(len(scores), "baixa")
-        ranked.append({
-            "label": entry["label"],
-            "composite": composite,
-            "momentum": momentum,
-            "confidence": confidence,
-        })
+        ranked.append(
+            {
+                "label": entry["label"],
+                "composite": composite,
+                "momentum": momentum,
+                "confidence": confidence,
+            }
+        )
 
     ranked.sort(key=lambda r: r["composite"], reverse=True)
     top = ranked[:limit]
@@ -107,7 +130,7 @@ async def forecast_trends(
     lines.append(
         "\n> Nota: a janela de 3 dias sofre viés de borda de fim de semana — picos "
         "podem refletir queda de publicação no sábado/domingo, não tendência real. "
-        "Trate momentum \"acelerando\" com cautela quando a janela cruza um fim de semana."
+        'Trate momentum "acelerando" com cautela quando a janela cruza um fim de semana.'
     )
 
     return "\n".join(lines)

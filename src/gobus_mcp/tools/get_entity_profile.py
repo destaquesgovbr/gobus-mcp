@@ -88,9 +88,7 @@ async def get_entity_profile(
         total_articles = sum(p["articleCount"] for p in coverage)
         lines.append(f"\n**Cobertura total:** {total_articles} artigos")
         if related:
-            top3_str = ", ".join(
-                f"{r.get('canonicalName')} ({r.get('type')})" for r in related[:3]
-            )
+            top3_str = ", ".join(f"{r.get('canonicalName')} ({r.get('type')})" for r in related[:3])
             lines.append(f"**Top relacionadas:** {top3_str}")
         return "\n".join(lines)
 
@@ -102,11 +100,15 @@ async def get_entity_profile(
             agency = point.get("agencyName") or point.get("agencyKey", "")
             sent = point.get("avgSentimentScore")
             sent_str = f" · sentimento {sent:.2f}" if sent else ""
-            lines.append(f"- **{point['period']}** — {point['articleCount']} artigos ({agency}){sent_str}")
+            lines.append(
+                f"- **{point['period']}** — {point['articleCount']} artigos ({agency}){sent_str}"
+            )
 
     if related:
         lines.append("\n## Entidades relacionadas (co-menção)")
         for r in related[:8]:
-            lines.append(f"- **{r.get('canonicalName', r.get('canonicalId'))}** ({r.get('type', '')}) · {r.get('weight', 0)} artigos")
+            lines.append(
+                f"- **{r.get('canonicalName', r.get('canonicalId'))}** ({r.get('type', '')}) · {r.get('weight', 0)} artigos"
+            )
 
     return "\n".join(lines)

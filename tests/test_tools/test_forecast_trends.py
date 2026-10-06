@@ -69,13 +69,15 @@ async def test_momentum_desacelerando_quando_3d_menor(fake_client):
 
 
 async def test_retorna_top_n_temas(fake_client):
-    r3 = {"trendingThemes": [
-        _theme("Tema A", "a", 5.0),
-        _theme("Tema B", "b", 4.0),
-        _theme("Tema C", "c", 3.0),
-        _theme("Tema D", "d", 2.0),
-        _theme("Tema E", "e", 1.0),
-    ]}
+    r3 = {
+        "trendingThemes": [
+            _theme("Tema A", "a", 5.0),
+            _theme("Tema B", "b", 4.0),
+            _theme("Tema C", "c", 3.0),
+            _theme("Tema D", "d", 2.0),
+            _theme("Tema E", "e", 1.0),
+        ]
+    }
     r7 = {"trendingThemes": []}
     r21 = {"trendingThemes": []}
     fake_client.set_responses([r3, r7, r21])

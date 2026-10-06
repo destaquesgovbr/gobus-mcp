@@ -6,7 +6,7 @@ Retorna o conteúdo completo de um artigo a partir do seu ID único. Use após [
 
 | Parâmetro | Tipo | Obrigatório | Default | Descrição |
 |-----------|------|-------------|---------|-----------|
-| `unique_id` | `str` | Sim | — | ID único do artigo (ex: obtido via `search_news`) |
+| `unique_id` | `str` | Sim | — | ID único do artigo (ex: obtido via `gobus_search_news`) |
 
 ## Retorno
 
@@ -17,11 +17,11 @@ Retorna Markdown com título, agência, data, URL, tags, um bloco de features (t
 ```
 # Campanha Nacional de Vacinação contra a Gripe é prorrogada
 
-**Ministério da Saúde** · 2024-05-12
+**[saude] Ministério da Saúde** · 2024-05-12
 🔗 https://www.gov.br/saude/...
 Tags: vacinação, gripe, saúde pública
 
-⏱ 4 min leitura (812 palavras) · 📖 Legibilidade: médio (58) · 👁 12.430 visualizações · 🔥 Em alta (score 3.2)
+⏱ 4 min leitura (812 palavras) · 📖 Legibilidade: 58.0 (médio)
 
 ## Entidades mencionadas
 **Instituições:** Ministério da Saúde (6x), Anvisa (2x)
@@ -43,6 +43,9 @@ A campanha foi estendida até o fim de maio...
 ## Notas
 
 - O tempo de leitura é estimado em 200 palavras por minuto.
-- A legibilidade usa o índice Flesch: acima de 70 é "fácil", acima de 50 é "médio", abaixo disso "difícil".
+- A legibilidade usa o índice Flesch (fórmula inglesa do `textstat`), limitado a 0–100, com as faixas únicas 0–25 muito difícil · 25–50 difícil · 50–75 médio · 75–100 fácil. Um Flesch negativo aparece como `0.0 (muito difícil; valor bruto -12.3)`.
+- **Nulo não é zero:** sem Flesch ou contagem de palavras, a saída mostra "Legibilidade: indisponível" / "Tamanho: indisponível" (o pipeline de features parou em 30/06/2026; ver `gobus://health/pipelines`). Um Flesch 0.0 real é exibido.
+- O nome da agência vem do catálogo (`gobus://agencies`), não do código.
+- Visualizações e `trendingScore` só aparecem quando existem (hoje estão nulos em quase todo o acervo).
 - As entidades por tipo são limitadas a 8 nomes por categoria na saída.
 - Tipos de entidade exibidos: `ORG` (Instituições), `PER` (Pessoas), `LOC` (Locais), `EVENT` (Eventos), `POLICY` (Políticas), `LAW` (Leis).
