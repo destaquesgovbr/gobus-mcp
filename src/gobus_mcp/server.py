@@ -308,19 +308,36 @@ async def gobus_get_readability_recommendations(
     agency_key: str = "",
     days: int = 90,
     limit: int = 10,
+    date_to: str = "",
 ) -> str:
-    """Diagnóstico de legibilidade por agência com recomendações de estilo.
+    """Diagnóstico de legibilidade (índice Flesch) por agência com recomendações de estilo.
 
     Parâmetros:
-    - agency_key: Chave da agência (ex: "cgu", "defesa") — se vazio, retorna ranking geral
-    - days: Janela de análise em dias (default 90)
+    - agency_key: Chave da agência (ex: "saude", "defesa") — se vazio, retorna o ranking
+      das agências ativas. Chave inválida devolve sugestões (ex: "ms" → "saude").
+    - days: Tamanho da janela de análise em dias (default 90)
     - limit: Máximo de agências no ranking geral (default 10)
+    - date_to: Último dia da janela, ISO (ex: "2026-06-30") — opcional; o padrão é ontem
 
-    Retorna: Ranking de agências por Flesch × volume com gap vs meta (≥50 para serviço,
-    ≥30 para institucional) e 3 recomendações de estilo priorizadas. A Agência Brasil
-    (Flesch ~33) é o benchmark interno — nenhuma outra agência a supera hoje.
+    Retorna: Ranking por Flesch com gap até a meta (≥50 para serviço ao cidadão, ≥30 para
+    institucional) ou, com agency_key, o diagnóstico da agência: média, benchmark da
+    Agência Brasil calculado na mesma janela, pior e melhor artigo de uma amostra e 3
+    recomendações de estilo.
+
+    Dados: agência sem Flesch aparece como "sem dado" (nunca 0.0). Se o cálculo do Flesch
+    parou antes do fim da janela, a análise usa a janela efetiva (mesmo tamanho, até o
+    último mês com dado) e avisa "dados até MM/AAAA". Escala: fórmula inglesa do textstat,
+    limitada a 0–100.
     """
-    return await get_readability_recommendations(agency_key or None, get_deps().client, days, limit)
+    deps = get_deps()
+    return await get_readability_recommendations(
+        agency_key or None,
+        deps.client,
+        days,
+        limit,
+        date_to=date_to or None,
+        catalog=deps.catalog,
+    )
 
 
 @mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
