@@ -172,10 +172,9 @@ def _entity_line(e: EntitySignal, window_days: int) -> str:
         line += " · sem menções no baseline"
     elif owner:
         line += f" · dona: {owner}"
-    line += (
-        f" · severidade {_num(e.severity, 2)} ({BAND_PT[e.band]}) · confiança "
-        f"{CONFIDENCE_PT[e.confidence]}"
-    )
+    if e.kind != "normal":  # normal = sem padrão anômalo: severidade só no payload
+        line += f" · severidade {_num(e.severity, 2)} ({BAND_PT[e.band]})"
+    line += f" · confiança {CONFIDENCE_PT[e.confidence]}"
     line += _flags(e.flags)
     if e.kind == "calendar_explained" and e.explanation:
         line += f"\n  {e.explanation}"
