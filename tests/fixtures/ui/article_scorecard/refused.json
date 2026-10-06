@@ -1,0 +1,198 @@
+{
+  "app": "article_scorecard",
+  "state": "refused",
+  "description": "DEV — dados fictícios: artigo de outubro sem Flesch nem contagem de palavras: nota recusada",
+  "toolName": "gobus_score_article",
+  "toolInput": {
+    "unique_id": "pf-operacao-outubro"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Score Editorial: Operação cumpre mandados em três estados\n**Polícia Federal** (`pf`) · 02/10/2026 · `pf-operacao-outubro`\n\n## Nota indisponível\n\n> Artigo sem Flesch e sem contagem de palavras — o pipeline de features não calculou as métricas deste artigo, então não há base para uma nota.\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** indisponível — Flesch indisponível\n- **Concisão (peso 30%):** indisponível — contagem de palavras indisponível (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** indisponível — 2 entidades\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-38` — Notícia 39 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)"
+      }
+    ],
+    "structuredContent": {
+      "summary": "# Score Editorial: Operação cumpre mandados em três estados\n**Polícia Federal** (`pf`) · 02/10/2026 · `pf-operacao-outubro`\n\n## Nota indisponível\n\n> Artigo sem Flesch e sem contagem de palavras — o pipeline de features não calculou as métricas deste artigo, então não há base para uma nota.\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** indisponível — Flesch indisponível\n- **Concisão (peso 30%):** indisponível — contagem de palavras indisponível (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** indisponível — 2 entidades\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-38` — Notícia 39 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)",
+      "schemaVersion": 1,
+      "kind": "gobus.scorecard",
+      "tool": "gobus_score_article",
+      "status": "unavailable",
+      "generatedAt": "2026-10-05T12:00:00-03:00",
+      "referenceDate": "2026-10-05",
+      "params": {
+        "unique_id": "pf-operacao-outubro",
+        "compare_with": null
+      },
+      "calendar": {
+        "phase": "blackout",
+        "label": "Defeso eleitoral 2026",
+        "blackoutStart": "2026-07-04",
+        "blackoutEnd": "2026-10-25",
+        "recoveryUntil": "2026-11-29",
+        "daysToEnd": 20,
+        "silencedAgencies": null,
+        "resumedAgencies": null
+      },
+      "dataStatus": [
+        {
+          "key": "readability",
+          "status": "ok",
+          "since": null,
+          "message": "Legibilidade (Flesch): ok — 40 de 40 artigos com dado (100%)",
+          "metric": {
+            "covered": 40,
+            "total": 40,
+            "ratio": 1.0
+          }
+        },
+        {
+          "key": "word_count",
+          "status": "ok",
+          "since": null,
+          "message": "Contagem de palavras: ok — 40 de 40 artigos com dado (100%)",
+          "metric": {
+            "covered": 40,
+            "total": 40,
+            "ratio": 1.0
+          }
+        }
+      ],
+      "notices": [],
+      "scoreStatus": "refused",
+      "overall": null,
+      "refusalReason": "artigo sem Flesch e sem contagem de palavras — o pipeline de features não calculou as métricas deste artigo, então não há base para uma nota",
+      "scale": "flesch_en_textstat",
+      "bands": [
+        {
+          "key": "very_hard",
+          "label": "muito difícil",
+          "lower": 0.0,
+          "upper": 25.0
+        },
+        {
+          "key": "hard",
+          "label": "difícil",
+          "lower": 25.0,
+          "upper": 50.0
+        },
+        {
+          "key": "medium",
+          "label": "médio",
+          "lower": 50.0,
+          "upper": 75.0
+        },
+        {
+          "key": "easy",
+          "label": "fácil",
+          "lower": 75.0,
+          "upper": 100.0
+        }
+      ],
+      "targetService": 50.0,
+      "targetInstitutional": 30.0,
+      "article": {
+        "uniqueId": "pf-operacao-outubro",
+        "title": "Operação cumpre mandados em três estados",
+        "url": "https://www.gov.br/pf/pt-br/assuntos/noticias/2026/pf-operacao-outubro",
+        "agencyKey": "pf",
+        "agencyName": "Polícia Federal",
+        "publishedAt": "2026-10-02T11:00:00+00:00",
+        "flesch": null,
+        "fleschRaw": null,
+        "wordCount": null,
+        "entityCount": 2
+      },
+      "dimensions": [
+        {
+          "key": "readability",
+          "label": "Legibilidade",
+          "weight": 0.5,
+          "effectiveWeight": null,
+          "score": null,
+          "value": null,
+          "reference": null,
+          "detail": "Flesch indisponível",
+          "light": "gray"
+        },
+        {
+          "key": "conciseness",
+          "label": "Concisão",
+          "weight": 0.3,
+          "effectiveWeight": null,
+          "score": null,
+          "value": null,
+          "reference": 546.0,
+          "detail": "contagem de palavras indisponível (mediana da agência: 546)",
+          "light": "gray"
+        },
+        {
+          "key": "entity_density",
+          "label": "Densidade de entidades",
+          "weight": 0.2,
+          "effectiveWeight": null,
+          "score": null,
+          "value": null,
+          "reference": null,
+          "detail": "2 entidades",
+          "light": "gray"
+        }
+      ],
+      "benchmark": {
+        "agencyKey": "pf",
+        "agencyName": "Polícia Federal",
+        "found": 120,
+        "sampleSize": 40,
+        "fleschSampleSize": 40,
+        "medianWordCount": 546.0,
+        "medianFlesch": 33.5,
+        "window": {
+          "start": "2026-05-01",
+          "end": "2026-05-28",
+          "days": 28
+        }
+      },
+      "referenceBenchmark": {
+        "agencyKey": "agencia_brasil",
+        "agencyName": "Agência Brasil",
+        "found": 180,
+        "sampleSize": 60,
+        "fleschSampleSize": 60,
+        "medianWordCount": 472.0,
+        "medianFlesch": 39.9,
+        "window": {
+          "start": "2026-05-01",
+          "end": "2026-05-28",
+          "days": 28
+        }
+      },
+      "flags": [],
+      "overallLight": "gray",
+      "suggestedComparisons": [
+        {
+          "uniqueId": "pf-amostra-38",
+          "title": "Notícia 39 da amostra de pf",
+          "agencyKey": "pf",
+          "agencyName": "Polícia Federal",
+          "flesch": 52.4,
+          "wordCount": 606,
+          "reason": "maior Flesch da amostra de Polícia Federal nos 90 dias antes"
+        },
+        {
+          "uniqueId": "agencia_brasil-amostra-49",
+          "title": "Notícia 50 da amostra de agencia_brasil",
+          "agencyKey": "agencia_brasil",
+          "agencyName": "Agência Brasil",
+          "flesch": 58.7,
+          "wordCount": 343,
+          "reason": "maior Flesch de Agência Brasil (referência) na mesma janela"
+        }
+      ],
+      "comparison": null,
+      "comparisonError": null
+    },
+    "isError": false
+  },
+  "toolCalls": []
+}

@@ -31,7 +31,7 @@ from gobus_mcp.tools.get_entity_profile import get_entity_profile
 from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
 from gobus_mcp.tools.get_readability_recommendations import build_readability_payload
 from gobus_mcp.tools.resolve_entity import resolve_entity
-from gobus_mcp.tools.score_article import score_article
+from gobus_mcp.tools.score_article import build_score_payload
 from gobus_mcp.tools.search_news import search_news
 from gobus_mcp.ui import app_result, app_tool_kwargs, register_ui_resources
 
@@ -472,8 +472,8 @@ async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> str:
     )
 
 
-@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
-async def gobus_score_article(unique_id: str) -> str:
+@mcp.tool(**app_tool_kwargs("article_scorecard"))
+async def gobus_score_article(unique_id: str, compare_with: str = "") -> ToolResult:
     """Atribui uma nota editorial (0-10) a um artigo comparando-o ao benchmark da agência.
 
     Combina legibilidade (Flesch limitado a 0–100), concisão (palavras contra a mediana
@@ -489,11 +489,20 @@ async def gobus_score_article(unique_id: str) -> str:
 
     Parâmetros:
     - unique_id: ID único do artigo (obtido via gobus_search_news)
+    - compare_with: unique_id de outro artigo para comparar lado a lado (opcional; a
+      resposta sugere até 2 artigos da amostra do benchmark para isso)
 
-    Retorna: Markdown com nota geral, notas por dimensão e benchmark da agência.
+    Retorna: Markdown com nota geral, notas por dimensão, benchmark da agência e, com
+    compare_with, a tabela de comparação. MCP App: em hosts com suporte (Claude Desktop,
+    claude.ai) abre o painel ui://article-scorecard com semáforos e o lado a lado.
     """
     deps = get_deps()
-    return await score_article(unique_id, deps.client, catalog=deps.catalog)
+    report = await build_score_payload(
+        deps.client, unique_id, compare_with=compare_with or None, catalog=deps.catalog
+    )
+    if report is None:
+        return ToolResult(content=f"Artigo não encontrado: `{unique_id}`")
+    return app_result(report)
 
 
 # ── Resources ────────────────────────────────────────────────────────────────

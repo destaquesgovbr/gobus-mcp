@@ -349,15 +349,34 @@ def route_score(
     (``ag`` pela agência pedida, ``ab`` da Agência Brasil)."""
     samples = samples or {}
     route_catalog(client, READABILITY_AGENCIES if agencies is None else agencies)
-    client.route("ScoreArticle", lambda v: {"article": score_article_node(v["uniqueId"])})
+
+    def sample_of(code: str) -> dict:
+        if code in samples:
+            return samples[code]
+        if code == "agencia_brasil":
+            return score_sample(code, 60, flesch0=36.0, words0=450)
+        return score_sample(code, 40, flesch0=30.0, words0=520)
+
+    def article(variables: dict) -> dict:
+        uid = variables["uniqueId"]
+        node = score_article_node(uid)
+        if node is None and "-amostra-" in uid:  # sugestões de comparação vêm da amostra
+            code = uid.split("-amostra-")[0]
+            found = next((a for a in sample_of(code)["articles"] if a["uniqueId"] == uid), None)
+            if found is not None:
+                node = {
+                    **found,
+                    "url": f"https://www.gov.br/{code}/pt-br/assuntos/noticias/2026/{uid}",
+                    "agency": code,
+                    "agencyName": code,
+                    "features": {**found["features"], "entities": [{"type": "ORG"}] * 4},
+                }
+        return {"article": node}
+
+    client.route("ScoreArticle", article)
 
     def benchmark(variables: dict) -> dict:
-        code = variables["agencies"][0]
-        own = samples.get(code) or score_sample(code, 40, flesch0=30.0, words0=520)
-        ab = samples.get("agencia_brasil") or score_sample(
-            "agencia_brasil", 60, flesch0=36.0, words0=450
-        )
-        return {"ag": own, "ab": ab}
+        return {"ag": sample_of(variables["agencies"][0]), "ab": sample_of("agencia_brasil")}
 
     client.route("ScoreArticleBenchmark", benchmark)
     return client

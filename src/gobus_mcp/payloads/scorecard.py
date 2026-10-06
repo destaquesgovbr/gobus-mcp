@@ -11,10 +11,13 @@ from typing import Literal
 
 from gobus_mcp.payloads.common import Payload, ReportBase
 from gobus_mcp.payloads.readability import DayRange, FleschBandInfo
-from gobus_mcp.readability import FLESCH_SCALE_ID
+from gobus_mcp.readability import FLESCH_SCALE_ID, TARGET_INSTITUTIONAL, TARGET_SERVICE
 
 ScoreStatus = Literal["scored", "partial", "refused"]
 DimensionKey = Literal["readability", "conciseness", "entity_density"]
+# Semáforo de uma nota 0–10 (limiares no gobus: o app não reimplementa): verde ≥ 7,
+# amarelo ≥ 4, vermelho abaixo; cinza sem nota.
+Light = Literal["green", "yellow", "red", "gray"]
 
 
 class ScoreDimension(Payload):
@@ -28,6 +31,7 @@ class ScoreDimension(Payload):
     value: float | None  # Flesch limitado · palavras · entidades por 100 palavras
     reference: float | None  # mediana do benchmark da agência (concisão)
     detail: str
+    light: Light = "gray"
 
 
 class ScoreBenchmark(Payload):
@@ -60,6 +64,30 @@ class ScoredArticle(Payload):
     entity_count: int
 
 
+class SuggestedComparison(Payload):
+    """Artigo da amostra do benchmark sugerido para ``compare_with`` (botão Comparar)."""
+
+    unique_id: str
+    title: str
+    agency_key: str
+    agency_name: str
+    flesch: float | None  # limitado a [0, 100]
+    word_count: int | None
+    reason: str
+
+
+class ScoreComparison(Payload):
+    """O artigo de ``compare_with``, pontuado do mesmo jeito (sem resumo próprio)."""
+
+    score_status: ScoreStatus
+    overall: float | None
+    overall_light: Light = "gray"
+    refusal_reason: str | None = None
+    article: ScoredArticle
+    dimensions: list[ScoreDimension]
+    benchmark: ScoreBenchmark | None
+
+
 class ScoreReport(ReportBase):
     kind: Literal["gobus.scorecard"] = "gobus.scorecard"
     tool: Literal["gobus_score_article"] = "gobus_score_article"
@@ -68,8 +96,14 @@ class ScoreReport(ReportBase):
     refusal_reason: str | None = None
     scale: str = FLESCH_SCALE_ID
     bands: list[FleschBandInfo]
+    target_service: float = TARGET_SERVICE
+    target_institutional: float = TARGET_INSTITUTIONAL
     article: ScoredArticle
     dimensions: list[ScoreDimension]
     benchmark: ScoreBenchmark | None  # agência do artigo
     reference_benchmark: ScoreBenchmark | None  # Agência Brasil, mesma janela
     flags: list[str] = []
+    overall_light: Light = "gray"
+    suggested_comparisons: list[SuggestedComparison] = []  # até 2
+    comparison: ScoreComparison | None = None  # com compare_with
+    comparison_error: str | None = None  # compare_with inexistente ou igual ao artigo

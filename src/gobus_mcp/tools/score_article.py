@@ -8,7 +8,9 @@ Três dimensões (pesos 50/30/20): legibilidade (Flesch limitado a [0, 100]), co
 - **scored**: as três dimensões.
 
 O benchmark é uma amostra ``articles`` da agência (e da Agência Brasil) nos 90 dias antes
-da publicação do artigo, com mediana calculada no cliente.
+da publicação do artigo, com mediana calculada no cliente. Da mesma amostra saem até 2
+sugestões de comparação (maior Flesch da agência e da Agência Brasil); ``compare_with``
+pontua um segundo artigo do mesmo jeito (app ``ui://article-scorecard``: lado a lado).
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import statistics
 from datetime import datetime, timedelta
+from typing import NamedTuple
 
 from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.calendario import calendar_context, now_brt, reference_date
@@ -24,10 +27,13 @@ from gobus_mcp.data_status import notices_for, share_status
 from gobus_mcp.payloads.common import DataStatus
 from gobus_mcp.payloads.readability import DayRange, flesch_bands
 from gobus_mcp.payloads.scorecard import (
+    Light,
     ScoreBenchmark,
+    ScoreComparison,
     ScoredArticle,
     ScoreDimension,
     ScoreReport,
+    SuggestedComparison,
 )
 from gobus_mcp.readability import clamp_flesch, describe_flesch, readability_score
 
@@ -35,6 +41,9 @@ BENCHMARK_AGENCY = "agencia_brasil"
 BENCHMARK_DAYS = 90
 SAMPLE_LIMIT = 250
 MIN_SAMPLE = 10
+LIGHT_GREEN = 7.0  # nota ≥ 7 → verde
+LIGHT_YELLOW = 4.0  # nota ≥ 4 → amarelo; abaixo, vermelho
+MAX_SUGGESTIONS = 2
 WEIGHTS = {"readability": 0.5, "conciseness": 0.3, "entity_density": 0.2}
 LABELS = {
     "readability": "Legibilidade",
@@ -71,7 +80,7 @@ query ScoreArticleBenchmark(
     sort: DATE
   ) {
     found
-    articles { uniqueId publishedAt features { readabilityFlesch wordCount } }
+    articles { uniqueId title publishedAt features { readabilityFlesch wordCount } }
   }
   ab: articles(
     page: 1
@@ -80,7 +89,7 @@ query ScoreArticleBenchmark(
     sort: DATE
   ) {
     found
-    articles { uniqueId publishedAt features { readabilityFlesch wordCount } }
+    articles { uniqueId title publishedAt features { readabilityFlesch wordCount } }
   }
 }
 """
@@ -131,6 +140,17 @@ def overall_score(scores: dict[str, float | None]) -> float | None:
     if not total_weight:
         return None
     return round(sum(WEIGHTS[k] * s for k, s in available.items()) / total_weight, 1)
+
+
+def score_light(score: float | None) -> Light:
+    """Semáforo de uma nota 0–10 (cinza sem nota)."""
+    if score is None:
+        return "gray"
+    if score >= LIGHT_GREEN:
+        return "green"
+    if score >= LIGHT_YELLOW:
+        return "yellow"
+    return "red"
 
 
 def _median(values: list[float]) -> float | None:
@@ -188,6 +208,36 @@ def _benchmark(
     return bench, len(flesch), len(articles)
 
 
+def _suggestion(
+    result: dict | None, *, code: str, name: str, exclude: set[str], reason: str
+) -> SuggestedComparison | None:
+    """Artigo de maior Flesch (limitado; o bruto desempata) da amostra, fora ``exclude``."""
+    candidates = [
+        a
+        for a in (result or {}).get("articles") or []
+        if a.get("uniqueId")
+        and a["uniqueId"] not in exclude
+        and (a.get("features") or {}).get("readabilityFlesch") is not None
+    ]
+    if not candidates:
+        return None
+
+    def key(a: dict) -> tuple[float, float]:
+        fv = clamp_flesch(a["features"]["readabilityFlesch"])
+        return fv.value, fv.raw
+
+    best = max(candidates, key=key)
+    return SuggestedComparison(
+        unique_id=best["uniqueId"],
+        title=best.get("title") or best["uniqueId"],
+        agency_key=code,
+        agency_name=name,
+        flesch=clamp_flesch(best["features"]["readabilityFlesch"]).value,
+        word_count=best["features"].get("wordCount"),
+        reason=reason,
+    )
+
+
 # ── builder ─────────────────────────────────────────────────────────────────
 
 
@@ -201,6 +251,7 @@ def _dimension(key: str, score: float | None, value, reference, detail: str) -> 
         value=value,
         reference=reference,
         detail=detail,
+        light=score_light(score),
     )
 
 
@@ -218,18 +269,22 @@ def _with_effective_weights(dims: list[ScoreDimension]) -> list[ScoreDimension]:
     ]
 
 
-async def build_score_payload(
+class _Scored(NamedTuple):
+    report: ScoreReport  # ainda sem summary
+    bench_data: dict  # amostras ``ag``/``ab`` (base das sugestões)
+    name: str
+    ab_name: str
+
+
+async def _score_one(
     client: GobusGraphQLClient,
     unique_id: str,
     *,
-    catalog: AgencyCatalog | None = None,
-    now: datetime | None = None,
-) -> ScoreReport | None:
-    """``ScoreReport`` do artigo; ``None`` se o artigo não existe."""
-    catalog = catalog or AgencyCatalog(client)
-    now = now or now_brt()
+    catalog: AgencyCatalog,
+    now: datetime,
+) -> _Scored | None:
+    """Pontua um artigo; ``None`` se ele não existe."""
     today = reference_date(now)
-
     data = await client.execute(_ARTICLE_QUERY, {"uniqueId": unique_id})
     art = data.get("article")
     if not art:
@@ -247,6 +302,7 @@ async def build_score_payload(
 
     published = _parse_dt(art.get("publishedAt"))
     benchmark = reference = None
+    bench_data: dict = {}
     data_status: list[DataStatus] = []
     if published is not None and code:
         bench_data = await client.execute(
@@ -337,7 +393,7 @@ async def build_score_payload(
         ),
     ]
     if score_status == "refused":
-        dims = [d.model_copy(update={"score": None}) for d in dims]
+        dims = [d.model_copy(update={"score": None, "light": "gray"}) for d in dims]
 
     report = ScoreReport(
         summary="",
@@ -350,6 +406,7 @@ async def build_score_payload(
         notices=notices_for(data_status),
         score_status=score_status,
         overall=overall,
+        overall_light=score_light(overall),
         refusal_reason=refusal,
         bands=flesch_bands(),
         article=ScoredArticle(
@@ -369,6 +426,85 @@ async def build_score_payload(
         reference_benchmark=reference,
         flags=flags,
     )
+    return _Scored(report, bench_data, name, ab_name)
+
+
+def _suggestions(scored: _Scored, exclude: set[str]) -> list[SuggestedComparison]:
+    found = [
+        _suggestion(
+            scored.bench_data.get("ag"),
+            code=scored.report.article.agency_key,
+            name=scored.name,
+            exclude=exclude,
+            reason=f"maior Flesch da amostra de {scored.name} nos {BENCHMARK_DAYS} dias antes",
+        ),
+        _suggestion(
+            scored.bench_data.get("ab"),
+            code=BENCHMARK_AGENCY,
+            name=scored.ab_name,
+            exclude=exclude,
+            reason=f"maior Flesch de {scored.ab_name} (referência) na mesma janela",
+        ),
+    ]
+    out, seen = [], set()
+    for item in found:
+        if item is not None and item.unique_id not in seen:
+            seen.add(item.unique_id)
+            out.append(item)
+    return out[:MAX_SUGGESTIONS]
+
+
+def _comparison(report: ScoreReport) -> ScoreComparison:
+    return ScoreComparison(
+        score_status=report.score_status,
+        overall=report.overall,
+        overall_light=report.overall_light,
+        refusal_reason=report.refusal_reason,
+        article=report.article,
+        dimensions=report.dimensions,
+        benchmark=report.benchmark,
+    )
+
+
+async def build_score_payload(
+    client: GobusGraphQLClient,
+    unique_id: str,
+    *,
+    compare_with: str | None = None,
+    catalog: AgencyCatalog | None = None,
+    now: datetime | None = None,
+) -> ScoreReport | None:
+    """``ScoreReport`` do artigo (com a comparação, se ``compare_with``); ``None`` se o
+    artigo não existe. Comparação inexistente ou igual ao artigo vira ``comparison_error``."""
+    catalog = catalog or AgencyCatalog(client)
+    now = now or now_brt()
+    compare_with = (compare_with or "").strip() or None
+    other_id = compare_with if compare_with and compare_with != unique_id else None
+
+    if other_id:
+        main, other = await asyncio.gather(
+            _score_one(client, unique_id, catalog=catalog, now=now),
+            _score_one(client, other_id, catalog=catalog, now=now),
+        )
+    else:
+        main, other = await _score_one(client, unique_id, catalog=catalog, now=now), None
+    if main is None:
+        return None
+    report = main.report
+
+    update: dict = {
+        "params": {"unique_id": unique_id, "compare_with": compare_with},
+        "suggested_comparisons": _suggestions(
+            main, {unique_id, report.article.unique_id, compare_with or ""}
+        ),
+    }
+    if compare_with and other_id is None:
+        update["comparison_error"] = "compare_with é o próprio artigo: escolha outro uniqueId"
+    elif other_id and other is None:
+        update["comparison_error"] = f"artigo de comparação não encontrado: `{other_id}`"
+    elif other is not None:
+        update["comparison"] = _comparison(other.report)
+    report = report.model_copy(update=update)
     return report.model_copy(update={"summary": render_score_markdown(report)})
 
 
@@ -438,20 +574,69 @@ def render_score_markdown(report: ScoreReport) -> str:
             f"| Palavras (mediana) | {own[2]} | {ref[2]} |",
             f'\n_Medianas com no mínimo {MIN_SAMPLE} artigos; abaixo disso, "—"._',
         ]
+    lines.extend(_comparison_lines(report))
+    if report.suggested_comparisons:
+        lines.append("\n## Sugestões de comparação (`compare_with`)")
+        for sug in report.suggested_comparisons:
+            lines.append(f"- `{sug.unique_id}` — {sug.title} ({sug.reason})")
     for notice in report.notices:
         lines.append(f"> {notice.message}")
     return "\n".join(lines)
+
+
+def _overall_cell(status: str, overall: float | None) -> str:
+    if overall is None:
+        return "indisponível"
+    return f"{overall:.1f}/10" + (" (parcial)" if status == "partial" else "")
+
+
+def _comparison_lines(report: ScoreReport) -> list[str]:
+    if report.comparison_error:
+        return [f"\n> Comparação indisponível: {report.comparison_error}."]
+    cmp = report.comparison
+    if cmp is None:
+        return []
+    art, other = report.article, cmp.article
+    mine = {d.key: d for d in report.dimensions}
+    theirs = {d.key: d for d in cmp.dimensions}
+
+    def score(d: ScoreDimension | None) -> str:
+        return f"{d.score:.1f}" if d is not None and d.score is not None else "—"
+
+    def flesch(a: ScoredArticle) -> str:
+        return describe_flesch(clamp_flesch(a.flesch_raw)) if a.flesch is not None else "—"
+
+    lines = [
+        f"\n## Comparação: {other.title}",
+        f"**{other.agency_name}** (`{other.agency_key}`) · {_date(other.published_at)} · "
+        f"`{other.unique_id}`\n",
+        "| | Este artigo | Comparado |",
+        "|---|---|---|",
+        f"| Nota | {_overall_cell(report.score_status, report.overall)} | "
+        f"{_overall_cell(cmp.score_status, cmp.overall)} |",
+    ]
+    for key in WEIGHTS:
+        lines.append(f"| {LABELS[key]} | {score(mine.get(key))} | {score(theirs.get(key))} |")
+    lines += [
+        f"| Flesch | {flesch(art)} | {flesch(other)} |",
+        f"| Palavras | {art.word_count if art.word_count is not None else '—'} | "
+        f"{other.word_count if other.word_count is not None else '—'} |",
+    ]
+    return lines
 
 
 async def score_article(
     unique_id: str,
     client: GobusGraphQLClient,
     *,
+    compare_with: str | None = None,
     catalog: AgencyCatalog | None = None,
     now: datetime | None = None,
 ) -> str:
     """Markdown do scorecard editorial do artigo."""
-    report = await build_score_payload(client, unique_id, catalog=catalog, now=now)
+    report = await build_score_payload(
+        client, unique_id, compare_with=compare_with, catalog=catalog, now=now
+    )
     if report is None:
         return f"Artigo não encontrado: `{unique_id}`"
     return report.summary

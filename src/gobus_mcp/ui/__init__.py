@@ -86,6 +86,18 @@ APPS: dict[str, AppSpec] = {
             tool="gobus_get_readability_recommendations",
             kind="gobus.readability",
         ),
+        AppSpec(
+            name="article_scorecard",
+            uri="ui://article-scorecard",
+            title="Score editorial",
+            description=(
+                "MCP App de gobus_score_article: nota 0–10 com semáforos por dimensão, "
+                "benchmark da agência e da Agência Brasil e comparação lado a lado "
+                "(compare_with). Template estático: os dados chegam pelo structuredContent."
+            ),
+            tool="gobus_score_article",
+            kind="gobus.scorecard",
+        ),
     )
 }
 

@@ -1,0 +1,13 @@
+/* ui://article-scorecard */
+.sc-top { gap: 12px; margin: 2px 0 10px; }
+.sc-overall { display: inline-flex; align-items: center; gap: 8px; }
+.sc-overall .gb-light { width: 1.8em; height: 1.8em; font-size: var(--gb-size); }
+.sc-dims { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.sc-dim { display: flex; gap: 8px; align-items: flex-start; }
+.sc-dim .gb-light { margin-top: 1px; }
+.sc-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; align-items: start; margin: 4px 0 6px; }
+.sc-side { border: 1px solid var(--gb-border); border-radius: var(--gb-radius); padding: 10px 12px; min-width: 0; }
+.sc-side > p:first-child { margin: 0 0 2px; }
+.sc-side-title { margin: 0; font-size: var(--gb-size); font-weight: var(--gb-weight); }
+.sc-side .gb-row { margin: 6px 0 8px; }
+.sc-suggestions { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
