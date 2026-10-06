@@ -11,7 +11,9 @@ Recebe as linhas do ``articles`` (já buscadas pela tool) e devolve as partes do
   ``canonicalId``, sem a própria entidade e sem as ``dgb_{code}`` do catálogo; média dos
   cossenos entre pares ponderada por ``min(n_a, n_b)``; agência com < 3 entidades fora.
 - **T, timing BRT (0,25):** ``0,5 × fração com o 1º artigo em até 48 h do primeiro emissor``
-  + ``0,5 × Jaccard médio dos dias de publicação``.
+  + ``0,5 × Jaccard médio dos dias de publicação``. Fica fora do índice
+  (``timing_unavailable``) quando a amostra não cobre a janela inteira (truncada, páginas com
+  falha ou índice de busca parcial): a 1ª publicação de cada agência pode não estar nela.
 - **F, enquadramento (0,25):** ``1 − JSD`` médio (base 2) das distribuições do léxico de
   ``analytics.framing``; indisponível com < 40% dos artigos classificados.
 - **S, tom (0,15):** ``1 − JSD`` médio das contagens de sentimento por agência (aliases de
@@ -612,9 +614,12 @@ def assess(
     tone_counts: Mapping[str, Mapping[str, int]] | None = None,
     tone_totals: Mapping[str, int] | None = None,
     tone_error: str | None = None,
+    timing_unavailable: str | None = None,
 ) -> Assessment:
     """Avalia a coerência da amostra. ``tone_counts``/``tone_totals`` vêm dos aliases de
-    contagem por agência (``None`` = não medido; ``tone_error`` explica a falha)."""
+    contagem por agência (``None`` = não medido; ``tone_error`` explica a falha).
+    ``timing_unavailable`` (o motivo) tira o T do índice e das divergências: a amostra não
+    cobre a janela inteira e a 1ª publicação de cada agência pode estar fora dela."""
     names = names or {}
     split = split_agencies(articles, republishers)
     emitters = split.emitters
@@ -678,9 +683,10 @@ def assess(
         )
 
     tone_value = tone.value if tone else None
+    timing_value = None if timing_unavailable else timing.value
     values: dict[DimensionKey, float | None] = {
         "entities": entities.value,
-        "timing": timing.value,
+        "timing": timing_value,
         "framing": framing.value,
         "tone": tone_value,
     }
@@ -693,10 +699,15 @@ def assess(
         else entities.reason or ""
     )
     others = len(timing.first) - 1
-    timing_detail = (
+    timing_detail = timing_unavailable or (
         f"1º artigo em até 48 h: {timing.within_count} de {others} "
         f"{'agência' if others == 1 else 'agências'}; "
         f"dias em comum (Jaccard) {_num(timing.jaccard or 0.0)}"
+    )
+    timing_metric = (
+        {"within48h": None, "jaccard": None}
+        if timing_unavailable
+        else {"within48h": timing.within, "jaccard": timing.jaccard}
     )
     if framing.value is not None:
         dominant = FRAME_LABELS[framing.overall] if framing.overall else "—"
@@ -723,13 +734,7 @@ def assess(
             entity_detail,
             {"eligibleAgencies": len(entities.eligible), "sharedAnchors": len(entities.shared)},
         ),
-        _dimension(
-            "timing",
-            timing.value,
-            effective["timing"],
-            timing_detail,
-            {"within48h": timing.within, "jaccard": timing.jaccard},
-        ),
+        _dimension("timing", timing_value, effective["timing"], timing_detail, timing_metric),
         _dimension(
             "framing",
             framing.value,
@@ -749,7 +754,7 @@ def assess(
         list(emitters),
         {
             "entities": entities.pairs,
-            "timing": timing.pairs,
+            "timing": {} if timing_unavailable else timing.pairs,
             "framing": framing.pairs,
             "tone": tone.pairs if tone else {},
         },

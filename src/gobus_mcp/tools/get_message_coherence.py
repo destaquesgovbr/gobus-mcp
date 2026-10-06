@@ -26,6 +26,8 @@ Fluxo de ``build_coherence_output`` (I/O aqui; a análise fica em ``analytics.co
    - conferência do índice de busca: ``found`` do Typesense contra o Postgres na janela
      (``indexing_lag``, aviso ``INDEXING_LAG``). O filtro ``entityCanonical`` depende do
      reindex; sem ele (0 contra N), o relatório fica indisponível em vez de "nenhum artigo".
+     Abaixo de 50% (``indexing_lag`` indisponível) também, sem pontuar a amostra enviesada;
+     degradado (50–90%) tira o timing do índice.
 6. ``assess`` → ``CoherenceReport`` → Markdown (``summary`` = o mesmo texto até 6 KB).
 
 Típico: 3–4 requisições em 1–2,5 s. Cada fonte degrada sozinha; a tool não cai.
@@ -493,6 +495,10 @@ def _error_text(exc: BaseException) -> str:
     return str(exc) or type(exc).__name__
 
 
+def _share(part: int, total: int) -> str:
+    return f"{part / total:.0%}" if total else "—"
+
+
 # ── montagem ────────────────────────────────────────────────────────────────
 
 
@@ -784,10 +790,10 @@ async def build_coherence_output(
 
     fetch.found = int(page1_r.get("found") or 0)
     fetch.rows = list(page1_r.get("articles") or [])
+    lag = None
     if pg is not None:
-        statuses.append(
-            indexing_lag_status(fetch.found, pg.window, label=f"{subject.label} em {span}")
-        )
+        lag = indexing_lag_status(fetch.found, pg.window, label=f"{subject.label} em {span}")
+        statuses.append(lag)
     if fetch.found == 0:
         if subject.kind == "entity" and subject.resolved_by == "id":
             if not isinstance(entity_r, BaseException) and not (entity_r or {}).get("entity"):
@@ -810,6 +816,17 @@ async def build_coherence_output(
             "entidades; gobus://themes para temas)."
         )
         return finish(without_index("no_articles", hint, "sem artigos na janela"))
+    if pg is not None and lag is not None and lag.status == "unavailable":
+        # Índice de busca com menos da metade dos artigos do Postgres: a amostra é enviesada
+        # (timing, âncoras e tom distorcidos); como no 0 contra N, sem índice.
+        gap = (
+            f"o índice de busca (Typesense) tem só {fetch.found} de {pg.window} artigos de "
+            f"{subject.label} na janela {span} ({_share(fetch.found, pg.window)}): com a "
+            "amostra parcial, timing e âncoras sairiam distorcidos. Causa provável: histórico "
+            "anterior a ~20/05/2026 ainda não reindexado ou atraso da indexação "
+            "(gobus://health/pipelines). Tente uma janela mais recente."
+        )
+        return finish(without_index("unavailable", gap, "índice de busca parcial"))
 
     # ── páginas 2–4 ──
     pages = min(MAX_PAGES, math.ceil(fetch.found / PAGE_SIZE))
@@ -875,6 +892,12 @@ async def build_coherence_output(
                 )
             )
 
+    timing_gaps = []
+    if pg is not None and lag is not None and lag.status == "degraded":
+        timing_gaps.append(
+            f"índice de busca parcial ({fetch.found} de {pg.window} artigos do Postgres): a "
+            "1ª publicação de cada agência pode faltar"
+        )
     exclude = excluded_entities(subject.id, catalog_info.codes)
     names = await _names_within(names_task, started + NAMES_DEADLINE)
     assessment = assess(
@@ -885,6 +908,7 @@ async def build_coherence_output(
         tone_counts=tone_counts,
         tone_totals=tone_totals,
         tone_error=tone_error,
+        timing_unavailable="; ".join(timing_gaps) or None,
     )
     with_entities = sum(1 for a in articles if a.entities)
     if articles:
