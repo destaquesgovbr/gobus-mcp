@@ -34,6 +34,7 @@ from gobus_mcp.tools.resolve_entity import resolve_entity
 from gobus_mcp.tools.score_article import build_score_payload
 from gobus_mcp.tools.search_news import search_news
 from gobus_mcp.ui import app_result, app_tool_kwargs, register_ui_resources
+from gobus_mcp.ui.preview import fixtures_dir, register_dev_previews
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
@@ -569,6 +570,10 @@ async def health_pipelines_resource() -> str:
 # MCP Apps: um resource ui:// por app (HTML estático, sem I/O; os dados vêm da tool).
 register_ui_resources(mcp)
 
+# Só em desenvolvimento: gobus_dev_preview_<app> com as fixtures (DEV — dados fictícios).
+if settings.dev_preview:
+    register_dev_previews(mcp, fixtures_dir(settings.dev_fixtures))
+
 
 # ── Prompts ──────────────────────────────────────────────────────────────────
 
@@ -599,6 +604,26 @@ def prompt_weekly_digest() -> list[dict]:
     return weekly_digest_prompt()
 
 
+def http_middleware(origins: str) -> list:
+    """Middleware do servidor HTTP: CORS só quando ``GOBUS_CORS_ORIGINS`` traz origens
+    (desenvolvimento: o basic-host conecta do navegador). Vazio = nenhum middleware."""
+    allowed = [o.strip() for o in origins.split(",") if o.strip()]
+    if not allowed:
+        return []
+    from starlette.middleware import Middleware
+    from starlette.middleware.cors import CORSMiddleware
+
+    return [
+        Middleware(
+            CORSMiddleware,
+            allow_origins=allowed,
+            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_headers=["*"],
+            expose_headers=["mcp-session-id", "mcp-protocol-version"],
+        )
+    ]
+
+
 def main():
     import os
 
@@ -619,7 +644,16 @@ def main():
                 "Transport: http stateless em 0.0.0.0:%d — /mcp (2025-03-26) + /sse (2024-11-05)",
                 port,
             )
-            mcp.run(transport="http", host="0.0.0.0", port=port, stateless_http=True)
+            middleware = http_middleware(settings.cors_origins)
+            if middleware:
+                logger.warning("CORS de desenvolvimento ligado: %s", settings.cors_origins)
+            mcp.run(
+                transport="http",
+                host="0.0.0.0",
+                port=port,
+                stateless_http=True,
+                middleware=middleware or None,
+            )
     except KeyboardInterrupt:
         logger.info("Servidor interrompido pelo usuário")
     except Exception as e:

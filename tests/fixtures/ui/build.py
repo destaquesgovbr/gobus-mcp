@@ -9,8 +9,8 @@ nome e argumentos).
 Os payloads saem dos **builders reais** (``build_*_payload`` + ``ui.app_result``) com um
 ``FakeGraphQLClient`` e relógio fixo, então valem o contrato pydantic por construção. São
 compartilhadas pelo pytest de contrato (``tests/test_ui/test_fixtures_contract.py``, que
-confere que os arquivos estão em dia), pelo mini-host Playwright (``tests/browser``) e,
-mais tarde, pelas tools de preview dev.
+confere que os arquivos estão em dia), pelo mini-host Playwright (``tests/browser``) e
+pelas tools de preview dev (``gobus_dev_preview_<app>``, só com ``GOBUS_DEV_PREVIEW=1``).
 
 Regerar depois de mudar builder, render ou payload::
 
