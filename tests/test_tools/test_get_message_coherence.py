@@ -477,13 +477,39 @@ async def test_lacuna_do_indice_de_busca_nao_vira_nenhum_artigo(fake_client):
     assert "índice de busca" in markdown
 
 
-async def test_indice_parcial_avisa_indexing_lag(fake_client):
-    scenario(fake_client, window_pg=[(22, 20), (23, 20)])  # 40 no Postgres, 13 no Typesense
-    report, _ = await run(fake_client, entity_id="Q575545")
+async def test_indice_abaixo_de_50pct_fica_indisponivel_sem_pontuar_a_amostra(fake_client):
+    # 40 no Postgres, 13 no Typesense: amostra enviesada (como 0 contra N, sem índice)
+    scenario(fake_client, window_pg=[(22, 20), (23, 20)])
+    report, markdown = await run(fake_client, entity_id="Q575545")
 
     lag = next(s for s in report.data_status if s.key == "indexing_lag")
     assert lag.status == "unavailable"
     assert "INDEXING_LAG" in {n.code for n in report.notices}
+    assert report.index_status == "unavailable"
+    assert report.status == "unavailable"
+    assert report.index.score is None
+    assert "13 de 40" in report.index_note
+    assert "índice de busca" in markdown and "Nenhum artigo" not in markdown
+    assert report.sample.found == 13
+    assert not fake_client.calls("CoherenceCounts")  # sem tom sobre amostra enviesada
+
+
+async def test_indice_degradado_tira_o_timing_do_indice(fake_client):
+    # 20 no Postgres, 13 no Typesense (65%): o 1º artigo de cada agência pode faltar
+    scenario(fake_client, window_pg=[(22, 10), (23, 10)])
+    report, markdown = await run(fake_client, entity_id="Q575545")
+
+    lag = next(s for s in report.data_status if s.key == "indexing_lag")
+    assert lag.status == "degraded"
+    assert "INDEXING_LAG" in {n.code for n in report.notices}
+    assert report.index_status == "scored"
+    timing = next(d for d in report.dimensions if d.key == "timing")
+    assert timing.status == "unavailable"
+    assert timing.effective_weight is None
+    assert "índice de busca parcial" in timing.detail and "13 de 20" in timing.detail
+    weights = [d.effective_weight for d in report.dimensions if d.effective_weight is not None]
+    assert sum(weights) == pytest.approx(1.0, abs=1e-3)
+    assert all(d.by_dimension["timing"] is None for d in report.divergences)
     assert report.status == "partial"
 
 

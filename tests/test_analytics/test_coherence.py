@@ -452,6 +452,35 @@ def test_avaliacao_renormaliza_sem_tom():
     assert result.index.level == 5
 
 
+def test_timing_fora_do_indice_quando_a_amostra_nao_cobre_a_janela():
+    rows = [
+        row("a", "2026-09-01T12:00:00+00:00", ENTS_A, "Governo anuncia programa"),
+        row("a", "2026-09-02T12:00:00+00:00", ENTS_A, "Governo lança plano"),
+        row("b", "2026-09-05T15:00:00+00:00", ENTS_A, "Governo anuncia programa"),
+        row("b", "2026-09-06T15:00:00+00:00", ENTS_A, "Governo lança plano"),
+    ]
+    reason = "amostra com os 1000 artigos mais recentes de 1200"
+    result = assess(
+        arts(*rows),
+        republishers=REPUBLISHERS,
+        exclude=frozenset(),
+        tone_counts={"a": {"positive": 2}, "b": {"positive": 2}},
+        tone_totals={"a": 2, "b": 2},
+        timing_unavailable=reason,
+    )
+    by_key = {d.key: d for d in result.dimensions}
+    assert result.index_status == "scored"
+    assert by_key["timing"].status == "unavailable"
+    assert by_key["timing"].value is None and by_key["timing"].effective_weight is None
+    assert by_key["timing"].detail == reason
+    assert by_key["timing"].metric == {"within48h": None, "jaccard": None}
+    assert by_key["entities"].effective_weight == pytest.approx(0.35 / 0.75, abs=1e-4)
+    assert result.index.score == pytest.approx(1.0)  # E, F e S idênticos; o T (0) não entra
+    (pair,) = result.divergences
+    assert pair.by_dimension["timing"] is None
+    assert pair.weakest != "timing"
+
+
 def test_tom_nao_medido_fica_indisponivel_com_o_motivo():
     rows = [row("a"), row("a"), row("b"), row("b")]
     result = assess(
