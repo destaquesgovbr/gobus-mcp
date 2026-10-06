@@ -1,5 +1,6 @@
+import inspect
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -7,7 +8,7 @@ import pytest
 
 _OPERATION_NAME_RE = re.compile(r"^\s*(?:query|mutation|subscription)\s+([_A-Za-z][_0-9A-Za-z]*)")
 
-RouteResponse = dict | BaseException | Callable[[dict | None], dict]
+RouteResponse = dict | BaseException | Callable[[dict | None], dict | Awaitable[dict]]
 
 
 def operation_name(query: str) -> str | None:
@@ -23,7 +24,8 @@ class FakeGraphQLClient:
     - ``set_response(data)``: toda chamada devolve ``data``;
     - ``set_responses([...])``: devolve em ordem (frágil com gather/semáforo);
     - ``route(op_name, resposta)``: despacha pelo nome da operação GraphQL. A resposta
-      pode ser um dict, uma exceção (levantada) ou um callable ``f(variables) -> dict``.
+      pode ser um dict, uma exceção (levantada) ou um callable ``f(variables) -> dict``
+      (síncrono ou ``async``, para testar concorrência).
       Preferir ``route`` em todo teste novo.
     """
 
@@ -61,7 +63,8 @@ class FakeGraphQLClient:
         if isinstance(response, BaseException):
             raise response
         if callable(response):
-            return response(variables)
+            result = response(variables)
+            return await result if inspect.isawaitable(result) else result
         return response
 
 

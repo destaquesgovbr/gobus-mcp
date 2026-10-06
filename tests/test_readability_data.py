@@ -137,3 +137,48 @@ def test_ranking_ordena_por_flesch_e_separa_sem_dado():
     with_data, without = rank_agencies(aggregate_agencies(rows))
     assert [a.code for a in with_data] == ["c", "a", "b"]  # empate em 0.0: bruto decide
     assert [a.code for a in without] == ["d"]
+
+
+async def test_historico_e_sondado_so_com_as_agencias_mais_ativas(fake_client):
+    agencies = [f"ag{i}" for i in range(12)]
+    rows = [_row("2026-10", code, 10, 30.0) for code in agencies]
+    _route(fake_client, {"2026-07-07": rows, LOOKBACK_FROM: rows})
+
+    await load_readability_window(fake_client, agencies, REQUESTED)
+
+    by_from = {c["dateFrom"]: c["agencies"] for c in fake_client.calls("ReadabilityWindow")}
+    assert by_from["2026-07-07"] == agencies  # a janela pedida traz todas
+    assert by_from[LOOKBACK_FROM] == agencies[:5]  # o histórico só acha o último mês com dado
+
+
+async def test_agregacao_carrega_o_catalogo_em_paralelo_com_a_janela(fake_client):
+    import asyncio
+
+    from gobus_mcp.agency_catalog import AgencyCatalog
+    from gobus_mcp.readability_data import load_agency_readability
+    from tests.conftest import route_catalog
+
+    route_catalog(fake_client)
+    started: list[str] = []
+    gate = asyncio.Event()
+
+    async def window_route(v):
+        started.append("window")
+        await gate.wait()
+        return {"agencyAnalytics": []}
+
+    async def names_route(v):
+        started.append("names")
+        gate.set()
+        return {"agencyAnalytics": [{"agencyKey": "saude", "agencyName": "Ministério da Saúde"}]}
+
+    fake_client.route("ReadabilityWindow", window_route)
+    fake_client.route("CatalogAgencyNames", names_route)
+
+    _, items = await asyncio.wait_for(
+        load_agency_readability(fake_client, AgencyCatalog(fake_client), ["saude"], REQUESTED),
+        timeout=2,
+    )
+
+    assert "names" in started and "window" in started
+    assert items[0].name == "Ministério da Saúde"
