@@ -120,8 +120,9 @@ def _months_between(start: date, end: date) -> int:
 
 def monthly_series(coverage: list[dict], until: date | None = None) -> list[MonthPoint]:
     """Soma as agências por mês e preenche com 0 os meses sem cobertura, do primeiro mês
-    com cobertura até ``until`` (mês de referência, marcado como parcial) ou até o último
-    mês com cobertura, o que vier depois."""
+    com cobertura até ``until`` (mês de referência) ou até o último mês com cobertura, o
+    que vier depois. O mês de referência e os seguintes ficam parciais: os meses da API
+    são UTC, e das 21h às 24h BRT do último dia o artigo já cai no mês seguinte."""
     by_month: dict[date, MonthPoint] = {}
     for point in coverage:
         try:
@@ -142,7 +143,7 @@ def monthly_series(coverage: list[dict], until: date | None = None) -> list[Mont
         last = max(last, until)
     while month <= last:
         point = by_month.get(month) or MonthPoint(month)
-        point.partial = month == until
+        point.partial = until is not None and month >= until
         series.append(point)
         month = _next_month(month)
     return series
@@ -274,7 +275,8 @@ async def get_policy_lifecycle(
 
     # o mês corrente é parcial: fica fora da classificação, salvo se for o único mês
     closed = [p for p in series if not p.partial]
-    partial = next((p for p in series if p.partial), None)
+    partials = [p for p in series if p.partial]
+    partial_total = sum(p.article_count for p in partials)
     peak = classify_phases(closed or series)
     anchors = narrative_anchors(series)
     current = (closed or series)[-1]
@@ -300,10 +302,10 @@ async def get_policy_lifecycle(
             f"Sem cobertura desde {last_with_data.label}: {months_txt} sem artigos "
             f"(até {current.label})."
         )
-    if partial is not None and partial is not peak and partial.article_count > peak.article_count:
+    if closed and partials and partial_total > peak.article_count:
         notices.append(
             f"O mês corrente (parcial) já supera o pico dos meses fechados: "
-            f"{partial.article_count} artigos em {partial.label}."
+            f"{partial_total} artigos em {partials[0].label}."
         )
     if pd:
         if pd.get("domain"):
@@ -335,9 +337,9 @@ async def get_policy_lifecycle(
         f"({current_txt}: {current.label}, {current.article_count} artigos)."
     )
     lines.append(PHASE_DESCRIPTIONS[current.phase])
-    if partial is not None and partial is not current:
+    if closed and partials:
         lines.append(
-            f"Mês corrente ({partial.label}, parcial): {partial.article_count} artigos, "
+            f"Mês corrente ({partials[0].label}, parcial): {partial_total} artigos, "
             "fora da classificação."
         )
 
