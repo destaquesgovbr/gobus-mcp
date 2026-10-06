@@ -67,6 +67,15 @@ def test_theme_coverage_status(classified, total, expected):
     assert "7" in ds.message
 
 
+def test_theme_coverage_status_com_escopo_explicito():
+    # baseline anterior à janela: o texto não é "dos últimos N dias"
+    ds = theme_coverage_status(10, 1000, days=21, scope="do baseline (18 dias antes da janela)")
+    assert ds.status == "unavailable"
+    assert "do baseline (18 dias antes da janela)" in ds.message
+    assert "últimos" not in ds.message
+    assert ds.metric["days"] == 21
+
+
 # ── metric_coverage_status (legibilidade, word_count) ───────────────────────
 
 
@@ -147,6 +156,18 @@ def test_ranking_corrigido_e_recente_e_ok():
     assert ds.status == "ok"
     assert ds.metric["rowsLegacyFloor"] == 0
     assert ds.metric["isNewShare"] == pytest.approx(1 / 11)
+
+
+def test_ranking_is_new_nulo_nao_conta_como_falso():
+    # Depois do GA-1 o campo existe, mas linhas gravadas antes da 029 (baseline nulo) vêm
+    # com isNew null: nulo não é "não novo". Sem nenhum valor, a fração não aparece.
+    pending = [_trending_row("2026-10-05 12:00:00+00", 3.2, 12, isNew=None) for _ in range(8)]
+    assert "isNewShare" not in entity_ranking_status(pending, now=NOW).metric
+    mixed = pending + [
+        _trending_row("2026-10-05 12:00:00+00", 3.2, 12, isNew=True),
+        _trending_row("2026-10-05 12:00:00+00", 3.2, 12, isNew=False),
+    ]
+    assert entity_ranking_status(mixed, now=NOW).metric["isNewShare"] == pytest.approx(0.5)
 
 
 def test_ranking_com_mais_de_13h_e_degradado_e_com_mais_de_7_dias_indisponivel():
@@ -241,3 +262,49 @@ async def test_theme_coverage_sem_tema_fica_indisponivel(fake_client):
 
     assert status.status == "unavailable"
     assert status.since.isoformat() == "2026-09-26"
+
+
+# ── indexing_lag (G2) ───────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("indexed", "stored", "expected"),
+    [
+        (155, 155, "ok"),
+        (140, 155, "ok"),  # ≥ 90%
+        (3, 8, "ok"),  # faltam só 5: atraso normal de poucos minutos
+        (100, 155, "degraded"),
+        (78, 155, "degraded"),  # ≥ 50%
+        (4, 171, "unavailable"),  # 05/10: o tempo real do Typesense parado
+        (200, 150, "ok"),  # bucket diferente: o Typesense à frente não é atraso
+    ],
+)
+def test_indexing_lag_status_pela_fracao_indexada(indexed, stored, expected):
+    from gobus_mcp.data_status import indexing_lag_status
+
+    status = indexing_lag_status(indexed, stored, label="05/10 (UTC)")
+
+    assert status.key == "indexing_lag"
+    assert status.status == expected
+    assert status.metric["indexed"] == indexed
+    assert status.metric["stored"] == stored
+
+
+def test_indexing_lag_status_redige_quanto_falta():
+    from gobus_mcp.data_status import indexing_lag_status
+
+    status = indexing_lag_status(4, 171, label="05/10 (UTC)")
+
+    assert status.metric["missing"] == 167
+    assert status.metric["ratio"] == pytest.approx(4 / 171)
+    assert "4 de 171" in status.message and "05/10 (UTC)" in status.message
+    assert to_notice(status).code == "INDEXING_LAG"
+
+
+def test_indexing_lag_sem_artigos_no_postgres_nao_acusa_atraso():
+    from gobus_mcp.data_status import indexing_lag_status
+
+    status = indexing_lag_status(0, 0, label="05/10 (UTC)")
+
+    assert status.status == "ok"
+    assert status.metric["ratio"] is None

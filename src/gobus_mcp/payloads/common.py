@@ -55,6 +55,12 @@ NoticeSeverity = Literal["info", "warn", "error"]
 
 Phase = Literal["normal", "blackout", "recovery"]
 
+# Faixa de uma severidade 0–1 (< 0,33 normal; < 0,66 watch; ≥ 0,66 alert), calculada no
+# gobus: o app não reimplementa limiares.
+Band = Literal["normal", "watch", "alert"]
+
+Confidence = Literal["high", "medium", "low"]
+
 
 class Payload(BaseModel):
     """Base de todo modelo de payload: snake_case no Python, camelCase no JSON."""

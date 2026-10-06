@@ -89,6 +89,43 @@ def _make(
     return DataStatus(key=key, status=status, since=since, message=message, metric=metric)
 
 
+def data_status_for(
+    key: DataKey,
+    status: Status,
+    detail: str,
+    *,
+    since: date | None = None,
+    metric: dict[str, float | int | None] | None = None,
+) -> DataStatus:
+    """``DataStatus`` com a redação padrão ("Rótulo: status — detalhe (desde dd/mm/aaaa)")."""
+    return _make(key, status, detail, since=since, metric=metric or {})
+
+
+_STATUS_RANK: Mapping[str, int] = {"ok": 0, "degraded": 1, "unavailable": 2}
+
+
+def worst_status(statuses: Iterable[Status]) -> Status:
+    """O pior status (``ok`` < ``degraded`` < ``unavailable``); ``ok`` se vazio."""
+    return max(statuses, key=_STATUS_RANK.__getitem__, default="ok")
+
+
+def worst_data_status(statuses: Iterable[DataStatus]) -> DataStatus:
+    """O ``DataStatus`` de pior status; no empate, o de menor ``metric["ratio"]``."""
+    return max(statuses, key=lambda s: (_STATUS_RANK[s.status], -(s.metric.get("ratio") or 0)))
+
+
+def failed_status(key: DataKey, error: BaseException | str) -> DataStatus:
+    """``unavailable`` por falha de consulta. Sem dica de ``since``: a falha é de agora."""
+    text = error if isinstance(error, str) else (str(error) or type(error).__name__)
+    return DataStatus(
+        key=key,
+        status="unavailable",
+        since=None,
+        message=f"{KEY_LABELS[key]}: indisponível — falha ao consultar a graphql-api ({text})",
+        metric={},
+    )
+
+
 def _status_for_ratio(ratio: float | None, *, dead: float, degraded: float) -> Status:
     if ratio is None or ratio < dead:
         return "unavailable"
@@ -125,17 +162,21 @@ def share_status(
     )
 
 
-def theme_coverage_status(classified: int, total: int, *, days: int) -> DataStatus:
+def theme_coverage_status(
+    classified: int, total: int, *, days: int, scope: str | None = None
+) -> DataStatus:
     """Cobertura de classificação de temas na janela (Σ topThemes / analyticsKpis.total).
 
     Abaixo de 50% o bloco de temas fica indisponível; abaixo de 80%, degradado.
+    ``scope`` troca o "dos últimos N dias" do texto (ex.: o baseline anterior à janela).
     """
     ratio = classified / total if total > 0 else None
     status = _status_for_ratio(ratio, dead=0.5, degraded=0.8)
+    where = scope or f"dos últimos {days} dias"
     detail = (
-        f"{_pct(ratio)} dos artigos dos últimos {days} dias com tema ({classified} de {total})"
+        f"{_pct(ratio)} dos artigos {where} com tema ({classified} de {total})"
         if total > 0
-        else f"sem artigos nos últimos {days} dias"
+        else f"sem artigos {where}"
     )
     metric = {"classified": classified, "total": total, "ratio": ratio, "days": days}
     return _make("themes", status, detail, since=None, metric=metric)
@@ -209,6 +250,42 @@ def metric_coverage_status(
     return _make(key, status, detail, since=since, metric=metric)
 
 
+# Atraso de indexação (Typesense contra Postgres no mesmo intervalo).
+INDEXING_OK = 0.9
+INDEXING_DEAD = 0.5
+INDEXING_TOLERANCE = 5  # artigos ainda não indexados que não contam como atraso
+
+
+def indexing_lag_status(indexed: int, stored: int, *, label: str) -> DataStatus:
+    """Fração dos artigos do Postgres (``agencyAnalytics`` DAY) já no Typesense
+    (``articles{found}``) no mesmo intervalo de dias UTC (``label``, só texto).
+
+    - ok: ≥ 90% indexados, ou faltam no máximo 5 (atraso normal de minutos);
+    - degradado: ≥ 50%; indisponível: abaixo disso (tempo real parado, só o sync diário);
+    - sem artigos no Postgres: ok, sem fração (nada a comparar).
+    """
+    missing = max(stored - indexed, 0)
+    ratio = min(indexed / stored, 1.0) if stored > 0 else None
+    metric: dict[str, float | int | None] = {
+        "indexed": indexed,
+        "stored": stored,
+        "missing": missing,
+        "ratio": ratio,
+    }
+    if ratio is None:
+        return _make("indexing_lag", "ok", f"sem artigos em {label}", since=None, metric=metric)
+    if ratio >= INDEXING_OK or missing <= INDEXING_TOLERANCE:
+        status: Status = "ok"
+    elif ratio >= INDEXING_DEAD:
+        status = "degraded"
+    else:
+        status = "unavailable"
+    detail = (
+        f"{indexed} de {stored} artigos de {label} no Typesense ({_pct(ratio)}); faltam {missing}"
+    )
+    return _make("indexing_lag", status, detail, since=None, metric=metric)
+
+
 def sentiment_analytics_status(rows: Iterable[Mapping]) -> DataStatus:
     """Sentimento do ``agencyAnalytics``: decide pela nulidade de ``avgSentimentScore``.
 
@@ -257,8 +334,11 @@ def entity_ranking_status(rows: list[Mapping], *, now: datetime) -> DataStatus:
         distinctRuns=distinct_runs,
         ageHours=round(age_hours, 2),  # metric só aceita números; a data vai no texto
     )
-    if any("isNew" in r for r in rows):
-        metric["isNewShare"] = sum(1 for r in rows if r.get("isNew")) / len(rows)
+    # Fração de isNew (GA-1) só entre as linhas com valor: null (baseline nulo, linha
+    # anterior à 029) não é "não novo". Sem nenhum valor, a métrica não aparece.
+    known_new = [r["isNew"] for r in rows if r.get("isNew") is not None]
+    if known_new:
+        metric["isNewShare"] = sum(1 for v in known_new if v) / len(known_new)
 
     last_txt = last.strftime("%d/%m/%Y %H:%M UTC")
     if age_hours > RANKING_DEAD_DAYS * 24:

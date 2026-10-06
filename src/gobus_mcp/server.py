@@ -1,10 +1,12 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from fastmcp import FastMCP
 from fastmcp.server.http import Mount, Request, Response, SseServerTransport
 
+from gobus_mcp.agency_activity import AgencyActivityService
 from gobus_mcp.agency_catalog import AgencyCatalog
+from gobus_mcp.cache import TTLCache
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.config import settings
 from gobus_mcp.prompts.draft_press_release import draft_press_release_prompt
@@ -70,11 +72,21 @@ class Deps:
 
     Um único contêiner por processo; os testes trocam ``server._deps`` (monkeypatch) e
     tudo que é lido via ``get_deps()`` passa a usar o fake.
+
+    - ``activity``: snapshot de atividade das agências (cache de 6 h), usado por
+      anomalias, forecast e health; criado a partir de ``client``/``catalog`` se omitido;
+    - ``cache``: cache das tools do G2 (ranges de tema 5 min, ranking 10 min, contexto de
+      entidade 30 min).
     """
 
     client: GobusGraphQLClient
     catalog: AgencyCatalog
-    activity: object | None = None  # AgencyActivityService (G2)
+    activity: AgencyActivityService | None = None
+    cache: TTLCache = field(default_factory=TTLCache)
+
+    def __post_init__(self) -> None:
+        if self.activity is None:
+            self.activity = AgencyActivityService(self.client, self.catalog)
 
 
 def _build_deps() -> Deps:
@@ -83,7 +95,8 @@ def _build_deps() -> Deps:
         api_key=settings.graphql_api_key,
         timeout=settings.request_timeout,
     )
-    return Deps(client=client, catalog=AgencyCatalog(client))
+    catalog = AgencyCatalog(client)
+    return Deps(client=client, catalog=catalog, activity=AgencyActivityService(client, catalog))
 
 
 _deps = _build_deps()
@@ -382,38 +395,76 @@ async def gobus_get_policy_lifecycle(
 
 
 @mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
-async def gobus_detect_anomalies(sensitivity: str = "medium") -> str:
-    """Detecta anomalias comunicacionais: picos sustentados e cobertura concentrada.
+async def gobus_detect_anomalies(sensitivity: str = "medium", domain_filter: str = "") -> str:
+    """Detecta anomalias comunicacionais de temas e de entidades, ciente do defeso eleitoral.
 
-    Cruza duas janelas de detecção de temas (3d/21d e 7d/28d) para achar picos
-    sustentados e inspeciona entidades em alta para achar "silêncio concentrado" —
-    assuntos com alto volume relativo cobertos por poucas agências.
+    Temas (janelas móveis de 3 e 7 dias, UTC): share-of-voice — a fatia do tema entre os
+    artigos classificados contra o baseline anterior (21 e 28 dias) — com pico ou queda
+    sustentados só quando as duas janelas passam do limiar. Se a classificação de temas
+    não cobre as janelas, o bloco fica "indisponível" (nunca "nada mudou").
+
+    Entidades (janela fechada de 7 dias até ontem 23:59 BRT, contra 28 dias de baseline;
+    na recuperação pós-defeso, os 28 dias antes do defeso): candidatos do ranking em alta
+    recalculados pela cobertura diária (entityCoverage), sem republicadoras. Classes, em
+    ordem de precedência: rajada (≥80% num dia), entidade nova (sem baseline), explicado
+    pelo calendário (dona calada no defeso ou janela dominada por agências retomadas),
+    silêncio coordenado (outras agências sobem e a agência dona some), cobertura
+    concentrada (poucas agências) e normal. O volumeRatio do upstream nunca é usado como
+    sinal.
 
     Parâmetros:
-    - sensitivity: "high" | "medium" | "low" — quão sensível é o detector de
-      concentração (high = mais alertas, low = só os casos mais extremos)
+    - sensitivity: "high" (mais sinais) | "medium" (padrão) | "low" (só sinais fortes)
+    - domain_filter: domínio de política — HEALTH, EDUCATION, SOCIAL, ECONOMIC, SECURITY,
+      ENVIRONMENT, GOVERNANCE ou OTHER (aceita em português: saude, educacao, social,
+      economia, seguranca, meio_ambiente, governanca, outros). Vazio = todos. Valor
+      inválido devolve as opções.
 
-    Retorna: Markdown com picos sustentados, cobertura concentrada e tendências normais.
+    Retorna: Markdown com o cabeçalho das janelas, o calendário (defeso eleitoral até
+    25/10/2026, recuperação até 29/11), avisos de dados e as seções Picos Sustentados,
+    Quedas Sustentadas, Silêncio Coordenado, Cobertura Concentrada, Explicado pelo
+    Calendário, Rajadas e Entidades Novas e Tendências Normais, com severidade 0–1,
+    faixa (normal/atenção/alerta) e confiança.
     """
-    return await detect_anomalies(get_deps().client, sensitivity)
+    deps = get_deps()
+    return await detect_anomalies(
+        deps.client,
+        sensitivity,
+        domain_filter,
+        catalog=deps.catalog,
+        activity=deps.activity,
+        cache=deps.cache,
+    )
 
 
 @mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
 async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> str:
-    """Projeta tendências combinando três janelas de detecção de temas (3d, 7d, 21d).
+    """Projeta tendências de temas por share-of-voice em três janelas (3, 7 e 21 dias).
 
-    Cada tema recebe um score composto (média ponderada por janela), leitura de
-    momentum (acelerando/desacelerando/estável) e confiança conforme o número de
-    janelas em que aparece.
+    Para cada tema: razão da fatia entre os artigos classificados na janela contra o
+    baseline anterior a ela (14, 28 e 84 dias), taxa log por dia, ritmo composto (pesos
+    0,5/0,3/0,2 renormalizados nas janelas com cobertura de classificação), momentum
+    (acelerando, desacelerando, estável ou indeterminado) e confiança (cai um nível na
+    recuperação pós-defeso). A projeção é amortecida e usa o perfil de dia útil (feriado
+    conta como domingo) e o nível de volume da fase do calendário em cada dia.
 
     Parâmetros:
-    - horizon_days: Horizonte da projeção em dias (informativo — default 21)
-    - limit: Máximo de temas retornados, ordenados por score composto (default 5)
+    - horizon_days: horizonte efetivo da projeção, 1–28 dias (default 21; fora disso é
+      ajustado, com aviso)
+    - limit: máximo de temas, 1–10, ordenados pelo ritmo composto (default 5)
 
-    Retorna: Markdown com tabela Tema | Score Composto | Momentum | Confiança.
-    Atenção: a janela de 3 dias sofre viés de borda de fim de semana.
+    Retorna: Markdown com a tabela Tema | Ritmo (×/semana) | Momentum | Confiança |
+    Artigos esperados no horizonte (intervalo de 95%) | Razão por janela, mais os avisos
+    de cobertura de classificação e de calendário.
     """
-    return await forecast_trends(get_deps().client, horizon_days, limit)
+    deps = get_deps()
+    return await forecast_trends(
+        deps.client,
+        horizon_days,
+        limit,
+        catalog=deps.catalog,
+        activity=deps.activity,
+        cache=deps.cache,
+    )
 
 
 @mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
@@ -485,10 +536,11 @@ async def readability_report_resource() -> str:
 
 @mcp.resource("gobus://health/pipelines", mime_type="application/json")
 async def health_pipelines_resource() -> str:
-    """Saúde das fontes de dados (JSON): temas, legibilidade, sentimento e ranking de
-    entidades, cada uma ok | degraded | unavailable, com avisos."""
+    """Saúde das fontes de dados (JSON): temas, legibilidade, sentimento, ranking de
+    entidades, atraso de indexação e atividade das agências (silenciadas e retomadas),
+    cada uma ok | degraded | unavailable, com avisos."""
     deps = get_deps()
-    return await fetch_health_pipelines(deps.client, catalog=deps.catalog)
+    return await fetch_health_pipelines(deps.client, catalog=deps.catalog, activity=deps.activity)
 
 
 # ── Prompts ──────────────────────────────────────────────────────────────────

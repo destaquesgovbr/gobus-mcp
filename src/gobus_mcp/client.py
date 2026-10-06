@@ -16,12 +16,18 @@ class GobusGraphQLClient:
         self._headers = {"X-API-Key": api_key} if api_key else {}
         self._timeout = timeout
 
-    async def execute(self, query: str, variables: dict | None = None) -> dict:
-        """Executa query GraphQL e retorna data dict. Lança GobusGraphQLError em erros."""
+    async def execute(
+        self, query: str, variables: dict | None = None, *, timeout: float | None = None
+    ) -> dict:
+        """Executa query GraphQL e retorna data dict. Lança GobusGraphQLError em erros.
+
+        ``timeout`` (segundos) sobrepõe o padrão só nesta chamada — para consultas
+        sabidamente pesadas, como o snapshot de atividade das 156 agências.
+        """
         payload: dict = {"query": query}
         if variables:
             payload["variables"] = variables
-        async with httpx.AsyncClient(timeout=self._timeout) as http:
+        async with httpx.AsyncClient(timeout=timeout or self._timeout) as http:
             resp = await http.post(self._url, json=payload, headers=self._headers)
             resp.raise_for_status()
         body = resp.json()

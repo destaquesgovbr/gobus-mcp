@@ -21,6 +21,7 @@ from gobus_mcp.calendario import (
     baseline_for,
     brt_bounds,
     calendar_context,
+    calendar_notices,
     classifier_changed_within,
     closed_window,
     effective_weekday,
@@ -28,6 +29,8 @@ from gobus_mcp.calendario import (
     now_brt,
     phase,
     reference_date,
+    rolling_range,
+    rolling_window,
     utc_day_bounds,
 )
 from gobus_mcp.payloads.common import CalendarContext, Window
@@ -218,3 +221,85 @@ def test_corte_do_classificador_vem_da_triagem_f0a():
     assert CLASSIFIER_CUTOFF == D(2026, 9, 25)
     assert classifier_changed_within(DateRange(D(2026, 9, 1), D(2026, 10, 4))) is True
     assert classifier_changed_within(DateRange(D(2026, 9, 25), D(2026, 10, 4))) is False
+
+
+# ── G2: janelas móveis, janela fechada com bucket UTC e avisos de calendário ───
+
+
+def test_rolling_window_movel_em_utc_ate_agora():
+    now = datetime(2026, 10, 5, 15, 30, tzinfo=BRT)
+    w = rolling_window(7, now)
+    assert w.kind == "rolling" and w.bucket_tz == "UTC" and w.days == 7
+    assert w.end == datetime(2026, 10, 5, 18, 30, tzinfo=UTC)
+    assert w.start == datetime(2026, 9, 28, 18, 30, tzinfo=UTC)
+    assert w.end.tzinfo is not None and w.end.utcoffset() == timedelta(0)
+
+
+def test_rolling_window_exige_fuso():
+    with pytest.raises(ValueError):
+        rolling_window(7, datetime(2026, 10, 5, 12))
+
+
+def test_rolling_range_cobre_os_dias_do_range_days():
+    # range:{days: 28} em 05/10 cobre de 07/09 (parcial) até hoje (parcial)
+    assert rolling_range(28, D(2026, 10, 5)) == DateRange(D(2026, 9, 7), D(2026, 10, 5))
+
+
+def test_as_window_fechada_com_bucket_utc():
+    # entidades: janela nominal em BRT, contagens do entityCoverage em dias UTC
+    w = as_window(DateRange(D(2026, 9, 28), D(2026, 10, 4)), bucket_tz="UTC")
+    assert w.kind == "closed" and w.bucket_tz == "UTC"
+    assert w.start == datetime(2026, 9, 28, 3, tzinfo=UTC)
+
+
+def _codes(notices):
+    return [n.code for n in notices]
+
+
+def test_calendar_notices_no_defeso():
+    notices = calendar_notices(D(2026, 10, 5), silenced_agencies=39)
+    assert _codes(notices) == ["ELECTORAL_BLACKOUT"]
+    (n,) = notices
+    assert n.severity == "info" and n.since == D(2026, 7, 4)
+    assert "25/10/2026" in n.message and "20 dias" in n.message and "39" in n.message
+
+
+@pytest.mark.parametrize(
+    "today", [D(2026, 10, 26), D(2026, 10, 27), D(2026, 11, 3), D(2026, 11, 29)]
+)
+def test_calendar_notices_na_recuperacao(today):
+    notices = calendar_notices(today)
+    assert _codes(notices) == ["POST_BLACKOUT_RECOVERY"]
+    assert notices[0].since == D(2026, 10, 26)
+    assert "29/11/2026" in notices[0].message
+
+
+@pytest.mark.parametrize("today", [D(2026, 7, 3), D(2026, 11, 30)])
+def test_calendar_notices_fora_do_defeso_e_da_recuperacao(today):
+    assert calendar_notices(today) == []
+
+
+def test_calendar_notices_classifier_changed_enquanto_baseline_cruza_o_corte():
+    crossing = DateRange(D(2026, 9, 7), D(2026, 10, 5))
+    clean = DateRange(D(2026, 9, 26), D(2026, 10, 24))
+    notices = calendar_notices(D(2026, 10, 5), baselines=[clean, crossing])
+    assert _codes(notices) == ["ELECTORAL_BLACKOUT", "CLASSIFIER_CHANGED"]
+    changed = notices[1]
+    assert changed.severity == "warn" and changed.since == D(2026, 9, 25)
+    assert changed.affects == ["themes"]
+    assert "25/09/2026" in changed.message
+
+    assert _codes(calendar_notices(D(2026, 11, 30), baselines=[clean])) == []
+    assert calendar_notices(D(2026, 11, 30), baselines=[crossing], cutoff=None) == []
+
+
+@pytest.mark.parametrize(
+    ("today", "codes"),
+    [(D(2026, 7, 3), []), (D(2026, 7, 4), ["ELECTORAL_BLACKOUT"]),
+     (D(2026, 10, 25), ["ELECTORAL_BLACKOUT"]), (D(2026, 10, 26), ["POST_BLACKOUT_RECOVERY"]),
+     (D(2026, 11, 29), ["POST_BLACKOUT_RECOVERY"]), (D(2026, 11, 30), [])],
+)  # fmt: skip
+def test_calendar_notices_nas_fronteiras_do_contrato_entre_repos(today, codes):
+    assert _codes(calendar_notices(today)) == codes
+    if today == D(2026, 10, 25):
+        assert "faltam 0 dias" in calendar_notices(today)[0].message

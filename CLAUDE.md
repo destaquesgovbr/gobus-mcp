@@ -89,23 +89,33 @@ Copie `.env.example` → `.env` para desenvolvimento local.
 
 ```
 server.py            # entrypoint FastMCP — registra tools/resources/prompts; contêiner Deps + get_deps()
+                     #   (client, catalog, activity = AgencyActivityService, cache = TTLCache do G2)
 config.py            # Settings (pydantic-settings, prefixo GOBUS_)
 client.py            # GobusGraphQLClient — wrapper httpx; lança GobusGraphQLError em errors[]
 cache.py             # TTLCache assíncrono, single-flight, relógio injetável
 agency_catalog.py    # AgencyCatalog: nomes, republicadoras, validate (aliases curados + difflib), active()
+agency_activity.py   # snapshot agencyAnalytics DAY de todas as agências (cache 6 h): silenciadas, retomadas, platform_daily
+domains.py           # 7 domínios de policies.domain + OTHER, aliases PT, mapas curados de tema e agência
 calendario.py        # BRT, defeso 2026 (04/07–25/10), recuperação até 29/11, feriados, janelas fechadas
 readability.py       # Flesch: escala (textstat-en), clamp 0–100, faixas 0/25/50/75, médias null-aware, janela efetiva
 readability_data.py  # legibilidade por agência via agencyAnalytics (janela pedida/efetiva, agregação)
-data_status.py       # saúde das fontes (ok|degraded|unavailable), detecção dinâmica → Notice
-payloads/            # pydantic: common (ReportBase, DataStatus, Notice…), readability, scorecard
-analytics/ratios.py  # limiar convertido do trendingThemes e razão sem sobreposição
-tools/               # 13 tools (funções async puras, recebem client/catalog como arg)
+theme_data.py        # ThemeRangeCounts (topThemes + analyticsKpis por range móvel), cache 5 min
+data_status.py       # saúde das fontes (ok|degraded|unavailable), detecção dinâmica → Notice;
+                     #   indexing_lag_status, worst_status, failed_status
+payloads/            # pydantic: common (ReportBase, DataStatus, Notice…), readability, scorecard,
+                     #   anomalies (AnomalyReport), forecast (ForecastReport)
+analytics/           # funções puras: ratios (Laplace, share-of-voice, severidade/faixa), weekday
+                     #   (perfil de dia útil, feriados, nível por fase), themes, entities, forecast,
+                     #   render (Markdown a partir dos modelos, ≤ 6 KB)
+tools/               # 13 tools (funções async puras, recebem client/catalog como arg);
+                     #   detect_anomalies/forecast_trends: build_*_report (I/O → modelo) + render
 resources/           # 7 resources: agencies, themes, platform-stats, taxonomy-queries,
-                     #   readability-report (JSON), health/pipelines (JSON), ui://readability-dashboard (HTML)
+                     #   readability-report (JSON), health/pipelines (JSON: + indexing_lag e
+                     #   agency_activity), ui://readability-dashboard (HTML)
 prompts/             # 4 prompts: monitor_agency, trace_entity, weekly_digest, draft_press_release
 ```
 
-**Padrão de separação:** cada tool é uma função async pura em `tools/<nome>.py` que recebe `GobusGraphQLClient` (e `catalog=` quando precisa de nomes/validação). O `server.py` lê `get_deps()` a cada chamada e repassa `deps.client`/`deps.catalog`; os testes trocam `server._deps`. Tools que viram MCP App no G3 separam `build_*_payload` (I/O → modelo pydantic) de `render_*_markdown` (puro); o Markdown vai em `summary`.
+**Padrão de separação:** cada tool é uma função async pura em `tools/<nome>.py` que recebe `GobusGraphQLClient` (e `catalog=` quando precisa de nomes/validação). O `server.py` lê `get_deps()` a cada chamada e repassa `deps.client`/`deps.catalog` (e, nas tools do G2 e no health, `deps.activity`/`deps.cache`); os testes trocam `server._deps` (o `Deps` sem `activity` cria o serviço a partir de `client` e `catalog`). Tools que viram MCP App no G3 separam o builder (I/O → modelo pydantic: `build_*_payload`, `build_anomaly_report`, `build_forecast_report`) do render (puro); o Markdown vai em `summary` e é o que a tool `-> str` devolve.
 
 **Registro:** toda tool usa `@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})` — sem isso o fastmcp 3.4 embrulha o retorno `-> str` em `{"result": "…"}`. Resources JSON declaram `mime_type="application/json"`.
 
@@ -126,7 +136,7 @@ Gotchas conhecidos do schema atual:
 - `search()`: **não tem `limit`** e rejeita `query:""`; filtro de agência via `filter: {agencies: [...]}`. Para listar, use `articles(page, limit ≤ 250, filter, sort)`
 - `articles.filter.startDate/endDate` aceitam offset (`-03:00`); `endDate` exclusivo. Dias da API em UTC
 - `trendingThemes`: `TrendingThemeResult { themeLabel themeCode windowCount baselineDailyAvg growthScore topArticles }` — **`baselineDailyAvg`** (não `baseDailyAvg`, nem `baselineCount`); `themeCode` sempre `null`; o baseline **inclui a janela**: converta o limiar do usuário com `analytics.ratios.overlap_growth_threshold` e nunca envie `growthThreshold: 0` (dispara N+1 de `topArticles`)
-- `trendingEntities`: `{ entityId canonicalName type trendingScore volumeRatio windowCount windowAgencies computedAt }`; o resolver limita a 50 e hoje mistura execuções antigas (ver `data_status.entity_ranking_status`)
+- `trendingEntities`: `{ entityId canonicalName type trendingScore volumeRatio windowCount windowAgencies computedAt baselineCount baselineAgencies isNew }` (os três últimos vieram com o GA-1 e são nulos em linha gravada antes da migração 029); o resolver limita a 50 e, desde o GA-1, devolve só a última execução, que ainda pode trazer linhas no piso antigo (ver `data_status.entity_ranking_status`)
 - `features { trendingScore viewCount }` estão nulos em quase todo o acervo; não use como sinal
 
 ## Dados (estado e convenções)
@@ -135,6 +145,8 @@ Gotchas conhecidos do schema atual:
 - **Flesch:** fórmula inglesa do `textstat` (`FLESCH_SCALE_ID = "flesch_en_textstat"`), limitado a 0–100 com o bruto exibido quando houve clamp; faixas únicas 0/25/50/75.
 - **Detecção dinâmica:** o estado das fontes é medido na resposta (`data_status`); datas de incidente (`SINCE_HINTS`) só redigem "desde dd/mm".
 - **Janelas:** "últimos N dias" = dias fechados em BRT `[D−N, D−1]` (`calendario.closed_window`); `today`/`now` sempre injetáveis.
+- **Anomalias e forecast (G2):** temas por share-of-voice de `topThemes` + `analyticsKpis` em janelas **móveis** (UTC), com gate de cobertura de classificação na janela e no baseline; entidades por `entityCoverage(DAY)` em janela **fechada** `[D−7, D−1]` (contagens em dias UTC), sem republicadoras, com precedência burst → new_entity → calendar_explained → coordinated_silence → concentrated_coverage → normal. O `volumeRatio` do upstream nunca aparece no Markdown; linhas do piso antigo (`vr/wc ≥ 100`) e de execuções antigas não viram candidatas. Concentrada e silêncio exigem o `min_count` da sensibilidade; abaixo dele a severidade é proporcional ao volume; `calendar_explained` e entidade sem menções próprias têm severidade 0; `burst`, `new_entity` e concentrada/normal com baseline < `min_count` (flag `thin_baseline`) ficam no máximo em `watch` (`SEVERITY_WATCH_MAX`). Linhas do `entityCoverage` da mesma (dia, agência) somam (o resolver agrupa também por nome); o dedup `(period, agencyKey)` é só do `agencyAnalytics` DAY. Na recuperação, só `resumed_after_blackout` (calada no último dia do defeso e de volta depois) explica sinal e conta em `resumed_agencies`; o `resumed` genérico é só informativo no health. No forecast, a razão de uma janela só conta com ≥ 5 artigos do tema (`w + b_prev`). Detalhes em `docs/tools/detect-anomalies.md` e `forecast-trends.md`.
+- **Health:** `indexing_lag` compara o Typesense (`articles{found}`) com o Postgres (`agencyAnalytics` DAY) no dia D em **UTC** (D−1..D com menos de 20 artigos em D); `agency_activity` reaproveita o snapshot do `Deps.activity`; `entity_ranking` pede `isNew` (GA-1) e reporta `isNewShare` só entre as linhas com valor.
 - Estado em 05/10/2026: Flesch/wordCount parados desde 30/06; temas/resumo/sentimento desde 26/09; ranking de entidades com linhas legadas. Ver `gobus://health/pipelines` e `_plan/PLANO_FASE2_5.md`.
 
 ## Testes
