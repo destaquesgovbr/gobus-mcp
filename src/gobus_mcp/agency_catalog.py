@@ -175,6 +175,21 @@ class AgencyCatalog:
         agency = await self.get(code)
         return agency.name if agency else code
 
+    async def display_name(self, code: str | None, fallback: str | None = None) -> str:
+        """Nome para exibição que **nunca levanta**: o do catálogo; se o catálogo não tem
+        nome (ou está fora do ar), ``fallback`` (ex.: ``agencyName`` da API); senão o código.
+        """
+        if not code:
+            return fallback or ""
+        try:
+            agency = await self.get(code)
+        except Exception as exc:  # exibição não pode derrubar a tool
+            logger.warning("catálogo indisponível para o nome de %s (%s)", code, exc)
+            agency = None
+        if agency is not None and agency.name != agency.code:
+            return agency.name
+        return fallback or code
+
     async def codes(self) -> frozenset[str]:
         return frozenset(r["code"] for r in await self._agency_rows())
 
