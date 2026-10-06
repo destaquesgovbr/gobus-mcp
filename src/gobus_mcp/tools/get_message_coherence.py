@@ -19,8 +19,12 @@ Fluxo de ``build_coherence_output`` (I/O aqui; a análise fica em ``analytics.co
    {found}`` para os 12 maiores emissores (mais o total por agência se a amostra foi
    truncada). Uma requisição; a query é gerada por ``counts_query`` (forma validada pelo
    teste de contrato via ``_COUNTS_SAMPLE_QUERY``).
-5. Prior (só entidade): ``entityCoverage(DAY)`` nos 30 dias antes da janela; "início
-   truncado" quando a taxa diária do prior ≥ metade da taxa da janela.
+5. Só entidade, em paralelo com a página 1: ``entityCoverage(DAY)`` (Postgres) dos 30 dias
+   antes da janela e da própria janela, numa chamada:
+   - "início truncado" quando a taxa diária do prior ≥ metade da taxa da janela;
+   - conferência do índice de busca: ``found`` do Typesense contra o Postgres na janela
+     (``indexing_lag``, aviso ``INDEXING_LAG``). O filtro ``entityCanonical`` depende do
+     reindex; sem ele (0 contra N), o relatório fica indisponível em vez de "nenhum artigo".
 6. ``assess`` → ``CoherenceReport`` → Markdown (``summary`` = o mesmo texto até 6 KB).
 
 Típico: 3–4 requisições em 1–2,5 s. Cada fonte degrada sozinha; a tool não cai.
@@ -67,6 +71,7 @@ from gobus_mcp.calendario import (
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import (
     failed_status,
+    indexing_lag_status,
     notices_for,
     share_status,
     theme_coverage_status,
@@ -160,8 +165,8 @@ query CoherenceArticles($filter: ArticleFilter!, $page: Int!) {
 }
 """
 
-_PRIOR_QUERY = """
-query CoherencePrior($id: String!, $dateFrom: String!, $dateTo: String!) {
+_COVERAGE_QUERY = """
+query CoherenceCoverage($id: String!, $dateFrom: String!, $dateTo: String!) {
   entityCoverage(entityId: $id, dateFrom: $dateFrom, dateTo: $dateTo, granularity: DAY) {
     period
     agencyKey
@@ -397,13 +402,42 @@ async def _counts(client: GobusGraphQLClient, filters: list[dict]) -> list[int]:
     return [int((data.get(f"c{i}") or {}).get("found") or 0) for i in range(len(filters))]
 
 
-async def _prior(client: GobusGraphQLClient, entity_id: str, window: DateRange) -> list[dict]:
-    rng = DateRange(window.start - timedelta(days=PRIOR_DAYS), window.start - timedelta(days=1))
+def _prior_range(window: DateRange) -> DateRange:
+    return DateRange(window.start - timedelta(days=PRIOR_DAYS), window.start - timedelta(days=1))
+
+
+async def _coverage(client: GobusGraphQLClient, entity_id: str, window: DateRange) -> list[dict]:
+    """``entityCoverage(DAY)`` (Postgres) dos 30 dias antes da janela **e** da janela, numa
+    chamada: o prior do "início truncado" e a referência para conferir o Typesense."""
+    rng = DateRange(_prior_range(window).start, window.end)
     date_from, date_to = utc_day_bounds(rng)  # dateTo exclusivo
     data = await client.execute(
-        _PRIOR_QUERY, {"id": entity_id, "dateFrom": date_from, "dateTo": date_to}
+        _COVERAGE_QUERY, {"id": entity_id, "dateFrom": date_from, "dateTo": date_to}
     )
     return list(data.get("entityCoverage") or [])
+
+
+@dataclass(frozen=True)
+class _PgCoverage:
+    """Contagens do Postgres por dia UTC: antes da janela e dentro dela."""
+
+    prior: int
+    window: int
+
+
+def _split_coverage(rows: list[dict], window: DateRange) -> _PgCoverage:
+    prior = inside = 0
+    for row in rows:
+        try:
+            day = date.fromisoformat(str(row.get("period") or "")[:10])
+        except ValueError:
+            continue
+        count = int(row.get("articleCount") or 0)
+        if day < window.start:
+            prior += count
+        elif day <= window.end:
+            inside += count
+    return _PgCoverage(prior, inside)
 
 
 @dataclass
@@ -639,10 +673,10 @@ async def build_coherence_output(
     names_task = asyncio.ensure_future(catalog.display_names())  # nunca levanta
 
     coverage_filters = [dict(base)] + [{**base, "themeLabel": lbl} for lbl in labels]
-    entity_r, page1_r, prior_result, coverage_result, catalog_info = await asyncio.gather(
+    entity_r, page1_r, pg_result, coverage_result, catalog_info = await asyncio.gather(
         entity_task if entity_task is not None else none(),
         _page(client, filt, 1),
-        _prior(client, subject.id, window) if subject.kind == "entity" else none(),
+        _coverage(client, subject.id, window) if subject.kind == "entity" else none(),
         _counts(client, coverage_filters) if labels else none(),
         _catalog_info(catalog),
         return_exceptions=True,
@@ -670,6 +704,19 @@ async def build_coherence_output(
             total, classified = coverage_result[0], sum(coverage_result[1:])
             scope = f"da janela {window.start.strftime('%d/%m')}–{_fmt(window.end)}"
             statuses.append(theme_coverage_status(classified, total, days=window.days, scope=scope))
+
+    # Postgres (entityCoverage) contra o Typesense (articles.found) na janela: o filtro
+    # entityCanonical do Typesense depende do reindex; sem ele, "nenhum artigo" mentiria.
+    pg: _PgCoverage | None = None
+    span = f"{window.start.strftime('%d/%m')}–{_fmt(window.end)}"
+    if subject.kind == "entity":
+        if isinstance(pg_result, BaseException):
+            notes.append(
+                f"Cobertura do Postgres indisponível ({_error_text(pg_result)}): sem prior e "
+                "sem conferência do índice de busca."
+            )
+        elif pg_result is not None:
+            pg = _split_coverage(pg_result, window)
 
     fetch = _Fetch()
     common = dict(
@@ -728,6 +775,10 @@ async def build_coherence_output(
 
     fetch.found = int(page1_r.get("found") or 0)
     fetch.rows = list(page1_r.get("articles") or [])
+    if pg is not None:
+        statuses.append(
+            indexing_lag_status(fetch.found, pg.window, label=f"{subject.label} em {span}")
+        )
     if fetch.found == 0:
         if subject.kind == "entity" and subject.resolved_by == "id":
             if not isinstance(entity_r, BaseException) and not (entity_r or {}).get("entity"):
@@ -737,7 +788,13 @@ async def build_coherence_output(
                     f"`{subject.id}` não existe no grafo de entidades. Use "
                     "gobus_resolve_entity para descobrir o entityId.",
                 )
-        span = f"{window.start.strftime('%d/%m')}–{_fmt(window.end)}"
+        if pg is not None and pg.window > 0:
+            gap = (
+                f"o índice de busca (Typesense) não tem a marcação de {subject.label} na "
+                f"janela {span} (0 de {pg.window} artigos do Postgres): histórico ainda não "
+                "reindexado. Tente uma janela mais recente."
+            )
+            return finish(without_index("unavailable", gap, "índice de busca sem a entidade"))
         hint = (
             f"Nenhum artigo de {subject.label} na janela {span}. Amplie a janela (até "
             f"{MAX_WINDOW_DAYS} dias) ou confira o assunto (gobus_resolve_entity para "
@@ -828,19 +885,15 @@ async def build_coherence_output(
     prior: PriorInfo | None = None
     dimensions = assessment.dimensions
     if subject.kind == "entity":
-        if isinstance(prior_result, BaseException):
-            notes.append(f"Cobertura anterior à janela indisponível ({_error_text(prior_result)}).")
-        elif prior_result is not None:
-            prior_rng = DateRange(
-                window.start - timedelta(days=PRIOR_DAYS), window.start - timedelta(days=1)
-            )
-            prior_articles = sum(int(r.get("articleCount") or 0) for r in prior_result)
-            flag = truncated_start(prior_articles, PRIOR_DAYS, fetch.found, window.days)
+        if pg is not None:
+            # taxas na mesma fonte (Postgres); se o Typesense achou mais, vale o maior
+            window_count = max(fetch.found, pg.window)
+            flag = truncated_start(pg.prior, PRIOR_DAYS, window_count, window.days)
             prior = PriorInfo(
-                window=as_window(prior_rng, bucket_tz="UTC"),
-                articles=prior_articles,
-                daily_rate=round(prior_articles / PRIOR_DAYS, 3),
-                window_daily_rate=round(fetch.found / window.days, 3),
+                window=as_window(_prior_range(window), bucket_tz="UTC"),
+                articles=pg.prior,
+                daily_rate=round(pg.prior / PRIOR_DAYS, 3),
+                window_daily_rate=round(window_count / window.days, 3),
                 truncated_start=flag,
             )
             if flag and assessment.index_status == "scored":

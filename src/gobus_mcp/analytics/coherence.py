@@ -694,7 +694,8 @@ def assess(
     )
     others = len(timing.first) - 1
     timing_detail = (
-        f"1º artigo em até 48 h: {timing.within_count} de {others} agências; "
+        f"1º artigo em até 48 h: {timing.within_count} de {others} "
+        f"{'agência' if others == 1 else 'agências'}; "
         f"dias em comum (Jaccard) {_num(timing.jaccard or 0.0)}"
     )
     if framing.value is not None:
