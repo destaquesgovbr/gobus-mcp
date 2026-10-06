@@ -404,15 +404,24 @@ async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> str:
 async def gobus_score_article(unique_id: str) -> str:
     """Atribui uma nota editorial (0-10) a um artigo comparando-o ao benchmark da agência.
 
-    Combina legibilidade (Flesch), concisão (tamanho vs. média da agência) e
-    densidade de entidades numa nota ponderada (50/30/20).
+    Combina legibilidade (Flesch limitado a 0–100), concisão (palavras contra a mediana
+    da agência) e densidade de entidades (por 100 palavras) numa nota ponderada 50/30/20.
+
+    O benchmark é calculado a cada chamada: amostra de artigos da agência e da Agência
+    Brasil nos 90 dias antes da publicação do artigo, com medianas (null com menos de 10
+    artigos).
+
+    Estados: "scored" (3 dimensões); "parcial" (sem benchmark de concisão, nota
+    renormalizada); "Nota indisponível" quando o artigo não tem Flesch ou contagem de
+    palavras — nunca uma nota neutra inventada.
 
     Parâmetros:
     - unique_id: ID único do artigo (obtido via gobus_search_news)
 
     Retorna: Markdown com nota geral, notas por dimensão e benchmark da agência.
     """
-    return await score_article(unique_id, get_deps().client)
+    deps = get_deps()
+    return await score_article(unique_id, deps.client, catalog=deps.catalog)
 
 
 # ── Resources ────────────────────────────────────────────────────────────────
