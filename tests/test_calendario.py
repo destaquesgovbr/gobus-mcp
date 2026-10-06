@@ -11,6 +11,7 @@ import pytest
 from gobus_mcp.calendario import (
     BLACKOUTS,
     BRT,
+    CLASSIFIER_CUTOFF,
     HOLIDAYS,
     BlackoutPeriod,
     DateRange,
@@ -191,3 +192,11 @@ def test_classifier_changed_within():
     assert classifier_changed_within(r, D(2026, 9, 1)) is False  # tudo depois do corte
     assert classifier_changed_within(r, D(2026, 10, 5)) is False  # corte no futuro
     assert classifier_changed_within(r, None) is False
+
+
+def test_corte_do_classificador_vem_da_triagem_f0a():
+    # Haiku 3 em EOL: primeira falha em 2026-09-25T17:32Z; dali em diante o tema vem do
+    # Haiku 4.5 (INF-1 + B2). Baseline que cruza 25/09 mistura os dois classificadores.
+    assert CLASSIFIER_CUTOFF == D(2026, 9, 25)
+    assert classifier_changed_within(DateRange(D(2026, 9, 1), D(2026, 10, 4))) is True
+    assert classifier_changed_within(DateRange(D(2026, 9, 25), D(2026, 10, 4))) is False
