@@ -3,30 +3,33 @@ import pytest
 from gobus_mcp.resources.agencies import fetch_agencies
 from gobus_mcp.resources.platform_stats import fetch_platform_stats
 from gobus_mcp.resources.themes import fetch_themes
-from tests.conftest import FakeGraphQLClient
+from tests.conftest import FakeGraphQLClient, route_catalog
 
 
 class TestAgenciesResource:
-    @pytest.mark.asyncio
-    async def test_formata_lista_de_agencias(self):
-        client = FakeGraphQLClient()
-        client.set_response(
-            {
-                "agencies": [
-                    {"code": "mec", "label": "Ministério da Educação"},
-                    {"code": "ms", "label": "Ministério da Saúde"},
-                ]
-            }
-        )
-        result = await fetch_agencies(client)
-        assert "Ministério da Educação" in result
-        assert "`mec`" in result
+    async def test_lista_nomes_do_catalogo_com_codigo(self, fake_client):
+        route_catalog(fake_client)
 
-    @pytest.mark.asyncio
-    async def test_sem_agencias_retorna_mensagem(self):
-        client = FakeGraphQLClient()
-        client.set_response({"agencies": []})
-        result = await fetch_agencies(client)
+        result = await fetch_agencies(fake_client)
+
+        assert "**Ministério da Saúde** (`saude`)" in result
+        assert "**Ministério da Educação** (`mec`)" in result
+        assert "(10)" in result.splitlines()[0]
+
+    async def test_republicadoras_em_secao_propria(self, fake_client):
+        route_catalog(fake_client)
+
+        result = await fetch_agencies(fake_client)
+
+        main, _, republishers = result.partition("## Republicadoras")
+        assert "Agência Brasil" in republishers and "TV Brasil" in republishers
+        assert "Agência Brasil" not in main
+
+    async def test_sem_agencias_retorna_mensagem(self, fake_client):
+        route_catalog(fake_client, [])
+
+        result = await fetch_agencies(fake_client)
+
         assert "Nenhuma" in result
 
 

@@ -72,7 +72,7 @@ def test_coleta_encontra_as_queries_do_pacote():
     names = {name for name, _ in QUERIES}
     assert len(QUERIES) >= 20
     assert "gobus_mcp.tools.search_news._SEARCH_QUERY" in names
-    assert "gobus_mcp.resources.agencies._AGENCIES_QUERY" in names
+    assert "gobus_mcp.agency_catalog._AGENCIES_QUERY" in names
     assert set(KNOWN_BROKEN) <= names, "KNOWN_BROKEN cita constante que não existe mais"
 
 
