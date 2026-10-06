@@ -208,3 +208,36 @@ def test_notices_for_agrupa_por_codigo():
     (notice,) = notices
     assert notice.severity == "error"
     assert notice.affects == ["readability", "word_count"]
+
+
+# ── cobertura de temas via GraphQL (topThemes + analyticsKpis) ─────────────
+
+
+async def test_theme_coverage_consulta_e_avalia(fake_client):
+    from gobus_mcp.data_status import theme_coverage
+
+    fake_client.route(
+        "ThemeCoverage",
+        {
+            "topThemes": [{"label": "Saúde", "count": 30}, {"label": "Economia", "count": 20}],
+            "analyticsKpis": {"total": 100},
+        },
+    )
+
+    status = await theme_coverage(fake_client, 7)
+
+    assert fake_client.calls("ThemeCoverage") == [{"days": 7}]
+    assert status.key == "themes"
+    assert status.status == "degraded"
+    assert status.metric["classified"] == 50
+
+
+async def test_theme_coverage_sem_tema_fica_indisponivel(fake_client):
+    from gobus_mcp.data_status import theme_coverage
+
+    fake_client.route("ThemeCoverage", {"topThemes": [], "analyticsKpis": {"total": 930}})
+
+    status = await theme_coverage(fake_client, 7)
+
+    assert status.status == "unavailable"
+    assert status.since.isoformat() == "2026-09-26"
