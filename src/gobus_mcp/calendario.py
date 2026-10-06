@@ -80,8 +80,10 @@ PONTOS_FACULTATIVOS: frozenset[date] = frozenset(
 NON_WORKING_DAYS: frozenset[date] = HOLIDAYS | PONTOS_FACULTATIVOS
 
 # Data de troca do classificador de temas (F0a/D0). Enquanto um baseline cruzar essa
-# data, o aviso CLASSIFIER_CHANGED fica ligado. None até a triagem confirmar o corte.
-CLASSIFIER_CUTOFF: date | None = None
+# data, o aviso CLASSIFIER_CHANGED fica ligado. Triagem de 05/10: o Haiku 3 entrou em EOL
+# (primeira falha 2026-09-25T17:32Z); daí em diante o tema vem do Haiku 4.5 (INF-1 + B2).
+# Se a D6 (re-enriquecer os 28 dias anteriores) for aprovada, o corte recua junto.
+CLASSIFIER_CUTOFF: date | None = date(2026, 9, 25)
 
 
 @dataclass(frozen=True)
