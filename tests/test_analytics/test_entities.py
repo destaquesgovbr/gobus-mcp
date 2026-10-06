@@ -430,3 +430,30 @@ def test_sem_mencoes_proprias_na_janela_nao_e_entidade_nova():
     a = classify(s)
     assert a.kind == "normal"
     assert "republishers_excluded" in a.flags
+
+
+def test_sem_mencoes_proprias_tem_severidade_zero():
+    # a razão de Laplace com w=b=0 vale W/B invertido (4×): não é sinal, é ausência de dado
+    w = entity_windows(NORMAL_DAY)
+    a = classify(_stats(_cov("agencia_brasil", _spread(w.window, 9))))
+    assert a.kind == "normal"
+    assert a.severity == 0.0
+
+
+def test_explicado_pelo_calendario_tem_severidade_zero():
+    # explicado não é anomalia: severidade 0 (faixa normal) no defeso e na recuperação
+    w = entity_windows(BLACKOUT_DAY)
+    s = _stats(_silence_rows(w), today=BLACKOUT_DAY)
+    blackout = classify(s, _owner(), today=BLACKOUT_DAY, activity=0.0, silenced=True,
+                        phase="blackout")  # fmt: skip
+    w = entity_windows(RECOVERY_DAY)
+    rows = (
+        _cov("secom", _spread(w.window, 9))
+        + _cov("saude", _spread(w.window, 3))
+        + _cov("saude", _spread(w.baseline, 12))
+    )
+    recovery = classify(_stats(rows, today=RECOVERY_DAY), _owner(), today=RECOVERY_DAY,
+                        activity=1.0, resumed=frozenset({"secom"}), phase="recovery")  # fmt: skip
+    assert (blackout.kind, recovery.kind) == ("calendar_explained", "calendar_explained")
+    assert blackout.severity == 0.0
+    assert recovery.severity == 0.0
