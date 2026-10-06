@@ -250,3 +250,49 @@ async def test_theme_coverage_sem_tema_fica_indisponivel(fake_client):
 
     assert status.status == "unavailable"
     assert status.since.isoformat() == "2026-09-26"
+
+
+# ── indexing_lag (G2) ───────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("indexed", "stored", "expected"),
+    [
+        (155, 155, "ok"),
+        (140, 155, "ok"),  # ≥ 90%
+        (3, 8, "ok"),  # faltam só 5: atraso normal de poucos minutos
+        (100, 155, "degraded"),
+        (78, 155, "degraded"),  # ≥ 50%
+        (4, 171, "unavailable"),  # 05/10: o tempo real do Typesense parado
+        (200, 150, "ok"),  # bucket diferente: o Typesense à frente não é atraso
+    ],
+)
+def test_indexing_lag_status_pela_fracao_indexada(indexed, stored, expected):
+    from gobus_mcp.data_status import indexing_lag_status
+
+    status = indexing_lag_status(indexed, stored, label="05/10 (UTC)")
+
+    assert status.key == "indexing_lag"
+    assert status.status == expected
+    assert status.metric["indexed"] == indexed
+    assert status.metric["stored"] == stored
+
+
+def test_indexing_lag_status_redige_quanto_falta():
+    from gobus_mcp.data_status import indexing_lag_status
+
+    status = indexing_lag_status(4, 171, label="05/10 (UTC)")
+
+    assert status.metric["missing"] == 167
+    assert status.metric["ratio"] == pytest.approx(4 / 171)
+    assert "4 de 171" in status.message and "05/10 (UTC)" in status.message
+    assert to_notice(status).code == "INDEXING_LAG"
+
+
+def test_indexing_lag_sem_artigos_no_postgres_nao_acusa_atraso():
+    from gobus_mcp.data_status import indexing_lag_status
+
+    status = indexing_lag_status(0, 0, label="05/10 (UTC)")
+
+    assert status.status == "ok"
+    assert status.metric["ratio"] is None
