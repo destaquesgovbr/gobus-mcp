@@ -35,6 +35,9 @@ from gobus_mcp.readability import (
 
 FLESCH_KEY = "avgReadabilityFlesch"
 LOOKBACK_DAYS = 365  # histórico consultado para achar o último mês com dado
+# O Flesch é calculado por um pipeline único: se parou, parou para todos. Basta sondar o
+# histórico com as agências mais ativas (365 dias × 41 agências levava ~2 s; × 5, ~0,9 s).
+PROBE_AGENCIES = 5
 
 _WINDOW_QUERY = """
 query ReadabilityWindow($agencies: [String!]!, $dateFrom: String!, $dateTo: String!) {
@@ -90,10 +93,14 @@ async def load_readability_window(
 ) -> ReadabilityWindow:
     """Busca a janela pedida e o histórico (em paralelo); se o dado parou antes do fim
     da janela, busca a janela efetiva (mesmo tamanho, terminando no último mês com dado).
+
+    O histórico só serve para achar o último mês com dado e é sondado com as
+    ``PROBE_AGENCIES`` primeiras agências (as mais ativas, na ordem do catálogo).
     """
     lookback = DateRange(requested.end - timedelta(days=lookback_days), requested.end)
     requested_rows, history = await asyncio.gather(
-        _fetch(client, agencies, requested), _fetch(client, agencies, lookback)
+        _fetch(client, agencies, requested),
+        _fetch(client, agencies[:PROBE_AGENCIES], lookback),
     )
     last = _latest(
         last_period_with_data(requested_rows, FLESCH_KEY),
@@ -207,9 +214,12 @@ async def load_agency_readability(
     Sem janela efetiva (Flesch nulo em todo o histórico), as contagens de artigos vêm
     da janela pedida e todo Flesch fica ``None``.
     """
-    window = await load_readability_window(client, agencies, requested)
-    names = {a.code: a.name for a in await catalog.all()}
-    republishers = await catalog.republishers()
+    window, all_agencies, republishers = await asyncio.gather(
+        load_readability_window(client, agencies, requested),
+        catalog.all(),
+        catalog.republishers(),
+    )
+    names = {a.code: a.name for a in all_agencies}
     rows = window.rows if window.effective.effective else window.requested_rows
     items = aggregate_agencies(rows, names=names, republishers=republishers, codes=agencies)
     return window, items
