@@ -322,6 +322,23 @@ async def test_falha_do_contexto_de_um_candidato_degrada_o_bloco(fake_client):
     assert report.status == "partial"
 
 
+async def test_contexto_malformado_de_um_candidato_nao_derruba_a_tool(fake_client):
+    rows, contexts = scenario_0510()
+    contexts["dgb_normal"] = {
+        "entity": {"entityId": "dgb_normal", "canonicalName": "Assunto Comum", "type": "ORG"},
+        "entityCoverage": [{"period": "data-invalida", "agencyKey": "mec", "articleCount": 1}],
+        "policyDetails": None,
+    }
+    _route_scenario(fake_client, contexts=contexts)
+
+    report = await build_anomaly_report(fake_client, now=NOW_0510)
+
+    assert "dgb_normal" not in _by_id(report)
+    assert report.entities.status == "degraded"
+    assert "1 de 8" in report.entities.note
+    assert len(report.entities.signals) == 7
+
+
 async def test_falha_do_ranking_deixa_entidades_indisponiveis_e_temas_seguem(fake_client):
     _route_scenario(fake_client)
     fake_client.route("AnomalyTrendingEntities", RuntimeError("503"))
