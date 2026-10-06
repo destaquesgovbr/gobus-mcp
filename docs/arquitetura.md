@@ -2,7 +2,7 @@
 
 ## Visão geral
 
-O Gobus MCP é um servidor [FastMCP](https://github.com/jlowin/fastmcp) fino. O `server.py` é o único entrypoint: registra as 13 tools, 7 resources e 4 prompts e mantém um contêiner de dependências (`Deps`: cliente GraphQL e catálogo de agências) que toda chamada lê via `get_deps()`.
+O Gobus MCP é um servidor [FastMCP](https://github.com/jlowin/fastmcp) fino. O `server.py` é o único entrypoint: registra as 13 tools, 7 resources e 4 prompts e mantém um contêiner de dependências (`Deps`: cliente GraphQL, catálogo de agências, snapshot de atividade das agências e o cache das tools de anomalia e forecast) que toda chamada lê via `get_deps()`.
 
 ```mermaid
 flowchart TB
@@ -28,7 +28,7 @@ flowchart TB
 
 Camadas:
 
-- **`server.py`** — registro de tools/resources/prompts e o contêiner `Deps(client, catalog, activity)` com `get_deps()`. Toda tool é registrada com `output_schema=None` e `annotations={"readOnlyHint": True}`.
+- **`server.py`** — registro de tools/resources/prompts e o contêiner `Deps(client, catalog, activity, cache)` com `get_deps()`. Toda tool é registrada com `output_schema=None` e `annotations={"readOnlyHint": True}`.
 - **`config.py`** — `Settings` (pydantic-settings, prefixo `GOBUS_`), lido no import.
 - **`client.py`** — `GobusGraphQLClient`, wrapper httpx que executa queries e lança `GobusGraphQLError` quando a resposta traz `errors[]`.
 - **`tools/` · `resources/` · `prompts/`** — a lógica de cada capacidade, isolada do framework.
@@ -43,8 +43,11 @@ Fundações compartilhadas (Fase 2.5):
 | `readability.py` | escala do Flesch (`flesch_en_textstat`), clamp em 0–100, faixas únicas 0/25/50/75, médias ponderadas que ignoram nulo, janela efetiva |
 | `readability_data.py` | leitura de legibilidade por agência: janela pedida, histórico e janela efetiva |
 | `data_status.py` | avaliadores de saúde das fontes (`ok \| degraded \| unavailable`), detecção dinâmica e mapeamento para avisos |
-| `payloads/` | modelos pydantic dos relatórios estruturados (`common`, `readability`, `scorecard`), base dos MCP Apps do G3 |
-| `analytics/ratios.py` | limiar convertido para o baseline sobreposto do `trendingThemes` e razão sem sobreposição |
+| `payloads/` | modelos pydantic dos relatórios estruturados (`common`, `readability`, `scorecard`, `anomalies`, `forecast`), base dos MCP Apps do G3 |
+| `agency_activity.py` | snapshot `agencyAnalytics` DAY das 156 agências (cache de 6 h): agências silenciadas e retomadas, volume diário da plataforma |
+| `domains.py` | os 7 domínios de `policies.domain` mais `OTHER`, aliases em português, mapas curados de tema e de agência |
+| `theme_data.py` | contagens de temas por range móvel (`topThemes` + `analyticsKpis`), cache de 5 min |
+| `analytics/` | funções puras: razões (Laplace, share-of-voice, taxa log por dia, severidade), perfil de dia útil e feriados, temas, entidades, forecast e o Markdown de anomalias e forecast |
 
 ## Transport
 

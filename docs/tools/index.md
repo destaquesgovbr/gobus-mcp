@@ -15,8 +15,8 @@ O Gobus MCP expõe **13 tools**, todas somente leitura (`readOnlyHint`) e sem `o
 | [get_readability_recommendations](get-readability-recommendations.md) | Ranking e diagnóstico de legibilidade (Flesch) | Avaliar a clareza dos textos de uma agência e priorizar ajustes de estilo |
 | [score_article](score-article.md) | Nota editorial de um artigo contra o benchmark da agência | Avaliar um release antes/depois da publicação |
 | [get_policy_lifecycle](get-policy-lifecycle.md) | Ciclo de vida mensal de uma política pública | Saber se uma política está em anúncio, implementação ou rotina |
-| [detect_anomalies](detect-anomalies.md) | Picos sustentados e cobertura concentrada | Achar assuntos fora do padrão (reescrita no G2) |
-| [forecast_trends](forecast-trends.md) | Projeção de temas em 3 janelas | Antecipar pautas (reescrita no G2) |
+| [detect_anomalies](detect-anomalies.md) | Picos/quedas de temas e sinais de entidade (silêncio coordenado, concentrada, rajada), cientes do defeso | Achar assuntos fora do padrão, por domínio de política |
+| [forecast_trends](forecast-trends.md) | Projeção de temas por share-of-voice em 3 janelas, com horizonte de 1 a 28 dias | Antecipar pautas e o volume esperado |
 
 ## Convenções de saída
 
