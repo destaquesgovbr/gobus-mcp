@@ -1,28 +1,28 @@
 # Início Rápido
 
-Há duas formas de usar o Gobus MCP: **stdio local** (recomendado para Claude Code) ou conectando ao servidor já hospedado em **produção** via HTTP (para Claude Desktop e uso web).
+Há duas formas de usar o Gobus MCP: **stdio local** (recomendado para Claude Code e para quem desenvolve o servidor) ou o servidor hospedado em **produção** via HTTP (`/mcp`), para Claude Desktop e claude.ai.
 
 ## 0. Claude Code — stdio local (recomendado)
 
-O Claude Code CLI tem bugs em ambos os transports HTTP (`/sse` e `/mcp`), que causam erro `-32602` em todas as chamadas de subagente. A solução é rodar o servidor localmente em **stdio**.
+O Claude Code CLI tem problemas com os transports HTTP remotos em chamadas de subagente (`/sse` expira a sessão entre chamadas; `/mcp` falhou na conexão nos testes). Rodar o servidor localmente em **stdio** evita os dois: não há sessão a perder.
 
-**Pré-requisitos:**
+**Pré-requisitos:** Python 3.12 e as dependências instaladas na venv do repositório.
+
 ```bash
-# Clone o repositório e instale as dependências
 cd /caminho/para/gobus-mcp
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+python3.12 -m venv .venv
+poetry install --with dev        # usa a .venv do projeto (Poetry 2.0.1)
+# sem Poetry: .venv/bin/pip install -e . pytest pytest-asyncio ruff graphql-core mkdocs-material
 ```
 
-**Configuração do `.mcp.json`** — coloque na raiz do seu **workspace** (não dentro do repo gobus-mcp):
+O repositório já traz um **`.mcp.json`** com a entrada `gobus-local`; abra o Claude Code na raiz do clone:
 
 ```json
 {
   "mcpServers": {
-    "gobus": {
-      "command": "python",
+    "gobus-local": {
+      "command": ".venv/bin/python3.12",
       "args": ["-m", "gobus_mcp"],
-      "cwd": "/caminho/absoluto/para/gobus-mcp",
       "env": {
         "GOBUS_GRAPHQL_URL": "https://destaquesgovbr-graphql-api-klvx64dufq-rj.a.run.app/graphql"
       }
@@ -31,31 +31,25 @@ pip install -e ".[dev]"
 }
 ```
 
-Para o workspace `/Users/nitai/dev/destaquesgovbr`, o arquivo já está configurado em `/Users/nitai/dev/destaquesgovbr/.mcp.json`.
+O caminho do `command` é relativo à raiz do repositório. Para usar o gobus a partir de outro diretório (por exemplo, a raiz de um workspace com vários repos), crie um `.mcp.json` lá com o caminho **absoluto** do Python da venv e um nome próprio (ex: `gobus`), para não colidir com o `gobus-local` do repositório.
 
-!!! warning "cwd e GOBUS_GRAPHQL_URL são obrigatórios"
-    `cwd` deve ser o path absoluto do clone local do repositório gobus-mcp. `GOBUS_GRAPHQL_URL` deve apontar para a graphql-api (o default `http://localhost:8000` não funciona sem instância local).
+!!! warning "GOBUS_GRAPHQL_URL é obrigatório"
+    O default (`http://localhost:8000/graphql`) aponta para uma graphql-api local. Sem sobrescrever essa variável, as tools retornam erro de conexão.
 
 ---
 
-## 1. Conectar ao servidor em produção (Claude Desktop / uso web)
+## 1. Conectar ao servidor em produção (Claude Desktop / claude.ai)
 
-O endpoint de produção usa transport **SSE** (`/sse`). Funciona bem para clientes que mantêm sessão persistente.
+O endpoint primário de produção é **HTTP stateless em `/mcp`** (Streamable HTTP, spec 2025-03-26). Adicione como conector remoto (custom connector) no Claude Desktop ou no claude.ai:
 
-**Claude Desktop** — adicione ao arquivo de configuração do app (`claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "gobus": {
-      "url": "https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app/sse"
-    }
-  }
-}
+```
+https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app/mcp
 ```
 
-!!! warning "Claude Code CLI — não use o endpoint HTTP"
-    O Claude Code CLI envia GET em vez de POST para o endpoint `/mcp`, e a sessão SSE expira entre chamadas independentes. Use stdio local (seção 0 acima) para Claude Code.
+O endpoint **`/sse`** (spec 2024-11-05) continua no ar só por compatibilidade com clientes antigos.
+
+!!! warning "Claude Code CLI — prefira stdio local"
+    Use a seção 0 acima para o Claude Code.
 
 Não é necessária chave de API para o servidor de produção — a autenticação é gerida na fronteira da `graphql-api`.
 
@@ -93,34 +87,13 @@ A partir daí você pode aprofundar — por exemplo, pedir o conteúdo completo 
 
 Útil para desenvolvimento ou para apontar contra uma `graphql-api` local.
 
-**Pré-requisitos:** Python 3.12+ e o pacote instalado em um virtualenv.
-
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-
 # Executa em modo stdio (PORT ausente → stdio)
-GOBUS_GRAPHQL_URL=http://localhost:8000/graphql python -m gobus_mcp
+GOBUS_GRAPHQL_URL=http://localhost:8000/graphql .venv/bin/python3.12 -m gobus_mcp
+
+# HTTP local (as mesmas rotas de produção: /mcp, /sse, /messages/)
+PORT=8000 GOBUS_GRAPHQL_URL=https://destaquesgovbr-graphql-api-klvx64dufq-rj.a.run.app/graphql \
+  .venv/bin/python3.12 -m gobus_mcp
 ```
-
-Para usar a instância local com Claude Code, configure o `.mcp.json` do workspace em modo stdio:
-
-```json
-{
-  "mcpServers": {
-    "gobus": {
-      "command": "python",
-      "args": ["-m", "gobus_mcp"],
-      "cwd": "/caminho/para/gobus-mcp",
-      "env": {
-        "GOBUS_GRAPHQL_URL": "https://destaquesgovbr-graphql-api-klvx64dufq-rj.a.run.app/graphql"
-      }
-    }
-  }
-}
-```
-
-!!! warning "GOBUS_GRAPHQL_URL é obrigatório no modo stdio"
-    O default (`http://localhost:8000/graphql`) aponta para uma graphql-api local. Sem sobrescrever essa variável, os tools retornam erro de conexão. Use sempre o endpoint de produção acima, ou substitua por sua instância local da graphql-api.
 
 Veja todas as variáveis de configuração em **[Deploy & Config](deploy.md)**.

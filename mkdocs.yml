@@ -49,11 +49,21 @@ nav:
     - get_entity_profile: tools/get-entity-profile.md
     - get_entity_network: tools/get-entity-network.md
     - get_agency_analytics: tools/get-agency-analytics.md
+    - get_agency_summary: tools/get-agency-summary.md
     - detect_trends: tools/detect-trends.md
+    - get_readability_recommendations: tools/get-readability-recommendations.md
+    - score_article: tools/score-article.md
+    - get_policy_lifecycle: tools/get-policy-lifecycle.md
+    - detect_anomalies: tools/detect-anomalies.md
+    - forecast_trends: tools/forecast-trends.md
   - Resources:
     - agencies: resources/agencies.md
     - themes: resources/themes.md
     - platform_stats: resources/platform-stats.md
+    - taxonomy_queries: resources/taxonomy-queries.md
+    - readability_report: resources/readability-report.md
+    - health_pipelines: resources/health-pipelines.md
+    - readability_dashboard: resources/readability-dashboard.md
   - Prompts:
     - monitor_agency: prompts/monitor-agency.md
     - trace_entity: prompts/trace-entity.md

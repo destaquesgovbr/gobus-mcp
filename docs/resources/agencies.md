@@ -1,24 +1,33 @@
 # gobus://agencies
 
-Lista completa das agências governamentais cadastradas no acervo do Destaques Gov.BR, com nome de exibição e código curto (`code`). É a referência canônica para descobrir qual `agency_key` usar nas tools que filtram por agência.
+Lista das agências do acervo do Destaques Gov.BR com **nome humano** e **código** (`agency_key`). É a referência para descobrir o código usado nas tools que filtram por agência.
 
 **URI:** `gobus://agencies`
-**Atualização:** consultado ao vivo na `graphql-api` a cada leitura (sem cache local).
+**Fonte:** catálogo de agências (`AgencyCatalog`): códigos e `isRepublisher` de `agencies`; nomes de `agencyAnalytics.agencyName` (a API devolve `label == code`). Cache de 24 h no servidor.
 
 ## Formato
 
-Markdown com uma lista ordenada alfabeticamente por nome. Cada item traz o nome de exibição e, entre parênteses, o código curto usado como `agency_key`.
+Markdown em ordem alfabética de nome, com as **republicadoras** (EBC, Agência Brasil, TV Brasil) em seção própria.
 
 ```
-# Agências Governamentais
+# Agências Governamentais (156)
 
-- **Ministério da Educação** (`mec`)
-- **Ministério da Fazenda** (`fazenda`)
-- **Ministério da Saúde** (`ms`)
-- **Ministério do Trabalho e Emprego** (`mte`)
-- **Ministério dos Transportes** (`transportes`)
+Use o código entre crases em `agency_key` / `agencies` das tools.
+
+- **Advocacia-Geral da União** (`agu`)
+- **Ministério da Saúde** (`saude`)
+- **Ministério do Trabalho e Emprego** (`trabalho-e-emprego`)
+…
+
+## Republicadoras
+
+Republicam conteúdo de outros órgãos; as análises de cobertura as tratam à parte.
+
+- **Agência Brasil** (`agencia_brasil`)
+- **Empresa Brasil de Comunicação** (`ebc`)
+- **TV Brasil** (`tvbrasil`)
 ```
 
 ## Quando usar
 
-Carregue este resource antes de invocar qualquer tool que receba `agency_key` ou `agencies` (`search_news`, `get_agency_analytics`, `monitor_agency`, `draft_press_release`). Ele dá ao LLM o mapeamento entre o nome falado pelo usuário ("Ministério da Saúde") e o código aceito pela API (`ms`), evitando filtros vazios por chave incorreta.
+Carregue este resource antes de invocar tools que recebem `agency_key` ou `agencies` (`gobus_search_news`, `gobus_get_agency_analytics`, `gobus_get_agency_summary`, `gobus_get_readability_recommendations`, `gobus_detect_trends`). As tools também validam o código e sugerem o certo: `"ms"` → `saude`, `"trabalho"`/`"mte"` → `trabalho-e-emprego`; `tcu`, `camara`, `senado` e `ibge` estão fora do catálogo.
