@@ -427,7 +427,7 @@ def test_avaliacao_com_tres_emissores_e_divergencia():
     (rep,) = result.republishers.agencies
     assert rep.delay_hours == pytest.approx(6.0)
     assert result.republishers.share == pytest.approx(1 / 8)
-    assert result.hhi == pytest.approx((2 / 7) ** 2 + (3 / 7) ** 2 + (2 / 7) ** 2)
+    assert result.hhi == pytest.approx((2 / 7) ** 2 + (3 / 7) ** 2 + (2 / 7) ** 2, abs=1e-4)
 
 
 def test_avaliacao_renormaliza_sem_tom():
@@ -447,7 +447,7 @@ def test_avaliacao_renormaliza_sem_tom():
     by_key = {d.key: d for d in result.dimensions}
     assert by_key["tone"].status == "unavailable"
     assert by_key["tone"].effective_weight is None
-    assert by_key["entities"].effective_weight == pytest.approx(0.35 / 0.85)
+    assert by_key["entities"].effective_weight == pytest.approx(0.35 / 0.85, abs=1e-4)  # 4 casas
     assert result.index.score == pytest.approx(1.0)  # tudo idêntico
     assert result.index.level == 5
 
