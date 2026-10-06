@@ -405,8 +405,9 @@ O Claude Code não renderiza apps; ali só se verifica que o `summary` chega.
   - **DS-1:** NER no máximo uma vez por uid (checar `features ? 'entities'` antes do `extract_entities`); métrica de log de `update_failed` e de NER por uid.
   - **DLQ** `dgb.news.scraped--enrichment-dlq`: pode ter recebido mensagens dos 503. Não reprocessar sem filtro.
 - **INF-1 MERGEADO e APLICADO** (infra#215, 2026-10-06 00:19 UTC): `Apply complete! 0 added, 15 changed, 2 destroyed`.
-  - Por decisão do usuário, removido o acesso de <EMAIL-REDIGIDO> do `terraform.auto.tfvars` (VM e IAM já tinham sido apagados fora do Terraform). Destruídos o disco `manoela-devvm-data` (100 GB, desanexado desde 16/07) e a policy de auto-shutdown.
+  - Por decisão do usuário, removido o acesso de <e-mail de colaboradora> do `terraform.auto.tfvars` (VM e IAM já tinham sido apagados fora do Terraform). Destruídos o disco `manoela-devvm-data` (100 GB, desanexado desde 16/07) e a policy de auto-shutdown.
   - Drift explicado no PR: `client`/`client_version`, `CACHE_BUST` do portal, scaling do gobus/MLflow, descrição da SA.
 - **CL-1 aberto:** clipping#25, CI verde, aguardando OK de merge (prazo: EOL do Sonnet 4 em 14/10).
 - **Comentários postados** em data-science#38, data-platform#189/#184, infra#203 e embeddings#11.
 - **GA-1:** sentimento só existe na chave aninhada (39.547 contra 0), então o fallback plano no `COALESCE` é opcional.
+- **CL-1 MERGEADO** (clipping#25, 2026-10-06 00:37Z; deploy run 37395019889 com sucesso; revisão `destaquesgovbr-clipping-00108-8xg` pronta, sem erros). O clipping está fora do Sonnet 4 antes do EOL de 14/10. Conferir no próximo disparo (a cada 30 min) que o digest sai estruturado.
