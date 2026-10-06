@@ -265,26 +265,32 @@ async def gobus_detect_trends(
 
     Parâmetros:
     - window_days: Janela RECENTE em dias (default 7 — "esta semana")
-    - baseline_days: Período de REFERÊNCIA em dias (default 28 — "último mês")
+    - baseline_days: Período de REFERÊNCIA em dias (default 28 — "último mês"); deve ser
+      maior que window_days
     - min_articles: Mínimo de artigos na janela recente para considerar (default 3)
-    - growth_threshold: Multiplicador mínimo de crescimento, ex: 1.5 = 50% a mais (default 1.5)
+    - growth_threshold: Razão mínima de crescimento sem sobreposição, ex: 1.5 = 50% a mais
+      por dia que nos dias anteriores do baseline (default 1.5; mínimo 1.0)
     - agency_key: Filtrar por agência específica (opcional) — ver gobus://agencies
     - limit: Máximo de temas retornados (default 10)
 
-    Retorna: Markdown com temas em alta, growthScore e artigos representativos.
-    growthScore = count(window) / count(baseline) — valores > 1.5 indicam tendência real.
+    Retorna: Markdown com temas em alta, a razão sem sobreposição (artigos/dia na janela
+    ÷ artigos/dia nos dias anteriores do baseline), o growthScore da API (cujo baseline
+    inclui a janela) e artigos representativos. Se a classificação de temas não cobre a
+    janela, avisa "Temas: indisponível" em vez de dizer que nada cresceu.
 
     Dica: Use gobus://taxonomy-queries para mapear temas detectados a termos de busca.
     Para cada tema, execute gobus_search_news em paralelo com o nome do tema.
     """
+    deps = get_deps()
     return await detect_trends(
-        get_deps().client,
+        deps.client,
         window_days,
         baseline_days,
         min_articles,
         growth_threshold,
         agency_key or None,
         limit,
+        catalog=deps.catalog,
     )
 
 
