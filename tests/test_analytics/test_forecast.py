@@ -268,3 +268,33 @@ def test_recuperacao_rebaixa_e_marca():
     # a projeção começa em D
     assert top.projection.daily[0].date == D(2026, 11, 10)
     assert top.projection.daily[-1].date == D(2026, 11, 10) + timedelta(days=6)
+
+
+def _with_theme(pair: WindowPair, label: str, w: int, incl: int) -> WindowPair:
+    window = dict(pair.window.counts, **{label: w})
+    including = dict(pair.including.counts, **{label: incl})
+    return WindowPair(
+        ThemeRange(pair.window.days, window, pair.window.total + w),
+        ThemeRange(pair.including.days, including, pair.including.total + incl),
+    )
+
+
+def test_janela_com_pouco_volume_do_tema_nao_entra_na_razao():
+    # 1 artigo contra 0 dá share-of-voice alto, mas é ruído: exige w + b_prev ≥ 5 na janela
+    from gobus_mcp.analytics.forecast import MIN_WINDOW_ARTICLES
+
+    base = _scenario()
+    pairs = {
+        "3d": _with_theme(_with_theme(base["3d"], "Rara", 1, 1), "Média", 1, 2),
+        "7d": _with_theme(_with_theme(base["7d"], "Rara", 2, 2), "Média", 3, 7),
+        "21d": _with_theme(_with_theme(base["21d"], "Rara", 3, 4), "Média", 6, 20),
+    }
+    _, themes = forecast_themes(
+        pairs, today=D(2026, 12, 7), horizon_days=14, limit=10, weights=PROFILE, levels=LEVELS
+    )
+    by_label = {t.label: t for t in themes}
+
+    assert MIN_WINDOW_ARTICLES == 5
+    assert "Rara" not in by_label
+    assert by_label["Média"].windows["3d"] is None
+    assert by_label["Média"].windows["7d"] is not None
