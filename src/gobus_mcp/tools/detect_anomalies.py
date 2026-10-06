@@ -1,138 +1,457 @@
+"""``gobus_detect_anomalies``: anomalias de tema e de entidade cientes do defeso (G2, F3).
+
+Fluxo de ``build_anomaly_report`` (I/O aqui; a análise fica em ``analytics/``):
+
+1. Em paralelo:
+   - temas: ``ThemeRangeCounts`` nos ranges 3, 21, 7 e 28 (``theme_data``);
+   - entidades: ``trendingEntities(50){… computedAt}`` → ``select_candidates`` (só a última
+     execução, sem o piso antigo ``vr/wc ≥ 100``) → contexto de cada candidato
+     (``entity`` + ``entityCoverage(DAY)`` + ``policyDetails``) com ``Semaphore(8)``;
+   - snapshot de atividade das agências (``AgencyActivityService``, cache de 6 h);
+   - republicadoras do catálogo (lista fixa se o catálogo cair).
+2. Temas: share-of-voice com gate de cobertura de classificação (``build_themes_block``).
+3. Entidades: ``entity_signal`` por candidato (janela fechada ``[D−7, D−1]``, baseline de
+   28 dias ou pré-defeso na recuperação, sem republicadoras, classes com precedência).
+4. ``domain_filter`` filtra os sinais; os gauges ``domains`` resumem todos os domínios.
+5. ``AnomalyReport`` → Markdown (``summary``) → corte de orçamento do payload (20 KB).
+
+Cada bloco degrada sozinho (``unavailable``/``degraded`` com nota); a tool não cai.
+Caches (``cache=``): ranking 10 min, contexto de entidade 30 min por (id, D), temas 5 min.
+Orçamento: p50 ≤ 2 s com cache quente, ≤ 6 s a frio (o snapshot de atividade domina).
+"""
+
+from __future__ import annotations
+
 import asyncio
+import logging
+from dataclasses import dataclass, field
 
+from gobus_mcp.agency_activity import ActivitySnapshot, AgencyActivityService, activity_status
+from gobus_mcp.agency_catalog import EXTRA_REPUBLISHERS, AgencyCatalog
+from gobus_mcp.analytics.entities import (
+    MAX_CANDIDATES,
+    CandidateSelection,
+    EntityWindows,
+    entity_signal,
+    entity_windows,
+    select_candidates,
+    selection_notices,
+)
+from gobus_mcp.analytics.render import render_anomalies_markdown
+from gobus_mcp.analytics.themes import (
+    LONG_WINDOW,
+    SHORT_WINDOW,
+    THEME_RANGE_DAYS,
+    Sensitivity,
+    build_themes_block,
+    parse_sensitivity,
+)
+from gobus_mcp.cache import TTLCache
+from gobus_mcp.calendario import (
+    as_window,
+    calendar_context,
+    calendar_notices,
+    now_brt,
+    reference_date,
+    rolling_range,
+    rolling_window,
+    utc_day_bounds,
+)
 from gobus_mcp.client import GobusGraphQLClient
+from gobus_mcp.data_status import (
+    entity_ranking_status,
+    failed_status,
+    notices_for,
+    worst_status,
+)
+from gobus_mcp.domains import Domain, parse_domain
+from gobus_mcp.payloads.anomalies import (
+    AnomalyReport,
+    ClassifiedCoverage,
+    EntitiesBlock,
+    EntitySignal,
+    ThemesBlock,
+    ThemeWindows,
+    UpstreamInfo,
+    fit_anomaly_budget,
+    summarize_domains,
+)
+from gobus_mcp.payloads.common import DataStatus, ReportStatus, Status
+from gobus_mcp.theme_data import ThemeRangeFetch, fetch_theme_ranges
 
-_THEMES_QUERY = """
-query DetectAnomalyThemes($windowDays: Int!, $baselineDays: Int!, $growthThreshold: Float!, $limit: Int!) {
-    trendingThemes(windowDays: $windowDays, baselineDays: $baselineDays, growthThreshold: $growthThreshold, limit: $limit) {
-        themeLabel
-        themeCode
-        growthScore
-        windowCount
-        baselineDailyAvg
-    }
+logger = logging.getLogger(__name__)
+
+TRENDING_TTL = 600.0  # 10 min (o ranking roda 2×/dia)
+ENTITY_CONTEXT_TTL = 1_800.0  # 30 min
+ENTITY_CONCURRENCY = 8
+
+# Republicadoras conhecidas, para quando o catálogo estiver fora do ar.
+FALLBACK_REPUBLISHERS: frozenset[str] = (
+    frozenset({"agencia_brasil", "tvbrasil", "ebc"}) | EXTRA_REPUBLISHERS
+)
+
+TITLE = "## Detector de Anomalias Comunicacionais"
+
+_TRENDING_QUERY = """
+query AnomalyTrendingEntities {
+  trendingEntities(limit: 50) {
+    entityId
+    canonicalName
+    type
+    trendingScore
+    volumeRatio
+    windowCount
+    windowAgencies
+    computedAt
+  }
 }
 """
 
-_ENTITIES_QUERY = """
-query DetectAnomalyEntities($limit: Int!) {
-    trendingEntities(limit: $limit) {
-        entityId
-        canonicalName
-        type
-        trendingScore
-        volumeRatio
-        windowCount
-        windowAgencies
-    }
+_ENTITY_CONTEXT_QUERY = """
+query AnomalyEntityContext($id: String!, $dateFrom: String!, $dateTo: String!) {
+  entity(id: $id) {
+    entityId
+    canonicalName
+    type
+    agencyKey
+  }
+  entityCoverage(entityId: $id, dateFrom: $dateFrom, dateTo: $dateTo, granularity: DAY) {
+    period
+    agencyKey
+    articleCount
+  }
+  policyDetails(entityId: $id) {
+    domain
+  }
 }
 """
 
-# Limiares de "silêncio concentrado": alto volumeRatio + poucas agências cobrindo.
-_SENSITIVITY = {
-    "high": {"volume_ratio": 2.0, "window_agencies": 8},
-    "medium": {"volume_ratio": 3.0, "window_agencies": 5},
-    "low": {"volume_ratio": 5.0, "window_agencies": 3},
-}
+
+# ── I/O ─────────────────────────────────────────────────────────────────────
 
 
-async def detect_anomalies(client: GobusGraphQLClient, sensitivity: str = "medium") -> str:
-    """Detecta anomalias comunicacionais: picos sustentados e cobertura concentrada.
+@dataclass
+class _EntityFetch:
+    rows: list[dict] = field(default_factory=list)
+    error: str | None = None
+    selection: CandidateSelection | None = None
+    contexts: list = field(default_factory=list)  # dict ou exceção, por candidato
 
-    Cruza duas janelas de trendingThemes (3d/21d e 7d/28d) para achar temas com
-    pico sustentado (presentes em ambas), e inspeciona trendingEntities para achar
-    "silêncio concentrado" — entidades com alto volume relativo cobertas por poucas
-    agências (sinal de assunto empurrado por poucos emissores).
 
-    Args:
-        client: Cliente GraphQL.
-        sensitivity: "high" | "medium" | "low" — controla o limiar de concentração.
+async def _ranking_rows(client: GobusGraphQLClient, cache: TTLCache | None) -> list[dict]:
+    async def load() -> list[dict]:
+        data = await client.execute(_TRENDING_QUERY)
+        return list(data.get("trendingEntities") or [])
 
-    Returns:
-        Markdown com seções de picos sustentados, cobertura concentrada e tendências normais.
-    """
-    thresholds = _SENSITIVITY.get(sensitivity, _SENSITIVITY["medium"])
+    if cache is None:
+        return await load()
+    return await cache.get_or_load(("anomalies", "trending_entities"), load, TRENDING_TTL)
 
-    themes_3d_data, themes_7d_data = await asyncio.gather(
-        client.execute(
-            _THEMES_QUERY,
-            {
-                "windowDays": 3,
-                "baselineDays": 21,
-                "growthThreshold": 0.5,
-                "limit": 15,
-            },
-        ),
-        client.execute(
-            _THEMES_QUERY,
-            {
-                "windowDays": 7,
-                "baselineDays": 28,
-                "growthThreshold": 0.5,
-                "limit": 15,
-            },
-        ),
+
+async def _contexts(
+    client: GobusGraphQLClient,
+    candidates: list[dict],
+    windows: EntityWindows,
+    cache: TTLCache | None,
+) -> list:
+    """Contexto de cada candidato (no máximo ``ENTITY_CONCURRENCY`` em voo). A cobertura
+    vai de ``windows.coverage_range.start`` a D (``dateTo`` exclusivo)."""
+    semaphore = asyncio.Semaphore(ENTITY_CONCURRENCY)
+    date_from, date_to = utc_day_bounds(windows.coverage_range)
+
+    async def one(entity_id: str) -> dict:
+        async def load() -> dict:
+            async with semaphore:
+                return await client.execute(
+                    _ENTITY_CONTEXT_QUERY,
+                    {"id": entity_id, "dateFrom": date_from, "dateTo": date_to},
+                )
+
+        if cache is None:
+            return await load()
+        key = ("anomalies", "entity_context", entity_id, windows.today)
+        return await cache.get_or_load(key, load, ENTITY_CONTEXT_TTL)
+
+    return await asyncio.gather(
+        *(one(c.get("entityId") or "") for c in candidates), return_exceptions=True
     )
-    entities_data = await client.execute(_ENTITIES_QUERY, {"limit": 20})
 
-    themes_3d = themes_3d_data.get("trendingThemes") or []
-    themes_7d = themes_7d_data.get("trendingThemes") or []
-    entities = entities_data.get("trendingEntities") or []
 
-    by_code_3d = {t.get("themeCode") or t.get("themeLabel"): t for t in themes_3d}
-    by_code_7d = {t.get("themeCode") or t.get("themeLabel"): t for t in themes_7d}
-    sustained_codes = [c for c in by_code_3d if c in by_code_7d]
+async def _fetch_entities(
+    client: GobusGraphQLClient,
+    windows: EntityWindows,
+    *,
+    cache: TTLCache | None,
+    max_candidates: int,
+) -> _EntityFetch:
+    try:
+        rows = await _ranking_rows(client, cache)
+    except Exception as exc:
+        logger.warning("anomalias: ranking de entidades indisponível (%s)", exc)
+        return _EntityFetch(error=str(exc) or type(exc).__name__)
+    selection = select_candidates(rows, max_candidates=max_candidates)
+    contexts = await _contexts(client, selection.candidates, windows, cache)
+    return _EntityFetch(rows=rows, selection=selection, contexts=list(contexts))
 
-    concentrated = []
-    normal = []
-    for e in entities:
-        vr = e.get("volumeRatio") or 0.0
-        wa = e.get("windowAgencies")
-        wa = wa if wa is not None else 999
-        if vr > thresholds["volume_ratio"] and wa < thresholds["window_agencies"]:
-            concentrated.append(e)
-        else:
-            normal.append(e)
 
-    lines = [
-        "## Detector de Anomalias Comunicacionais",
-        f"**Sensibilidade:** {sensitivity}\n",
-    ]
+# ── blocos ──────────────────────────────────────────────────────────────────
 
-    lines.append("### Picos Sustentados")
-    if sustained_codes:
-        for code in sustained_codes:
-            t3 = by_code_3d[code]
-            t7 = by_code_7d[code]
-            label = t3.get("themeLabel") or t7.get("themeLabel") or code
-            lines.append(
-                f"- **{label}** · growth 3d {t3.get('growthScore', 0):.1f}× / "
-                f"7d {t7.get('growthScore', 0):.1f}× · "
-                f"{t3.get('windowCount', 0)} artigos (janela 3d)"
-            )
+
+def _themes(
+    fetch: ThemeRangeFetch | BaseException, sens: Sensitivity, *, now, today
+) -> tuple[ThemesBlock, DataStatus]:
+    if isinstance(fetch, BaseException):
+        error, as_of = str(fetch) or type(fetch).__name__, now
     else:
-        lines.append("Nenhum pico sustentado detectado.")
+        short, long = fetch.pair(*SHORT_WINDOW), fetch.pair(*LONG_WINDOW)
+        if short is not None and long is not None:
+            return build_themes_block(short, long, sens=sens, now=fetch.as_of, today=today)
+        error, as_of = fetch.error_text(), fetch.as_of
+    block = ThemesBlock(
+        status="unavailable",
+        note=f"Bloco de temas indisponível: falha ao consultar a graphql-api ({error}).",
+        windows=ThemeWindows(
+            short=rolling_window(SHORT_WINDOW[0], as_of),
+            long=rolling_window(LONG_WINDOW[0], as_of),
+        ),
+        classified_coverage=ClassifiedCoverage(short=None, long=None),
+        signals=[],
+    )
+    return block, failed_status("themes", error)
 
-    lines.append("\n### Cobertura Concentrada")
-    if concentrated:
-        for e in concentrated:
-            lines.append(
-                f"- **{e.get('canonicalName')}** ({e.get('type')}) · "
-                f"volumeRatio {e.get('volumeRatio', 0):.1f}× · "
-                f"apenas {e.get('windowAgencies')} agências"
+
+def _entities(
+    fetch: _EntityFetch | BaseException,
+    windows: EntityWindows,
+    *,
+    sens: Sensitivity,
+    republishers: frozenset[str],
+    republishers_fallback: bool,
+    snapshot: ActivitySnapshot | None,
+    now,
+) -> tuple[EntitiesBlock, DataStatus, CandidateSelection | None]:
+    window = as_window(windows.window, bucket_tz="UTC")
+    baseline = as_window(
+        windows.baseline,
+        baseline_overlaps_blackout=windows.baseline_overlaps_blackout,
+        bucket_tz="UTC",
+    )
+    if isinstance(fetch, BaseException) or fetch.error is not None or fetch.selection is None:
+        error = (
+            (str(fetch) or type(fetch).__name__)
+            if isinstance(fetch, BaseException)
+            else (fetch.error or "erro desconhecido")
+        )
+        block = EntitiesBlock(
+            status="unavailable",
+            note=f"Ranking de entidades indisponível: falha ao consultar a graphql-api ({error}).",
+            window=window,
+            baseline=baseline,
+            candidates=0,
+            upstream=UpstreamInfo(
+                last_run_at=None, rows_total=0, rows_last_run=0, rows_legacy_floor=0
+            ),
+            signals=[],
+        )
+        return block, failed_status("entity_ranking", error), None
+
+    ranking = entity_ranking_status(fetch.rows, now=now)
+    selection = fetch.selection
+    signals: list[EntitySignal] = []
+    failures = 0
+    for candidate, ctx in zip(selection.candidates, fetch.contexts, strict=True):
+        if isinstance(ctx, BaseException):
+            failures += 1
+            logger.warning("anomalias: contexto de %s indisponível (%s)", candidate, ctx)
+            continue
+        signals.append(
+            entity_signal(
+                entity=ctx.get("entity") or {},
+                coverage_rows=ctx.get("entityCoverage") or [],
+                policy_domain=(ctx.get("policyDetails") or {}).get("domain"),
+                windows=windows,
+                sens=sens,
+                republishers=republishers,
+                activity=snapshot,
+                candidate=candidate,
             )
-    else:
-        lines.append("Nenhuma cobertura concentrada suspeita.")
+        )
+    signals.sort(key=lambda s: (-s.severity, s.name))
 
-    lines.append("\n### Tendências Normais")
-    if normal:
-        for e in normal:
-            lines.append(
-                f"- **{e.get('canonicalName')}** ({e.get('type')}) · "
-                f"volumeRatio {e.get('volumeRatio', 0):.1f}× · "
-                f"{e.get('windowAgencies')} agências"
-            )
-    else:
-        lines.append("Nenhuma tendência normal restante.")
+    status: Status = ranking.status
+    if status == "unavailable" and signals:
+        status = "degraded"  # o upstream envelheceu, mas os sinais foram recalculados
+    notes: list[str] = []
+    upstream = selection.upstream
+    dropped = selection.dropped_floor + selection.dropped_stale
+    if dropped:
+        notes.append(
+            f"{dropped} de {upstream.rows_total} linhas do ranking descartadas como candidatas "
+            f"({selection.dropped_floor} do piso antigo, {selection.dropped_stale} de "
+            "execuções anteriores)"
+        )
+    if not selection.candidates and upstream.rows_total:
+        notes.append("nenhum candidato restou para recalcular")
+    if failures:
+        status = (
+            "unavailable"
+            if failures == len(selection.candidates)
+            else worst_status([status, "degraded"])
+        )
+        notes.append(
+            f"{failures} de {len(selection.candidates)} candidatos sem contexto (falha ao "
+            "consultar a graphql-api)"
+        )
+    if republishers_fallback:
+        status = worst_status([status, "degraded"])
+        notes.append("catálogo indisponível: republicadoras por lista fixa")
+    if status != "ok" and signals:
+        notes.append("sinais recalculados pela cobertura diária (entityCoverage)")
+    note = (notes[0][0].upper() + "; ".join(notes)[1:] + ".") if notes else None
 
-    return "\n".join(lines)
+    block = EntitiesBlock(
+        status=status,
+        note=note,
+        window=window,
+        baseline=baseline,
+        candidates=len(selection.candidates),
+        upstream=upstream,
+        signals=signals,
+    )
+    return block, ranking, selection
+
+
+def _report_status(themes: ThemesBlock, entities: EntitiesBlock) -> ReportStatus:
+    statuses = (themes.status, entities.status)
+    if all(s == "unavailable" for s in statuses):
+        return "unavailable"
+    if any(s != "ok" for s in statuses):
+        return "partial"
+    if not themes.signals and not entities.signals:
+        return "empty"
+    return "ok"
+
+
+# ── builder e tool ──────────────────────────────────────────────────────────
+
+
+async def build_anomaly_report(
+    client: GobusGraphQLClient,
+    *,
+    sensitivity: str = "medium",
+    domain_filter: str = "",
+    catalog: AgencyCatalog | None = None,
+    activity: AgencyActivityService | None = None,
+    now=None,
+    cache: TTLCache | None = None,
+    max_candidates: int = MAX_CANDIDATES,
+) -> AnomalyReport:
+    """``AnomalyReport`` completo (``summary`` = Markdown). Parâmetro inválido levanta
+    ``ValueError`` com as opções."""
+    sens_name, sens = parse_sensitivity(sensitivity)
+    domain: Domain | None = parse_domain(domain_filter)
+    now = now or now_brt()
+    today = reference_date(now)
+    catalog = catalog or AgencyCatalog(client)
+    activity = activity or AgencyActivityService(client, catalog)
+    windows = entity_windows(today)
+
+    theme_fetch, entity_fetch, snapshot_r, republishers_r = await asyncio.gather(
+        fetch_theme_ranges(client, THEME_RANGE_DAYS, now=now, cache=cache),
+        _fetch_entities(client, windows, cache=cache, max_candidates=max_candidates),
+        activity.snapshot(today),
+        catalog.republishers(),
+        return_exceptions=True,
+    )
+
+    snapshot = None if isinstance(snapshot_r, BaseException) else snapshot_r
+    activity_data = activity_status(
+        snapshot, error=str(snapshot_r) if isinstance(snapshot_r, BaseException) else None
+    )
+    republishers_fallback = isinstance(republishers_r, BaseException)
+    republishers = FALLBACK_REPUBLISHERS if republishers_fallback else republishers_r
+
+    themes_block, theme_status = _themes(theme_fetch, sens, now=now, today=today)
+    entities_block, ranking_status, selection = _entities(
+        entity_fetch,
+        windows,
+        sens=sens,
+        republishers=republishers,
+        republishers_fallback=republishers_fallback,
+        snapshot=snapshot,
+        now=now,
+    )
+    domains = summarize_domains(themes_block.signals, entities_block.signals)
+    if domain is not None:
+        themes_block = themes_block.model_copy(
+            update={"signals": [t for t in themes_block.signals if t.domain == domain]}
+        )
+        entities_block = entities_block.model_copy(
+            update={"signals": [e for e in entities_block.signals if e.domain == domain]}
+        )
+
+    statuses = [theme_status, ranking_status, activity_data]
+    notices = calendar_notices(
+        today,
+        baselines=[rolling_range(SHORT_WINDOW[1], today), rolling_range(LONG_WINDOW[1], today)],
+        silenced_agencies=len(snapshot.silenced) if snapshot else None,
+    )
+    notices += notices_for(statuses)
+    if selection is not None:
+        notices += selection_notices(selection)
+
+    report = AnomalyReport(
+        summary="",
+        status=_report_status(themes_block, entities_block),
+        generated_at=now,
+        reference_date=today,
+        params={"sensitivity": sens_name, "domain_filter": domain.value if domain else None},
+        calendar=calendar_context(
+            today,
+            silenced_agencies=len(snapshot.silenced) if snapshot else None,
+            resumed_agencies=len(snapshot.resumed) if snapshot else None,
+        ),
+        data_status=statuses,
+        notices=notices,
+        thresholds=sens.thresholds(),
+        themes=themes_block,
+        entities=entities_block,
+        domains=domains,
+    )
+    report = report.model_copy(update={"summary": render_anomalies_markdown(report)})
+    return fit_anomaly_budget(report)
+
+
+def invalid_params_markdown(error: ValueError) -> str:
+    return f"{TITLE}\n\n**Parâmetro inválido:** {error}"
+
+
+async def detect_anomalies(
+    client: GobusGraphQLClient,
+    sensitivity: str = "medium",
+    domain_filter: str = "",
+    *,
+    catalog: AgencyCatalog | None = None,
+    activity: AgencyActivityService | None = None,
+    now=None,
+    cache: TTLCache | None = None,
+) -> str:
+    """Markdown do detector de anomalias (o ``summary`` do ``AnomalyReport``).
+
+    Parâmetro inválido (sensibilidade ou domínio) devolve as opções, sem consultar a API.
+    """
+    try:
+        parse_sensitivity(sensitivity)
+        parse_domain(domain_filter)
+    except ValueError as exc:
+        return invalid_params_markdown(exc)
+    report = await build_anomaly_report(
+        client,
+        sensitivity=sensitivity,
+        domain_filter=domain_filter,
+        catalog=catalog,
+        activity=activity,
+        now=now,
+        cache=cache,
+    )
+    return report.summary

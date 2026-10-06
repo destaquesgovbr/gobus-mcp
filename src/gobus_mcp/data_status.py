@@ -101,6 +101,26 @@ def data_status_for(
     return _make(key, status, detail, since=since, metric=metric or {})
 
 
+_STATUS_RANK: Mapping[str, int] = {"ok": 0, "degraded": 1, "unavailable": 2}
+
+
+def worst_status(statuses: Iterable[Status]) -> Status:
+    """O pior status (``ok`` < ``degraded`` < ``unavailable``); ``ok`` se vazio."""
+    return max(statuses, key=_STATUS_RANK.__getitem__, default="ok")
+
+
+def failed_status(key: DataKey, error: BaseException | str) -> DataStatus:
+    """``unavailable`` por falha de consulta. Sem dica de ``since``: a falha é de agora."""
+    text = error if isinstance(error, str) else (str(error) or type(error).__name__)
+    return DataStatus(
+        key=key,
+        status="unavailable",
+        since=None,
+        message=f"{KEY_LABELS[key]}: indisponível — falha ao consultar a graphql-api ({text})",
+        metric={},
+    )
+
+
 def _status_for_ratio(ratio: float | None, *, dead: float, degraded: float) -> Status:
     if ratio is None or ratio < dead:
         return "unavailable"
