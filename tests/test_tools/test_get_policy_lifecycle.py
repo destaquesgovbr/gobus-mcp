@@ -1,5 +1,8 @@
-"""gobus_get_policy_lifecycle: série MENSAL (somando agências), pico real, artigos da janela
-do pico (filtro de data) e período formatado AAAA-MM."""
+"""gobus_get_policy_lifecycle: série MENSAL (somando agências) até o mês de referência, pico
+real, fase atual do último mês fechado, artigos da janela do pico (filtro de data) e período
+formatado AAAA-MM."""
+
+from datetime import date
 
 from gobus_mcp.client import GobusGraphQLError
 from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
@@ -20,6 +23,9 @@ ENTITY = {
         }
     ]
 }
+
+
+TODAY = date(2026, 10, 5)  # mês de referência 2026-10 (parcial); último mês fechado 2026-09
 
 
 def _point(month, key, name, count):
@@ -89,7 +95,7 @@ def _table_rows(result):
 async def test_agrega_por_mes_somando_agencias(fake_client):
     _route(fake_client)
 
-    result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
 
     rows = _table_rows(result)
     months = [row.split("|")[1].strip() for row in rows]
@@ -101,18 +107,29 @@ async def test_agrega_por_mes_somando_agencias(fake_client):
 async def test_preenche_meses_sem_cobertura(fake_client):
     _route(fake_client)
 
-    result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
 
     months = [row.split("|")[1].strip() for row in _table_rows(result)]
-    assert months[0] == "2023-08" and months[-1] == "2026-01"
+    assert months[0] == "2023-08"
     assert "2025-05" in months  # mês sem artigos entra como 0 (ROUTINE)
     assert "| 2025-05 | 0 | ROUTINE |" in result
+
+
+async def test_serie_vai_ate_o_mes_de_referencia(fake_client):
+    _route(fake_client)
+
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
+
+    months = [row.split("|")[1].strip() for row in _table_rows(result)]
+    assert months[-2:] == ["2026-09", "2026-10 (parcial)"]
+    assert "| 2026-09 | 0 | ROUTINE | — |" in result
+    assert "| 2026-10 (parcial) | 0 | — | — |" in result
 
 
 async def test_fase_atual_e_pico_real(fake_client):
     _route(fake_client)
 
-    result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
 
     assert "**Fase atual:** ROUTINE" in result
     assert "**Pico:** 2024-03 (60 artigos)" in result
@@ -121,7 +138,7 @@ async def test_fase_atual_e_pico_real(fake_client):
 async def test_artigos_vem_da_janela_do_pico(fake_client):
     _route(fake_client)
 
-    result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
 
     (call,) = fake_client.calls("PolicyPeakArticles")
     assert call["entities"] == ["dgb_pe-de-meia"]
@@ -153,7 +170,7 @@ async def test_sem_artigo_marcado_busca_pelo_nome_na_janela_do_pico(fake_client)
         },
     )
 
-    result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
 
     (search,) = fake_client.calls("PolicyPeakSearch")
     assert search["query"] == "Pé-de-Meia"
@@ -164,7 +181,7 @@ async def test_sem_artigo_marcado_busca_pelo_nome_na_janela_do_pico(fake_client)
 async def test_ancoras_por_fase_somam_os_meses(fake_client):
     _route(fake_client)
 
-    result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
 
     anchors = result.split("Âncoras Narrativos por Fase")[1].split("##")[0]
     assert "**ANNOUNCED:** CAIXA" in anchors
@@ -174,7 +191,7 @@ async def test_ancoras_por_fase_somam_os_meses(fake_client):
 async def test_policy_details_opcional(fake_client):
     _route(fake_client, policy=GobusGraphQLError([{"message": "boom"}]))
 
-    result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
 
     assert "Pé-de-Meia" in result and "GobusGraphQLError" not in result
 
@@ -182,7 +199,7 @@ async def test_policy_details_opcional(fake_client):
 async def test_politica_nao_encontrada(fake_client):
     fake_client.route("EntitySearch", {"entitySearch": []})
 
-    result = await get_policy_lifecycle("Política Inexistente", fake_client)
+    result = await get_policy_lifecycle("Política Inexistente", fake_client, today=TODAY)
 
     assert "não encontrada" in result.lower()
 
@@ -190,7 +207,7 @@ async def test_politica_nao_encontrada(fake_client):
 async def test_sem_cobertura_avisa(fake_client):
     _route(fake_client, coverage={"entityCoverage": []})
 
-    result = await get_policy_lifecycle("Pé-de-Meia", fake_client)
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
 
     assert "insuficientes" in result.lower()
 
@@ -198,8 +215,80 @@ async def test_sem_cobertura_avisa(fake_client):
 async def test_passa_date_from(fake_client):
     _route(fake_client)
 
-    await get_policy_lifecycle("Pé-de-Meia", fake_client, date_from="2023-01-01")
+    await get_policy_lifecycle("Pé-de-Meia", fake_client, date_from="2023-01-01", today=TODAY)
 
     (call,) = fake_client.calls("EntityCoverage")
     assert call["dateFrom"] == "2023-01-01"
     assert call["granularity"] == "MONTH"
+
+
+# ── fase atual = último mês fechado (não o último mês com cobertura) ────────
+
+# Pico no último mês com cobertura (2026-01), que ficou 8 meses fechados para trás.
+STALE = {
+    "entityCoverage": [
+        _point("2025-11", "mec", "MEC", 10),
+        _point("2025-12", "mec", "MEC", 20),
+        _point("2026-01", "mec", "MEC", 60),
+    ]
+}
+
+
+async def test_fase_atual_e_do_ultimo_mes_fechado_e_nao_do_ultimo_com_cobertura(fake_client):
+    _route(fake_client, coverage=STALE)
+
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
+
+    header = next(line for line in result.splitlines() if "**Fase atual:**" in line)
+    assert "**Fase atual:** ROUTINE" in header and "2026-09" in header
+    assert "**Pico:** 2026-01 (60 artigos)" in result
+    assert "**Último mês com cobertura:** 2026-01" in result
+    assert "Sem cobertura desde 2026-01" in result and "8 meses fechados" in result
+    perspectiva = result.split("Perspectiva Atual")[1]
+    assert "fase **ROUTINE**" in perspectiva and "ANNOUNCED" not in perspectiva
+
+
+async def test_mes_corrente_parcial_fica_fora_da_classificacao(fake_client):
+    coverage = {
+        "entityCoverage": [
+            _point("2026-08", "mec", "MEC", 50),
+            _point("2026-09", "mec", "MEC", 30),
+            _point("2026-10", "mec", "MEC", 5),
+        ]
+    }
+    _route(fake_client, coverage=coverage)
+
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
+
+    # 30/50 = 60% do pico em 2026-09; o parcial (5) não vira ROUTINE nem fase atual
+    assert "**Fase atual:** IMPLEMENTATION" in result
+    assert "| 2026-10 (parcial) | 5 | — | MEC |" in result
+    assert "Sem cobertura desde" not in result
+    assert "**Último mês com cobertura:** 2026-10" in result
+
+
+async def test_mes_corrente_parcial_acima_do_pico_avisa(fake_client):
+    coverage = {
+        "entityCoverage": [
+            _point("2026-08", "mec", "MEC", 50),
+            _point("2026-09", "mec", "MEC", 30),
+            _point("2026-10", "mec", "MEC", 80),
+        ]
+    }
+    _route(fake_client, coverage=coverage)
+
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
+
+    assert "**Pico:** 2026-08 (50 artigos)" in result  # pico entre os meses fechados
+    assert "mês corrente (parcial) já supera o pico" in result.lower()
+
+
+async def test_cobertura_so_no_mes_corrente(fake_client):
+    coverage = {"entityCoverage": [_point("2026-10", "mec", "MEC", 12)]}
+    _route(fake_client, coverage=coverage)
+
+    result = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=TODAY)
+
+    header = next(line for line in result.splitlines() if "**Fase atual:**" in line)
+    assert "**Fase atual:** ANNOUNCED" in header and "parcial" in header
+    assert "| 2026-10 (parcial) | 12 | ANNOUNCED | MEC |" in result
