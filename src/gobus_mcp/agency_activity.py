@@ -7,9 +7,17 @@ Uma chamada ``agencyAnalytics(agências do catálogo, DAY)`` cobre o período do
 
 Dá, por agência: série diária (zeros preenchidos), ``last_active``, ``silent_since``
 (≥ 14 dias zerados até D−1, depois de ter publicado no período), ``resumed_on`` (volta
-depois de um silêncio ≥ 14 dias) e a média diária pré-defeso; e, para a plataforma, o
-volume diário (``platform_daily``, base do perfil de dia útil). Linhas duplicadas por
+depois de um silêncio ≥ 14 dias), ``resumed_after_blackout_on`` (volta depois de um
+silêncio ≥ 14 dias que **atravessa o último dia do defeso**: calada em 25/10 e de volta
+depois) e a média diária pré-defeso; e, para a plataforma, o volume diário
+(``platform_daily``, base do perfil de dia útil). Linhas duplicadas por
 ``(period, agencyKey)`` (agência com dois nomes no CTE da API) contam uma vez.
+
+Duas listas de retomada:
+- ``resumed``: genérica (qualquer silêncio ≥ 14 dias, volta nos últimos 35 dias), só
+  informativa no health; inclui agência esporádica e volta dentro do defeso;
+- ``resumed_after_blackout``: só a volta pós-defeso. É a que explica sinal na recuperação
+  (``analytics.entities``) e a contagem ``resumed_agencies`` do calendário.
 
 Cache de 6 h por D, single-flight; falha levanta (o chamador degrada para o perfil padrão)
 e não é cacheada. Timeout próprio de 30 s: ~19 mil linhas levam 3–7 s.
@@ -61,6 +69,8 @@ class AgencyActivity:
     resumed_on: date | None  # primeiro dia ativo depois do silêncio ≥ 14 dias mais recente
     pre_daily_mean: float | None  # média diária antes do defeso (só no defeso/recuperação)
     series: Mapping[date, int]
+    # primeiro dia ativo depois de um silêncio ≥ 14 dias que inclui o último dia do defeso
+    resumed_after_blackout_on: date | None = None
 
 
 @dataclass(frozen=True)
@@ -68,9 +78,10 @@ class ActivitySnapshot:
     by_agency: Mapping[str, AgencyActivity]
     platform_daily: Mapping[date, int]
     silenced: frozenset[str]
-    resumed: frozenset[str]  # retomadas nos últimos 35 dias
+    resumed: frozenset[str]  # retomadas nos últimos 35 dias (genérica, informativa)
     start: date
     end: date
+    resumed_after_blackout: frozenset[str] = frozenset()  # voltaram depois do defeso
 
 
 def _current_period(today: date, periods: tuple[BlackoutPeriod, ...]) -> BlackoutPeriod | None:
@@ -114,10 +125,11 @@ def _agency_activity(
     *,
     silence_min_days: int,
     pre_start: date | None,
+    blackout_end: date | None,
 ) -> AgencyActivity:
     active_days = [day for day, count in series if count > 0]
     last_active = active_days[-1] if active_days else None
-    silent_since = resumed_on = None
+    silent_since = resumed_on = after_blackout = None
     for start, end in _zero_runs(series):
         length = end - start + 1
         preceded = start > 0  # houve atividade antes da corrida, dentro do período
@@ -125,8 +137,11 @@ def _agency_activity(
             continue
         if end == len(series) - 1:
             silent_since = series[start][0]
-        else:
-            resumed_on = series[end + 1][0]
+            continue
+        resumed_on = series[end + 1][0]
+        # calada no último dia do defeso e de volta depois dele
+        if blackout_end is not None and series[start][0] <= blackout_end < resumed_on:
+            after_blackout = resumed_on
     pre = [count for day, count in series if pre_start is not None and day < pre_start]
     return AgencyActivity(
         key=key,
@@ -136,6 +151,7 @@ def _agency_activity(
         resumed_on=resumed_on,
         pre_daily_mean=fmean(pre) if pre else None,
         series=dict(series),
+        resumed_after_blackout_on=after_blackout,
     )
 
 
@@ -180,6 +196,7 @@ def summarize_activity(
             [(day, per_agency.get(day, 0)) for day in days],
             silence_min_days=silence_min_days,
             pre_start=pre_start,
+            blackout_end=current.end if current is not None else None,
         )
         for key, per_agency in sorted(counts.items())
     }
@@ -191,6 +208,13 @@ def summarize_activity(
         for k, a in by_agency.items()
         if a.resumed_on is not None and a.resumed_on >= recent and k not in silenced
     )
+    # Só existe na recuperação (no defeso, ninguém voltou "depois" dele ainda); dentro dela
+    # a volta é sempre recente (a recuperação dura 35 dias), então não precisa do corte.
+    resumed_after_blackout = frozenset(
+        k
+        for k, a in by_agency.items()
+        if a.resumed_after_blackout_on is not None and k not in silenced
+    )
     return ActivitySnapshot(
         by_agency=by_agency,
         platform_daily=platform_daily,
@@ -198,6 +222,7 @@ def summarize_activity(
         resumed=resumed,
         start=period.start,
         end=end,
+        resumed_after_blackout=resumed_after_blackout,
     )
 
 
@@ -226,12 +251,14 @@ def activity_status(snapshot: ActivitySnapshot | None, *, error: str | None = No
     detail = (
         f"{len(snapshot.by_agency)} agências de {snapshot.start.strftime('%d/%m/%Y')} a "
         f"{snapshot.end.strftime('%d/%m/%Y')}; {len(snapshot.silenced)} sem publicar há "
-        f"≥{SILENCE_MIN_DAYS} dias; {len(snapshot.resumed)} retomadas"
+        f"≥{SILENCE_MIN_DAYS} dias; {len(snapshot.resumed)} retomadas "
+        f"({len(snapshot.resumed_after_blackout)} depois do defeso)"
     )
     metric = {
         "agencies": len(snapshot.by_agency),
         "silenced": len(snapshot.silenced),
         "resumed": len(snapshot.resumed),
+        "resumedAfterBlackout": len(snapshot.resumed_after_blackout),
         "days": len(snapshot.platform_daily),
     }
     return data_status_for("agency_activity", "ok", detail, metric=metric)

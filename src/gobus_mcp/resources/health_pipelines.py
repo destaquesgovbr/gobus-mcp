@@ -14,7 +14,10 @@ A detecção é sempre dinâmica, na própria resposta da API:
   tempo real parado; com menos de ``INDEXING_MIN_SAMPLE`` artigos em D (começo do dia
   UTC), a amostra vira D−1..D;
 - ``agency_activity`` (G2): snapshot de atividade (cache de 6 h), com as agências
-  silenciadas (≥ 14 dias sem publicar) e as retomadas no bloco ``agencyActivity``.
+  silenciadas (≥ 14 dias sem publicar) e as retomadas no bloco ``agencyActivity``. A
+  lista ``resumed`` é genérica (qualquer silêncio ≥ 14 dias, volta nos últimos 35 dias);
+  ``afterBlackout`` marca as que voltaram depois do defeso, as únicas contadas em
+  ``calendar.resumedAgencies``.
 
 Uma consulta que falha deixa só a sua chave ``unavailable``.
 """
@@ -170,6 +173,7 @@ def _activity_detail(snapshot: ActivitySnapshot | None) -> dict | None:
                 "key": key,
                 "name": by_agency[key].name,
                 "resumedOn": iso(by_agency[key].resumed_on),
+                "afterBlackout": key in snapshot.resumed_after_blackout,
             }
             for key in sorted(snapshot.resumed)
         ],
@@ -257,7 +261,7 @@ async def fetch_health_pipelines(
         "calendar": calendar_context(
             today,
             silenced_agencies=len(snapshot.silenced) if snapshot else None,
-            resumed_agencies=len(snapshot.resumed) if snapshot else None,
+            resumed_agencies=len(snapshot.resumed_after_blackout) if snapshot else None,
         ).model_dump(mode="json"),
         "status": worst_status(s.status for s in statuses),
         "pipelines": {s.key: s.model_dump(mode="json") for s in statuses},

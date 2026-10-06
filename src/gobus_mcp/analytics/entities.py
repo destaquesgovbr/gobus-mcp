@@ -12,8 +12,9 @@ Precedência das classes (``classify_entity``):
 2. ``new_entity``: ``baseline_count == 0`` (com menções na janela);
 3. ``calendar_explained``: no defeso, dona silenciada (≥ 14 dias sem publicar) ou com
    produção < 0,2× do baseline; na recuperação, ≥ 50% da janela vindo de agências
-   retomadas **e** o sinal não se sustenta sem elas (se sustenta, segue com a flag
-   ``resumed_agencies``);
+   retomadas **depois do defeso** (``ActivitySnapshot.resumed_after_blackout``: caladas
+   no último dia do defeso e de volta depois; agência esporádica não conta) **e** o sinal
+   não se sustenta sem elas (se sustenta, segue com a flag ``resumed_agencies``);
 4. ``coordinated_silence``: outras agências com razão ≥ ``silence_ratio`` e ao menos
    ``min_count`` artigos na janela; dona com 0 menções ou ≤ 25% do próprio normal; dona
    ativa no geral (produção ≥ 0,5× do baseline); dona com baseline ≥ 3;
@@ -547,7 +548,8 @@ def entity_signal(
         if record is not None:
             owner_activity = activity_ratio(record, windows.window, windows.baseline)
         owner_silenced = owner.agency_key in activity.silenced
-    resumed = activity.resumed if activity is not None else frozenset()
+    # só a volta pós-defeso explica sinal (a lista genérica inclui agência esporádica)
+    resumed = activity.resumed_after_blackout if activity is not None else frozenset()
 
     entity_type = entity.get("type") or candidate.get("type") or "UNKNOWN"
     a = classify_entity(

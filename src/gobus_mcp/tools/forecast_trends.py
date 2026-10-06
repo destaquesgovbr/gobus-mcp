@@ -156,7 +156,7 @@ async def build_forecast_report(
         calendar=calendar_context(
             today,
             silenced_agencies=len(snapshot.silenced) if snapshot else None,
-            resumed_agencies=len(snapshot.resumed) if snapshot else None,
+            resumed_agencies=len(snapshot.resumed_after_blackout) if snapshot else None,
         ),
         data_status=statuses,
         notices=notices,
