@@ -40,3 +40,37 @@ jobs:
 
       - name: mkdocs build --strict
         run: poetry run mkdocs build --strict
+
+  ui:
+    name: MCP Apps (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar Poetry
+        run: pipx install poetry==2.0.1
+
+      - name: Instalar dependências (main + dev)
+        run: poetry install --with dev --no-interaction
+
+      - name: Instalar o Chromium do Playwright
+        run: poetry run python -m playwright install --with-deps chromium
+
+      - name: pytest -m ui (mini-host headless)
+        env:
+          GOBUS_UI_ARTIFACTS: ${{ runner.temp }}/ui-screenshots
+        run: poetry run pytest -q -m ui
+
+      - name: Screenshots dos apps
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots
+          path: ${{ runner.temp }}/ui-screenshots
+          if-no-files-found: ignore
+          retention-days: 7
