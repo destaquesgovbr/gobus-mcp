@@ -3,6 +3,7 @@
 PY ?= .venv/bin/python3.12
 PORT ?= 8000
 MCPJAM ?= @mcpjam/cli@5.13.0
+MCPJAM_ARGS ?=
 export PYTHONPATH := $(CURDIR)/src
 
 .PHONY: docs-serve docs-build test lint ui ui-install ui-fixtures conformance
@@ -35,4 +36,4 @@ ui-fixtures:
 # resources ui:// são estáticos e a checagem não chama tools). Uma linha só: cada linha
 # de receita roda num shell próprio.
 conformance:
-	PORT=$(PORT) GOBUS_GRAPHQL_URL=http://127.0.0.1:9/graphql $(PY) -m gobus_mcp & pid=$$!; trap 'kill $$pid 2>/dev/null' EXIT; until curl -s -o /dev/null http://127.0.0.1:$(PORT)/mcp; do kill -0 $$pid 2>/dev/null || exit 1; sleep 0.5; done; npx -y $(MCPJAM) apps conformance --url http://127.0.0.1:$(PORT)/mcp
+	PORT=$(PORT) GOBUS_GRAPHQL_URL=http://127.0.0.1:9/graphql $(PY) -m gobus_mcp 1>&2 & pid=$$!; trap 'kill $$pid 2>/dev/null' EXIT; until curl -s -o /dev/null http://127.0.0.1:$(PORT)/mcp; do kill -0 $$pid 2>/dev/null || exit 1; sleep 0.5; done; npx -y $(MCPJAM) apps conformance --url http://127.0.0.1:$(PORT)/mcp $(MCPJAM_ARGS)
