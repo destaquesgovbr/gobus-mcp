@@ -47,6 +47,7 @@ const domFormats = new Map();
 function domNumber(value, digits) {
   if (value === null || value === undefined || Number.isNaN(value)) return DOM_DASH;
   const d = digits === undefined ? 1 : digits;
+  if (value === 0) value = 0; // -0 vira 0 (nada de "-0,0")
   if (!domFormats.has(d)) {
     domFormats.set(d, new Intl.NumberFormat("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d }));
   }
@@ -148,8 +149,16 @@ function domMount(spec) {
     loading(message) {
       view.show("loading", h("div", { class: "gb-skeleton", "data-testid": "skeleton" }, h("span", { class: "gb-muted" }, message || "Carregando…")));
     },
+    // Re-render quando o modo (inline/fullscreen) ou a largura mudam: os gráficos são
+    // desenhados na largura real e o inline mostra menos itens.
+    refresh() {
+      const mode = document.documentElement.dataset.mode || "inline";
+      if (view.result && (mode !== view.mode || Math.abs(window.innerWidth - view.width) > 8)) view.render(view.result);
+    },
     render(result) {
       view.result = result;
+      view.mode = document.documentElement.dataset.mode || "inline";
+      view.width = window.innerWidth;
       const data = result && result.structuredContent;
       if (result && result.isError) {
         view.show("error", domState("error", "Erro na consulta", domText(result) || "A tool devolveu erro."));
@@ -183,10 +192,16 @@ function domMount(spec) {
     onCancel(reason) {
       view.show("cancelled", domState("cancelled", "Consulta cancelada", reason || null));
     },
-    onContext: () => { if (spec.onContext) spec.onContext(view); },
+    onContext: () => view.refresh(),
     onError(err) {
       view.show("error", domState("error", "Erro ao exibir", err && err.message ? err.message : String(err)));
     },
+  });
+  let resizing = false;
+  window.addEventListener("resize", () => {
+    if (resizing) return;
+    resizing = true;
+    requestAnimationFrame(() => { resizing = false; view.refresh(); });
   });
   return view;
 }

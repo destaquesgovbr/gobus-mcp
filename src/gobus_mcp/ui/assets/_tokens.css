@@ -104,8 +104,8 @@ body {
 .gb-chart text { fill: var(--gb-text); font-family: var(--gb-font); font-size: 12px; }
 .gb-chart .gb-axis { fill: var(--gb-text-3); font-size: 11px; }
 .gb-chart .gb-track { fill: var(--gb-track); }
-.gb-chart .gb-target { stroke: var(--gb-target); stroke-width: 1; stroke-dasharray: 3 3; }
-.gb-chart .gb-target-zone { fill: var(--gb-success); opacity: 0.08; }
+.gb-chart .gb-target { stroke: var(--gb-target); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+.gb-chart .gb-target-zone { fill: var(--gb-success); opacity: 0.08; pointer-events: none; }
 .gb-chart .gb-bar { fill: var(--gb-text-3); }
 .gb-chart .gb-bar[data-band="very_hard"] { fill: var(--gb-band-very_hard); }
 .gb-chart .gb-bar[data-band="hard"] { fill: var(--gb-band-hard); }

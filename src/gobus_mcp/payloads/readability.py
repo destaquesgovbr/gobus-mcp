@@ -10,7 +10,7 @@ from datetime import date
 from typing import Literal
 
 from gobus_mcp.calendario import DateRange
-from gobus_mcp.payloads.common import Payload, ReportBase
+from gobus_mcp.payloads.common import MAX_PAYLOAD_BYTES, Payload, ReportBase, payload_size
 from gobus_mcp.readability import (
     FLESCH_BANDS,
     FLESCH_SCALE_ID,
@@ -107,6 +107,9 @@ class ReadabilityReport(ReportBase):
     coverage: ReadabilityCoverageInfo | None
     agencies: list[AgencyReadabilityRow] = []  # com dado, em ordem de Flesch
     agencies_without_data: list[AgencyReadabilityRow] = []
+    # cortadas do payload para caber no orçamento (o ``summary`` traz o ranking em texto)
+    omitted_with_data: int = 0
+    omitted_without_data: int = 0
     benchmark: AgencyReadabilityRow | None = None  # Agência Brasil na mesma janela
     agency: AgencyReadabilityRow | None = None  # modo agência
     sample_size: int | None = None  # artigos da amostra com Flesch (modo agência)
@@ -114,3 +117,32 @@ class ReadabilityReport(ReportBase):
     worst_article: ArticleReadability | None = None
     best_article: ArticleReadability | None = None
     recommendations: list[str] = []
+
+
+def fit_readability_budget(
+    report: ReadabilityReport, max_bytes: int = MAX_PAYLOAD_BYTES
+) -> ReadabilityReport:
+    """Reduz o ranking até caber em ``max_bytes``: primeiro as agências sem dado (da menos
+    ativa para a mais ativa), depois a cauda do ranking. O que sai fica contado em
+    ``omitted_*``; o topo do ranking e o ``summary`` ficam intactos."""
+    if payload_size(report) <= max_bytes:
+        return report
+    without = list(report.agencies_without_data)
+    ranked = list(report.agencies)
+    candidate = report
+    while payload_size(candidate) > max_bytes and (without or len(ranked) > 1):
+        if without:
+            without.pop()
+        else:
+            ranked.pop()
+        candidate = report.model_copy(
+            update={
+                "agencies": ranked,
+                "agencies_without_data": without,
+                "omitted_with_data": report.omitted_with_data + len(report.agencies) - len(ranked),
+                "omitted_without_data": report.omitted_without_data
+                + len(report.agencies_without_data)
+                - len(without),
+            }
+        )
+    return candidate

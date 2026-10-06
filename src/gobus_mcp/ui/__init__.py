@@ -29,8 +29,7 @@ from fastmcp.tools import ToolResult
 
 from gobus_mcp import __version__
 from gobus_mcp.analytics.render import SUMMARY_MAX_BYTES, fit_summary
-from gobus_mcp.payloads.anomalies import MAX_PAYLOAD_BYTES
-from gobus_mcp.payloads.common import ReportBase
+from gobus_mcp.payloads.common import MAX_PAYLOAD_BYTES, ReportBase
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +71,23 @@ class AppSpec:
 
 # URIs estáveis: a versão do contrato fica em ``schemaVersion`` do payload; a URI só muda
 # (``…-v2``) numa quebra de compatibilidade.
-APPS: dict[str, AppSpec] = {}
+APPS: dict[str, AppSpec] = {
+    spec.name: spec
+    for spec in (
+        AppSpec(
+            name="readability_dashboard",
+            uri="ui://readability-dashboard",
+            title="Legibilidade por agência",
+            description=(
+                "MCP App de gobus_get_readability_recommendations: ranking do Flesch por "
+                "agência com as metas e diagnóstico da agência. Template estático: os dados "
+                "chegam pelo structuredContent da tool (lido direto, é uma casca vazia)."
+            ),
+            tool="gobus_get_readability_recommendations",
+            kind="gobus.readability",
+        ),
+    )
+}
 
 
 def read_asset(filename: str) -> str:

@@ -267,6 +267,8 @@
           "avgWordCount": null
         }
       ],
+      "omittedWithData": 0,
+      "omittedWithoutData": 0,
       "benchmark": null,
       "agency": null,
       "sampleSize": null,

@@ -29,7 +29,7 @@ async def _app_text(run) -> str:
     return await run.eval("() => document.getElementById('app').textContent")
 
 
-def test_ha_fixtures_dos_estados_principais():
+async def test_ha_fixtures_dos_estados_principais():
     assert {"ok", "agency_detail", "shifted", "unavailable", "error", "xss"} <= set(STATES)
 
 
@@ -152,6 +152,7 @@ async def test_detalhe_da_agencia_com_artigos_benchmark_e_pedido_ao_chat(open_ho
     text = await _app_text(run)
     assert "Ministério da Saúde" in text and "Agência Brasil" in text
     assert "−8,3" in text or "-8,3" in text  # bruto do pior artigo, com clamp
+    assert "0,0 (bruto" in text and "-0,0" not in text
     assert await run.app.locator('[data-testid="recommendations"] li').count() == 3
     assert "**" not in text  # negrito do Markdown vira <strong>
 
@@ -174,7 +175,7 @@ async def test_sem_capacidades_do_host_nao_oferece_acoes(open_host):
     assert await run.app.locator('button[data-testid="article-worst"]').count() == 0
 
     run2, _ = await _open(open_host, "ok", capabilities={})
-    await run2.app.get_by_test_id("bar-saude").click()
+    await run2.app.get_by_test_id("bar-saude").dispatch_event("click")
     await run2.page.wait_for_timeout(100)
     assert (await run2.gb())["toolCalls"] == []
     assert run.problems == [] and run2.problems == []

@@ -212,7 +212,8 @@ async def open_host(browser: Browser) -> AsyncIterator[OpenHost]:
             "hostCapabilities": ALL_CAPABILITIES if capabilities is None else capabilities,
             "hostContext": context or host_context(theme),
         }
-        await page.evaluate("cfg => window.__gbStart(cfg)", config)
+        # como JSON (igual ao fio): o serializador do Playwright manda 0.0 como -0
+        await page.evaluate("cfg => window.__gbStart(JSON.parse(cfg))", json.dumps(config))
         return run
 
     yield _open

@@ -106,6 +106,8 @@
       },
       "agencies": [],
       "agenciesWithoutData": [],
+      "omittedWithData": 0,
+      "omittedWithoutData": 0,
       "benchmark": {
         "agencyKey": "agencia_brasil",
         "agencyName": "Agência Brasil",

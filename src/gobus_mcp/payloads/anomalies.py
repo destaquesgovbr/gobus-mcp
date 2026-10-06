@@ -15,16 +15,24 @@ O ``summary`` (Markdown, ≤ 6 KB) entra no orçamento de 20 KB do ``structuredC
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
 from gobus_mcp.analytics.ratios import band
 from gobus_mcp.domains import DOMAIN_LABELS, DOMAIN_ORDER, Domain
-from gobus_mcp.payloads.common import Band, Confidence, Payload, ReportBase, Status, Window
+from gobus_mcp.payloads.common import (
+    MAX_PAYLOAD_BYTES,
+    Band,
+    Confidence,
+    Payload,
+    ReportBase,
+    Status,
+    Window,
+    payload_size,
+)
 
 ThemeSignalKind = Literal["sustained_spike", "sustained_drop"]
 EntitySignalKind = Literal[
@@ -38,8 +46,6 @@ EntitySignalKind = Literal[
 OwnerMethod = Literal["agency_key", "coverage"]
 
 MAX_DAILY_POINTS = 28
-MAX_PAYLOAD_BYTES = 20_000  # structuredContent (meta: 10 KB)
-
 # Classes que alimentam os gauges de cada domínio.
 SPIKE_ENTITY_KINDS = frozenset({"concentrated_coverage"})
 SILENCE_ENTITY_KINDS = frozenset({"coordinated_silence"})
@@ -237,11 +243,6 @@ def summarize_domains(
         )
         for d, s in acc.items()
     ]
-
-
-def payload_size(report: BaseModel) -> int:
-    """Bytes do ``structuredContent`` (JSON UTF-8, camelCase)."""
-    return len(json.dumps(report.model_dump(mode="json"), ensure_ascii=False).encode())
 
 
 _TRIM_NOTE = "lista de entidades reduzida para caber no orçamento do payload"

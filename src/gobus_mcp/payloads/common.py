@@ -10,11 +10,15 @@ Regras do contrato:
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
+
+# Orçamento do ``structuredContent`` (meta: 10 KB); o ``summary`` tem o seu (6 KB).
+MAX_PAYLOAD_BYTES = 20_000
 
 # Estado de um dado/bloco (fonte de dados ou seção de um relatório).
 Status = Literal["ok", "degraded", "unavailable"]
@@ -138,3 +142,8 @@ class ReportBase(Payload):
     calendar: CalendarContext
     data_status: list[DataStatus]
     notices: list[Notice]
+
+
+def payload_size(report: BaseModel) -> int:
+    """Bytes do ``structuredContent`` (JSON UTF-8, camelCase)."""
+    return len(json.dumps(report.model_dump(mode="json"), ensure_ascii=False).encode())

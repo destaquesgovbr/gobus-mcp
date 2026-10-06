@@ -68,6 +68,7 @@ function svgBars(rows, opts) {
       class: row.onClick ? "gb-bar-row" : null, "data-testid": row.testid || null,
       onclick: row.onClick || null,
     }, s("title", null, row.title || row.label + ": " + valueText));
+    if (row.onClick) g.append(s("rect", { class: "gb-hit", x: 0, y, width: W, height: o.rowHeight - 2, fill: "transparent" }));
     g.append(
       s("text", { x: 0, y: y + 12 }, svgFit(row.label, W - valueWidth)),
       s("text", { x: W, y: y + 12, "text-anchor": "end", class: row.value === null ? "gb-axis" : null }, valueText),

@@ -1,0 +1,5 @@
+/* ui://readability-dashboard */
+.rd-score { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; margin: 4px 0 10px; }
+.rd-articles, .rd-recs { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.rd-articles { list-style: none; padding-left: 0; }
+.rd-recs li::marker { color: var(--gb-text-3); }

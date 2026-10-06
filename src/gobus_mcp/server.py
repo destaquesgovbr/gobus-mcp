@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 from fastmcp import FastMCP
 from fastmcp.server.http import Mount, Request, Response, SseServerTransport
+from fastmcp.tools import ToolResult
 
 from gobus_mcp.agency_activity import AgencyActivityService
 from gobus_mcp.agency_catalog import AgencyCatalog
@@ -16,7 +17,6 @@ from gobus_mcp.prompts.weekly_digest import weekly_digest_prompt
 from gobus_mcp.resources.agencies import fetch_agencies
 from gobus_mcp.resources.health_pipelines import fetch_health_pipelines
 from gobus_mcp.resources.platform_stats import fetch_platform_stats
-from gobus_mcp.resources.readability_dashboard import fetch_readability_dashboard
 from gobus_mcp.resources.readability_report import fetch_readability_report
 from gobus_mcp.resources.taxonomy_queries import fetch_taxonomy_queries
 from gobus_mcp.resources.themes import fetch_themes
@@ -29,10 +29,11 @@ from gobus_mcp.tools.get_article import get_article
 from gobus_mcp.tools.get_entity_network import get_entity_network
 from gobus_mcp.tools.get_entity_profile import get_entity_profile
 from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
-from gobus_mcp.tools.get_readability_recommendations import get_readability_recommendations
+from gobus_mcp.tools.get_readability_recommendations import build_readability_payload
 from gobus_mcp.tools.resolve_entity import resolve_entity
 from gobus_mcp.tools.score_article import score_article
 from gobus_mcp.tools.search_news import search_news
+from gobus_mcp.ui import app_result, app_tool_kwargs, register_ui_resources
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
@@ -330,13 +331,13 @@ async def gobus_get_agency_summary(agency_key: str, days: int = 30) -> str:
     return await get_agency_summary(agency_key, deps.client, days, catalog=deps.catalog)
 
 
-@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
+@mcp.tool(**app_tool_kwargs("readability_dashboard"))
 async def gobus_get_readability_recommendations(
     agency_key: str = "",
     days: int = 90,
     limit: int = 10,
     date_to: str = "",
-) -> str:
+) -> ToolResult:
     """Diagnóstico de legibilidade (índice Flesch) por agência com recomendações de estilo.
 
     Parâmetros:
@@ -355,16 +356,20 @@ async def gobus_get_readability_recommendations(
     parou antes do fim da janela, a análise usa a janela efetiva (mesmo tamanho, até o
     último mês com dado) e avisa "dados até MM/AAAA". Escala: fórmula inglesa do textstat,
     limitada a 0–100.
+
+    MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o painel
+    ui://readability-dashboard; o texto devolvido é o mesmo resumo em Markdown.
     """
     deps = get_deps()
-    return await get_readability_recommendations(
-        agency_key or None,
+    report = await build_readability_payload(
         deps.client,
-        days,
-        limit,
+        agency_key=agency_key or None,
+        days=days,
+        limit=limit,
         date_to=date_to or None,
         catalog=deps.catalog,
     )
+    return app_result(report)
 
 
 @mcp.tool(output_schema=None, annotations={"readOnlyHint": True})
@@ -519,13 +524,6 @@ async def taxonomy_queries_resource() -> str:
     return await fetch_taxonomy_queries()
 
 
-@mcp.resource("ui://readability-dashboard")
-async def readability_dashboard_resource() -> str:
-    """Dashboard interativo de legibilidade por agência (HTML/JS auto-contido)."""
-    deps = get_deps()
-    return await fetch_readability_dashboard(deps.client, catalog=deps.catalog)
-
-
 @mcp.resource("gobus://readability-report", mime_type="application/json")
 async def readability_report_resource() -> str:
     """Relatório JSON de legibilidade das agências ativas, com gap até a meta (Flesch 50),
@@ -541,6 +539,10 @@ async def health_pipelines_resource() -> str:
     cada uma ok | degraded | unavailable, com avisos."""
     deps = get_deps()
     return await fetch_health_pipelines(deps.client, catalog=deps.catalog, activity=deps.activity)
+
+
+# MCP Apps: um resource ui:// por app (HTML estático, sem I/O; os dados vêm da tool).
+register_ui_resources(mcp)
 
 
 # ── Prompts ──────────────────────────────────────────────────────────────────
