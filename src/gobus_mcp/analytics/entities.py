@@ -25,7 +25,9 @@ Precedência das classes (``classify_entity``):
 Severidade (0–1): pela razão contra ``sens.ratio`` (no silêncio, pelo ``silence_score``
 contra ``sens.silence_ratio``); zero sem menções próprias na janela e em
 ``calendar_explained`` (explicado não é anomalia); abaixo de ``min_count`` artigos,
-proporcional ao volume (``× w/min_count``).
+proporcional ao volume (``× w/min_count``); ``burst`` e ``new_entity`` no máximo na faixa
+``watch`` (``SEVERITY_WATCH_MAX``): rajada é pontual e entidade nova não tem baseline, então
+a razão (81× no caso Censo) não sustenta "alerta".
 
 O ``volumeRatio`` do upstream só é repassado ao payload; nunca decide nada aqui.
 """
@@ -37,7 +39,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from gobus_mcp.agency_activity import ActivitySnapshot, activity_ratio
-from gobus_mcp.analytics.ratios import band, laplace_ratio, severity
+from gobus_mcp.analytics.ratios import SEVERITY_WATCH_MAX, band, laplace_ratio, severity
 from gobus_mcp.analytics.themes import Sensitivity
 from gobus_mcp.calendario import (
     BLACKOUTS,
@@ -420,6 +422,10 @@ def classify_entity(
         sev = 0.0
     elif wc < sens.min_count:
         sev *= wc / sens.min_count
+    # Rajada é pontual e entidade nova não tem baseline: a razão satura a severidade (caso
+    # Censo: 81×) sem ser tendência sustentada. Ficam no máximo em "atenção".
+    if kind in ("burst", "new_entity"):
+        sev = min(sev, SEVERITY_WATCH_MAX)
 
     def _r(value: float | None) -> float | None:
         return None if value is None else round(value, 3)

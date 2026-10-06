@@ -164,6 +164,7 @@ def severity(score: float, threshold: float) -> float:
 
 BAND_WATCH = 0.33
 BAND_ALERT = 0.66
+SEVERITY_WATCH_MAX = 0.65  # teto da faixa watch: sinal que a razão sozinha não sustenta
 
 
 def band(sev: float) -> Band:

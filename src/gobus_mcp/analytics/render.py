@@ -200,7 +200,8 @@ _METHODOLOGY_ANOMALIES = [
     "Precedência: rajada → entidade nova → calendário → silêncio coordenado → cobertura "
     "concentrada → normal.",
     "- **Severidade** de 0 a 1: 1/3 no limiar da sensibilidade e 2/3 no quadrado dele "
-    "(atenção a partir de 0,33; alerta a partir de 0,66).",
+    "(atenção a partir de 0,33; alerta a partir de 0,66). Rajadas e entidades novas ficam "
+    "no máximo em atenção.",
 ]
 
 
