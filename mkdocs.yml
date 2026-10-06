@@ -63,9 +63,13 @@ nav:
     - taxonomy_queries: resources/taxonomy-queries.md
     - readability_report: resources/readability-report.md
     - health_pipelines: resources/health-pipelines.md
-    - readability_dashboard: resources/readability-dashboard.md
-    - article_scorecard: resources/article-scorecard.md
-  - MCP Apps: apps.md
+  - MCP Apps:
+    - Visão Geral: apps/index.md
+    - readability_dashboard: apps/readability-dashboard.md
+    - article_scorecard: apps/article-scorecard.md
+    - anomaly_radar: apps/anomaly-radar.md
+    - forecast_radar: apps/forecast-radar.md
+    - Desenvolvimento e validação: apps/desenvolvimento.md
   - Prompts:
     - monitor_agency: prompts/monitor-agency.md
     - trace_entity: prompts/trace-entity.md

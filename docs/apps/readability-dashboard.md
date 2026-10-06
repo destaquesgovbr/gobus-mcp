@@ -1,6 +1,6 @@
 # ui://readability-dashboard
 
-**MCP App** de [`gobus_get_readability_recommendations`](../tools/get-readability-recommendations.md): ranking do Flesch por agência e diagnóstico da agência. Ver [MCP Apps](../apps.md).
+**MCP App** de [`gobus_get_readability_recommendations`](../tools/get-readability-recommendations.md): ranking do Flesch por agência e diagnóstico da agência. Ver [MCP Apps](index.md).
 
 **URI:** `ui://readability-dashboard` · **MIME:** `text/html;profile=mcp-app` · `_meta.ui.prefersBorder: true`
 **Dados:** nenhum no HTML. O app desenha o `structuredContent` da tool (`kind: "gobus.readability"`, `schemaVersion: 1`, o `ReadabilityReport` de `payloads/readability.py`). Lido sem a tool, o resource é só o template.

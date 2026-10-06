@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Servidor MCP (Model Context Protocol) que expõe o acervo do Destaques Gov.BR — ~300k artigos, grafo de entidades NER canonicalizadas, analytics por agência — como tools/resources/prompts para LLMs. Toda leitura de dados passa pela `graphql-api`; não há acesso direto a Postgres, Typesense ou Neo4j.
 
-**Capacidades:** 13 tools (`gobus_*`, todas somente leitura; 2 delas abrem MCP Apps), 8 resources (6 `gobus://` e 2 `ui://`) e 4 prompts (`prompt_*`).
+**Capacidades:** 13 tools (`gobus_*`, todas somente leitura; 4 delas abrem MCP Apps), 10 resources (6 `gobus://` e 4 `ui://`) e 4 prompts (`prompt_*`). Em desenvolvimento (`GOBUS_DEV_PREVIEW=1`), mais 4 tools `gobus_dev_preview_*`.
 
 **Deploy:** Cloud Run (`destaquesgovbr-gobus-mcp`). Push em `main` com mudanças em `src/`, `Dockerfile`, `pyproject.toml`, `poetry.lock` ou nos workflows dispara o CI (`test.yaml`: lock, ruff, pytest, mkdocs) e, se verde, o build da imagem a partir do lock e o deploy. Env vars do serviço são geridas pelo Terraform (repo `infra/`).
 
@@ -68,6 +68,11 @@ mkdocs build --strict
 make test lint ui            # suíte, ruff, mini-host
 make ui-fixtures             # regera tests/fixtures/ui/*.json (depois de mudar builder/payload)
 make conformance             # MCPJam apps conformance contra o servidor local (PORT=8000)
+make -s conformance MCPJAM_ARGS="--reporter junit-xml" > apps-conformance.xml   # como no CI
+
+# MCP Apps num host real (basic-host do ext-apps, Desktop): previews com fixtures e CORS de dev
+PORT=8000 GOBUS_DEV_PREVIEW=1 GOBUS_CORS_ORIGINS=http://localhost:8080 GOBUS_GRAPHQL_URL=... python -m gobus_mcp
+# roteiro do basic-host em docs/apps/desenvolvimento.md
 
 # Snapshot do SDL da graphql-api (introspecção, só leitura; o teste de contrato usa)
 python tests/fixtures/refresh_schema.py
@@ -89,6 +94,11 @@ PORT=8000 GOBUS_GRAPHQL_URL=... python -m gobus_mcp
 | `GOBUS_GRAPHQL_API_KEY` | `""` | API key (opcional, enviada como `X-API-Key`) |
 | `GOBUS_REQUEST_TIMEOUT` | `10.0` | Timeout httpx em segundos |
 | `GOBUS_LOG_LEVEL` | `INFO` | Nível de log |
+| `GOBUS_DEV_PREVIEW` | `false` | **Só dev:** `1` registra `gobus_dev_preview_<app>` (fixtures "DEV — dados fictícios") |
+| `GOBUS_DEV_FIXTURES` | `""` | **Só dev:** diretório das fixtures das previews (padrão: `tests/fixtures/ui` do clone) |
+| `GOBUS_CORS_ORIGINS` | `""` | **Só dev:** origens CORS do HTTP, separadas por vírgula (basic-host conecta do navegador) |
+
+As três variáveis de dev nunca vão para o Cloud Run (o Terraform não as define); sem elas, nada é registrado e não há header `access-control-*`.
 
 Copie `.env.example` → `.env` para desenvolvimento local.
 
@@ -112,18 +122,21 @@ data_status.py       # saúde das fontes (ok|degraded|unavailable), detecção d
 payloads/            # pydantic: common (ReportBase, DataStatus, Notice, MAX_PAYLOAD_BYTES…),
                      #   readability, scorecard, anomalies (AnomalyReport), forecast (ForecastReport)
 ui/                  # MCP Apps (SEP-1865): render_app (HTML único, estático, guards de CSP/XSS,
-                     #   ≤ 60 KB), APPS, app_tool_kwargs, register_ui_resources, app_result;
+                     #   ≤ 60 KB), APPS (4 apps), app_tool_kwargs, register_ui_resources,
+                     #   app_result(report, content=); preview.py: gobus_dev_preview_* (só dev);
                      #   assets/: _base.html, _tokens.css, _bridge.js (JSON-RPC raw 2026-01-26),
-                     #   _dom.js, _svg.js e <app>.{js,css}
+                     #   _dom.js, _svg.js e <app>.{js,css} (gauge, sparkline e radar ficam no
+                     #   JS do app que os usa)
 analytics/           # funções puras: ratios (Laplace, share-of-voice, severidade/faixa), weekday
                      #   (perfil de dia útil, feriados, nível por fase), themes, entities, forecast,
-                     #   render (Markdown a partir dos modelos, ≤ 6 KB)
+                     #   render (Markdown a partir dos modelos; max_bytes=None = completo)
 tools/               # 13 tools (funções async puras, recebem client/catalog como arg);
-                     #   detect_anomalies/forecast_trends: build_*_report (I/O → modelo) + render
+                     #   detect_anomalies/forecast_trends: build_*_output → (payload compacto,
+                     #   Markdown completo); build_*_report = só o payload
 resources/           # 6 resources: agencies, themes, platform-stats, taxonomy-queries,
                      #   readability-report (JSON), health/pipelines (JSON: + indexing_lag e
-                     #   agency_activity); os 2 ui:// (readability-dashboard, article-scorecard)
-                     #   vêm de ui.register_ui_resources
+                     #   agency_activity); os 4 ui:// (readability-dashboard, article-scorecard,
+                     #   anomaly-radar, forecast-radar) vêm de ui.register_ui_resources
 prompts/             # 4 prompts: monitor_agency, trace_entity, weekly_digest, draft_press_release
 ```
 
@@ -131,7 +144,7 @@ prompts/             # 4 prompts: monitor_agency, trace_entity, weekly_digest, d
 
 **Registro:** toda tool sem app usa `@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})` — sem isso o fastmcp 3.4 embrulha o retorno `-> str` em `{"result": "…"}`. Resources JSON declaram `mime_type="application/json"`.
 
-**MCP Apps** (`gobus_get_readability_recommendations` → `ui://readability-dashboard`, `gobus_score_article` → `ui://article-scorecard`): `@mcp.tool(**app_tool_kwargs(<app>))` (`app=AppConfig(resource_uri)`, `meta={"ui/resourceUri": …}`, `readOnlyHint`) e `-> ToolResult` via `app_result(report)`: `content` = `summary` (≤ 6 KB) e `structuredContent` = payload camelCase com `summary` como **primeiro** campo (≤ 20 KB). O resource é `render_app(<app>)`: HTML estático, sem dado e sem I/O (`resources/read` não chama a GraphQL); `prefersBorder`. Campo opcional novo no payload mantém `schemaVersion=1`; a URI `ui://` só muda em quebra. O Claude Code não renderiza apps (mostra o `structuredContent`). Detalhes em `docs/apps.md`.
+**MCP Apps** (`gobus_get_readability_recommendations` → `ui://readability-dashboard`, `gobus_score_article` → `ui://article-scorecard`, `gobus_detect_anomalies` → `ui://anomaly-radar`, `gobus_forecast_trends` → `ui://forecast-radar`): `@mcp.tool(**app_tool_kwargs(<app>))` (`app=AppConfig(resource_uri)`, `meta={"ui/resourceUri": …}`, `readOnlyHint`) e `-> ToolResult` via `app_result(report, content=markdown)`: `content` = o Markdown **completo** e `structuredContent` = payload camelCase com `summary` (o mesmo Markdown cortado em 6 KB; idênticos quando cabe) como **primeiro** campo (≤ 20 KB). Os radares compactam o payload (`compact_anomaly_payload`: séries só nos 6 sinais anômalos exibidos, ≤ 3 normais sem série, resto contado em `entities.omitted`; `compact_forecast_payload`: série da projeção só no top-3). O resource é `render_app(<app>)`: HTML estático, sem dado e sem I/O (`resources/read` não chama a GraphQL); `prefersBorder`. Campo opcional novo no payload mantém `schemaVersion=1`; a URI `ui://` só muda em quebra. O Claude Code não renderiza apps (mostra o `structuredContent`). Parâmetro inválido de tool de app devolve só texto (sem `structuredContent`; o app mostra a mensagem). Detalhes em `docs/apps/`.
 
 **Transport:** determinado em runtime pelo env var `PORT`:
 - `PORT` ausente → `stdio`
@@ -177,13 +190,13 @@ async def test_exemplo(fake_client):
     assert fake_client.calls("AgencySummaryAnalytics")[0]["agencies"] == ["saude"]
 ```
 
-**MCP Apps (marker `ui`):** `tests/browser/` sobe um mini-host Playwright (`minihost.html`: iframe `sandbox="allow-scripts"` + CSP padrão da spec) e roda cada fixture de `tests/fixtures/ui/<app>/<estado>.json` em claro/escuro × 320/760 px, falhando com erro de console, violação de CSP, `alert()` ou altura fora de 100–2000 px. As fixtures saem dos builders reais (`tests/fixtures/ui/build.py`); `tests/test_ui/test_fixtures_contract.py` exige que estejam em dia (`make ui-fixtures`). O formato no fio fica em `tests/test_server/test_apps_wire.py`.
+**MCP Apps (marker `ui`):** `tests/browser/` sobe um mini-host Playwright (`minihost.html`: iframe `sandbox="allow-scripts"` + CSP padrão da spec) e roda cada fixture de `tests/fixtures/ui/<app>/<estado>.json` em claro/escuro × 320/760 px, falhando com erro de console, violação de CSP, `alert()` ou altura fora de 100–2000 px. As fixtures saem dos builders reais (`tests/fixtures/ui/build.py`); `tests/test_ui/test_fixtures_contract.py` exige que estejam em dia (`make ui-fixtures`). O formato no fio fica em `tests/test_server/test_apps_wire.py` (com o relógio dos radares fixo em `NOW_0510`); previews e CORS de dev em `test_dev_preview.py` e `test_cors_dev.py` (o teste de "não aparece por padrão" sobe um subprocesso sem as variáveis `GOBUS_*`).
 
 ## Convenções
 
 - **Idioma:** português em docstrings, comentários e mensagens; inglês em identificadores Python e nos enums dos payloads (rótulos PT só em texto).
 - **Commits:** português, prefixos `fix:` / `feature:` / `refactor:` / `chore:` / `test:` / `docs:`; TDD com `test: … (red)` antes de `fix:`/`feature: … (green)`.
 - **Sem Co-Authored-By** nos commits deste repo.
-- Tools retornam Markdown formatado (não JSON) — são consumidas diretamente por LLMs. **Exceção:** as tools de MCP App devolvem `summary` (= o Markdown) + payload estruturado no `structuredContent`; no Claude Code isso custa até ~20 KB (~7k tokens) por chamada, por isso o `summary` vem primeiro e é limitado a 6 KB.
+- Tools retornam Markdown formatado (não JSON) — são consumidas diretamente por LLMs. **Exceção — tools de app = summary + payload:** as 4 tools de MCP App devolvem o Markdown completo no `content` e, no `structuredContent`, o payload estruturado com o mesmo Markdown em `summary` (primeiro campo, até 6 KB). No Claude Code, que mostra o `structuredContent`, isso custa até ~20 KB (~7k tokens) por chamada; por isso o `summary` vem primeiro e o payload leva só o que o app desenha. As `gobus_dev_preview_*` (só dev) ficam fora da regra e da contagem de tools: devolvem fixtures marcadas "DEV — dados fictícios".
 - **JS dos apps:** só `createElement`/`textContent` (o `render_app` recusa `innerHTML`, `eval`, storage do navegador, URL externa e template literal); limiares e cores vêm do payload, nunca codificados no JS.
 - O repositório é público: nunca versionar IPs, ids de conta ou segredos (redigir como `<IP-CLOUD-SQL>`, `<AWS-ACCOUNT-ID>`).

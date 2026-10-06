@@ -3,7 +3,7 @@
 Atribui uma nota editorial (0–10) a um artigo, comparando-o ao benchmark da própria agência. Três dimensões, com pesos 50/30/20: legibilidade (Flesch), concisão (palavras contra a mediana da agência) e densidade de entidades (por 100 palavras). Com `compare_with`, pontua um segundo artigo e devolve a comparação.
 
 !!! info "MCP App"
-    Tool de app: em hosts com suporte abre o painel [`ui://article-scorecard`](../resources/article-scorecard.md) (semáforos, benchmark, comparação lado a lado). O `content` é o Markdown abaixo; o `structuredContent` traz o `ScoreReport` com o mesmo Markdown em `summary`, como primeiro campo.
+    Tool de app: em hosts com suporte abre o painel [`ui://article-scorecard`](../apps/article-scorecard.md) (semáforos, benchmark, comparação lado a lado). O `content` é o Markdown abaixo; o `structuredContent` traz o `ScoreReport` com o mesmo Markdown em `summary`, como primeiro campo.
 
 ## Parâmetros
 

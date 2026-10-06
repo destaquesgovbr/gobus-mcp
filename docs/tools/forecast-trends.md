@@ -2,6 +2,9 @@
 
 Projeta a cobertura de temas em três janelas móveis (3, 7 e 21 dias) por **share-of-voice**. Para cada tema, dá o ritmo composto, o momentum, a confiança e os artigos esperados no horizonte pedido. A projeção leva em conta os dias úteis, os feriados e o nível de volume de cada fase do calendário (defeso eleitoral e recuperação).
 
+!!! info "MCP App"
+    Tool de app: em hosts com suporte abre o radar [`ui://forecast-radar`](../apps/forecast-radar.md) (ritmo semanal em escala log2 com o anel 1× e o top-3 com momentum; no fullscreen, o horizonte 7/14/21/28). O `content` é o Markdown completo abaixo; o `structuredContent` traz o `ForecastReport` com o mesmo Markdown até 6 KB em `summary`, como primeiro campo.
+
 ## Parâmetros
 
 | Parâmetro | Tipo | Obrigatório | Default | Descrição |
@@ -56,13 +59,14 @@ Falha do snapshot de atividade: o Markdown avisa ("perfil semanal padrão") e a 
 
 ## Payload (`ForecastReport`)
 
-`build_forecast_report` devolve o modelo pydantic (`kind: "gobus.forecast"`, `schemaVersion: 1`) que o G3 liga ao app `ui://forecast-radar`:
+`build_forecast_output` devolve `(ForecastReport, Markdown completo)`; o modelo pydantic (`kind: "gobus.forecast"`, `schemaVersion: 1`) vai no `structuredContent` e é desenhado pelo app [`ui://forecast-radar`](../apps/forecast-radar.md):
 
 - `windows{3d,7d,21d}`: peso nominal e efetivo, cobertura, status, dias úteis equivalentes e `baselineOverlapsBlackout`;
 - `platform`: perfil semanal, nível por fase e origem do perfil;
-- `themes[]`: razão por janela, `perDayRate`, `weeklyMultiplier`, momentum, confiança, `projection` (com a série diária projetada) e flags.
+- `themes[]`: razão por janela, `perDayRate`, `weeklyMultiplier`, momentum, confiança, `projection` e flags;
+- `horizonOptions`: os horizontes do controle do app (7, 14, 21 e 28).
 
-O payload cabe em 20 KB: se não couber, tira as séries diárias das projeções. Hoje a tool devolve só o Markdown, que é o `summary`.
+A série diária da projeção (`projection.daily`) fica só no top-3, que o app desenha (`compact_forecast_payload`); os demais temas mantêm total, intervalo e fatias. Se ainda passar de 20 KB, as séries restantes saem do último tema para o primeiro.
 
 ## Limitações
 

@@ -2,6 +2,9 @@
 
 Detector de anomalias comunicacionais, ciente do **defeso eleitoral**: picos e quedas sustentados de **temas** (share-of-voice) e sinais de **entidades** (silêncio coordenado, cobertura concentrada, rajadas, entidades novas), recalculados pela cobertura diária do acervo.
 
+!!! info "MCP App"
+    Tool de app: em hosts com suporte abre o radar [`ui://anomaly-radar`](../apps/anomaly-radar.md) (8 gauges por domínio; no fullscreen, a lista de sinais com sensibilidade e domínio). O `content` é o Markdown completo abaixo; o `structuredContent` traz o `AnomalyReport` com o mesmo Markdown até 6 KB em `summary`, como primeiro campo.
+
 ## Parâmetros
 
 | Parâmetro | Tipo | Obrigatório | Default | Descrição |
@@ -26,7 +29,7 @@ Markdown com:
 - **Avisos de dados** (ver abaixo).
 - Seções `### Picos Sustentados`, `### Quedas Sustentadas`, `### Silêncio Coordenado`, `### Cobertura Concentrada`, `### Explicado pelo Calendário`, `### Rajadas e Entidades Novas`, `### Tendências Normais` e `### Metodologia`.
 
-Cada sinal traz a razão, o volume, a severidade de 0 a 1 com a faixa (normal, atenção ou alerta) e a confiança (alta, média ou baixa). Nas tendências normais, a severidade fica só no payload. O Markdown tem no máximo 6 KB; acima disso, é cortado em fim de linha com aviso.
+Cada sinal traz a razão, o volume, a severidade de 0 a 1 com a faixa (normal, atenção ou alerta) e a confiança (alta, média ou baixa). Nas tendências normais, a severidade fica só no payload. O `content` leva o Markdown inteiro; o `summary` do payload é o mesmo texto até 6 KB (acima disso, cortado em fim de linha com aviso).
 
 ```
 ## Detector de Anomalias Comunicacionais
@@ -86,7 +89,9 @@ Cada sinal traz a razão, o volume, a severidade de 0 a 1 com a faixa (normal, a
 
 ## Payload (`AnomalyReport`)
 
-`build_anomaly_report` devolve o modelo pydantic (`kind: "gobus.anomalies"`, `schemaVersion: 1`, camelCase), que o G3 liga ao app `ui://anomaly-radar`. Hoje a tool devolve só o Markdown, que é o `summary`. Blocos: `themes` (`ThemeSignal`), `entities` (`EntitySignal` com dona, `silenceScore`, séries `daily`/`ownerDaily` de até 28 dias, `upstream`) e `domains[8]`. O payload cabe em 20 KB: se não couber, perde primeiro as séries e os sinais `normal`.
+`build_anomaly_output` devolve `(AnomalyReport, Markdown completo)`; a tool manda o Markdown no `content` e o modelo pydantic (`kind: "gobus.anomalies"`, `schemaVersion: 1`, camelCase) no `structuredContent`, desenhado pelo app [`ui://anomaly-radar`](../apps/anomaly-radar.md). Blocos: `themes` (`ThemeSignal`), `entities` (`EntitySignal` com dona, `silenceScore`, séries `daily`/`ownerDaily` de até 28 dias, `upstream`, `omitted`) e `domains[8]`, mais `severityBands` (limiares das faixas) e `sensitivityOptions`.
+
+O payload leva só o que o app desenha (`compact_anomaly_payload`): os 6 sinais de entidade anômalos mais severos com as séries, no máximo 3 tendências normais sem série e a contagem do resto em `entities.omitted`. Com 30 candidatos, fica em ~17 KB e o Markdown completo (~9 KB) vai no `content`. `fit_anomaly_budget` segue como rede de segurança dos 20 KB.
 
 ## Limitações
 

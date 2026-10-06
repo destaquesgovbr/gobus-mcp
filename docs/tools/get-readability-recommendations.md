@@ -3,7 +3,7 @@
 Diagnóstico de legibilidade (índice Flesch) por agência, com recomendações de estilo. Sem `agency_key`, devolve o ranking das agências ativas; com `agency_key`, o diagnóstico da agência, o benchmark da Agência Brasil na mesma janela, o pior e o melhor artigo de uma amostra e 3 recomendações.
 
 !!! info "MCP App"
-    Tool de app: em hosts com suporte abre o painel [`ui://readability-dashboard`](../resources/readability-dashboard.md) (barras com as metas, detalhe da agência por clique). O `content` é o Markdown abaixo; o `structuredContent` traz o `ReadabilityReport` com o mesmo Markdown em `summary`, como primeiro campo.
+    Tool de app: em hosts com suporte abre o painel [`ui://readability-dashboard`](../apps/readability-dashboard.md) (barras com as metas, detalhe da agência por clique). O `content` é o Markdown abaixo; o `structuredContent` traz o `ReadabilityReport` com o mesmo Markdown em `summary`, como primeiro campo.
 
 ## Parâmetros
 

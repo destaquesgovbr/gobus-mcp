@@ -29,10 +29,10 @@ O cliente conversa com o Gobus MCP via protocolo MCP (stdio localmente; em produ
 | Categoria | Quantidade | Exemplos |
 |-----------|:----------:|----------|
 | Tools     | 13 | `gobus_search_news`, `gobus_get_article`, `gobus_resolve_entity`, `gobus_get_entity_profile`, `gobus_get_entity_network`, `gobus_get_agency_analytics`, `gobus_get_agency_summary`, `gobus_detect_trends`, `gobus_get_readability_recommendations`, `gobus_score_article`, `gobus_get_policy_lifecycle`, `gobus_detect_anomalies`, `gobus_forecast_trends` |
-| Resources | 8 | `gobus://agencies`, `gobus://themes`, `gobus://platform-stats`, `gobus://taxonomy-queries`, `gobus://readability-report`, `gobus://health/pipelines` e os [MCP Apps](apps.md) `ui://readability-dashboard` e `ui://article-scorecard` |
+| Resources | 10 | `gobus://agencies`, `gobus://themes`, `gobus://platform-stats`, `gobus://taxonomy-queries`, `gobus://readability-report`, `gobus://health/pipelines` e os [MCP Apps](apps/index.md) `ui://readability-dashboard`, `ui://article-scorecard`, `ui://anomaly-radar` e `ui://forecast-radar` |
 | Prompts   | 4 | `prompt_monitor_agency`, `prompt_trace_entity`, `prompt_weekly_digest`, `prompt_draft_press_release` |
 
-As _tools_ são somente leitura e retornam Markdown formatado (não JSON), pensado para ser lido diretamente pelo LLM; as duas tools de MCP App também devolvem o payload do painel. Métrica sem dado aparece como "indisponível" — nunca 0 —, e o estado das fontes de dados fica em [`gobus://health/pipelines`](resources/health-pipelines.md).
+As _tools_ são somente leitura e retornam Markdown formatado (não JSON), pensado para ser lido diretamente pelo LLM; as quatro tools de MCP App também devolvem o payload do painel. Métrica sem dado aparece como "indisponível" — nunca 0 —, e o estado das fontes de dados fica em [`gobus://health/pipelines`](resources/health-pipelines.md).
 
 ## Por onde começar
 

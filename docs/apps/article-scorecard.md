@@ -1,6 +1,6 @@
 # ui://article-scorecard
 
-**MCP App** de [`gobus_score_article`](../tools/score-article.md): nota editorial 0–10 com semáforos por dimensão, benchmark e comparação lado a lado. Ver [MCP Apps](../apps.md).
+**MCP App** de [`gobus_score_article`](../tools/score-article.md): nota editorial 0–10 com semáforos por dimensão, benchmark e comparação lado a lado. Ver [MCP Apps](index.md).
 
 **URI:** `ui://article-scorecard` · **MIME:** `text/html;profile=mcp-app` · `_meta.ui.prefersBorder: true`
 **Dados:** nenhum no HTML. O app desenha o `structuredContent` da tool (`kind: "gobus.scorecard"`, `schemaVersion: 1`, o `ScoreReport` de `payloads/scorecard.py`).
