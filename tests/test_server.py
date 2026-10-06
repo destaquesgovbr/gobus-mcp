@@ -122,3 +122,10 @@ async def test_detect_trends_documenta_razao_sem_sobreposicao():
 
     description = tools["gobus_detect_trends"].description or ""
     assert "sem sobreposição" in description
+
+
+async def test_resources_json_declaram_mime_application_json():
+    async with Client(server.mcp) as client:
+        resources = {str(r.uri): r for r in await client.list_resources()}
+
+    assert resources["gobus://health/pipelines"].mimeType == "application/json"
