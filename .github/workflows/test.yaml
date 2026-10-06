@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test:
-    name: pytest + ruff
+    name: pytest + ruff + mkdocs
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -37,3 +37,6 @@ jobs:
 
       - name: pytest
         run: poetry run pytest -q
+
+      - name: mkdocs build --strict
+        run: poetry run mkdocs build --strict
