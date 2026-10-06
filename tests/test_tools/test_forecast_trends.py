@@ -169,6 +169,20 @@ async def test_feriados_contam_como_domingo_na_projecao(fake_client):
     assert nov_daily[D(2026, 11, 20)] < 0.5 * nov_daily[D(2026, 11, 19)]  # 20/11, sexta
 
 
+async def test_calendario_conta_so_as_retomadas_pos_defeso(fake_client):
+    def resumed_on_26_10(day: date) -> int:
+        return busy(day) if day < D(2026, 7, 4) or day >= D(2026, 10, 26) else 0
+
+    def sporadic(day: date) -> int:  # último silêncio ≥ 14 dias acabou em 20/10 (no defeso)
+        return 1 if day in {D(2026, 9, 9), D(2026, 10, 1), D(2026, 10, 20)} else 0
+
+    route_g2(fake_client, activity={"saude": busy, "secom": resumed_on_26_10, "pf": sporadic})
+
+    report = await build_forecast_report(fake_client, now=_at(D(2026, 10, 30)))
+
+    assert report.calendar.resumed_agencies == 1
+
+
 async def test_horizonte_que_cruza_o_fim_do_defeso_usa_o_nivel_normal(fake_client):
     route_g2(fake_client, activity={"saude": busy, "secom": blackout_drop})
 

@@ -419,6 +419,57 @@ def test_entity_signal_monta_o_payload_com_dona_atividade_e_dominio():
     assert signal.samples == []
 
 
+def _recovery_activity(**counts_by_agency) -> list[dict]:
+    """Linhas DAY do snapshot de atividade em ``RECOVERY_DAY`` (zeros explícitos)."""
+    rows = []
+    for agency, fn in counts_by_agency.items():
+        rows += [
+            {"period": d.isoformat(), "agencyKey": agency, "agencyName": agency.upper(),
+             "articleCount": fn(d)}
+            for d in DateRange(D(2026, 6, 6), D(2026, 10, 29))
+        ]  # fmt: skip
+    return rows
+
+
+def _recovery_signal(agency: str, activity_rows: list[dict]) -> EntitySignal:
+    w = entity_windows(RECOVERY_DAY)
+    rows = (
+        _cov(agency, _spread(DateRange(D(2026, 10, 26), D(2026, 10, 29)), 9))
+        + _cov("saude", _spread(w.window, 3))
+        + _cov("saude", _spread(w.baseline, 12))
+    )
+    return entity_signal(
+        entity={"entityId": "dgb_r", "canonicalName": "R", "type": "ORG", "agencyKey": "saude"},
+        coverage_rows=rows,
+        policy_domain=None,
+        windows=w,
+        sens=MEDIUM,
+        republishers=REPUBLISHERS,
+        activity=summarize_activity(activity_rows, today=RECOVERY_DAY),
+    )
+
+
+def test_entity_signal_na_recuperacao_so_retomada_pos_defeso_explica_o_sinal():
+    # secom: calada de 04/07 a 25/10, voltou em 26/10 → explica (calendar_explained)
+    def secom(d):
+        return 6 if d < D(2026, 7, 4) or d >= D(2026, 10, 26) else 0
+
+    # esporádica: publica de tempos em tempos; o último silêncio ≥ 14 dias terminou em
+    # 20/10, dentro do defeso → não é retomada pós-defeso; o sinal fica
+    sporadic_days = {D(2026, 6, 10), D(2026, 8, 20), D(2026, 9, 9), D(2026, 10, 1),
+                     D(2026, 10, 20)}  # fmt: skip
+
+    def esporadica(d):
+        return 1 if d in sporadic_days or d >= D(2026, 10, 26) else 0
+
+    resumed = _recovery_signal("secom", _recovery_activity(secom=secom))
+    sporadic = _recovery_signal("esporadica", _recovery_activity(esporadica=esporadica))
+
+    assert resumed.kind == "calendar_explained"
+    assert sporadic.kind == "concentrated_coverage"
+    assert "resumed_agencies" not in sporadic.flags
+
+
 def test_entity_signal_sem_snapshot_de_atividade_e_sem_dona():
     w = entity_windows(BLACKOUT_DAY)
     rows = _cov("mec", _spread(w.window, 6)) + _cov("pf", _spread(w.window, 6))

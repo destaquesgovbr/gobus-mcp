@@ -483,6 +483,50 @@ async def test_cenario_30_10_retomada_vira_calendar_explained_com_flag_recovery(
     assert "Pauta Retomada" in _section(report.summary, "Explicado pelo Calendário")
 
 
+def sporadic_until_26_10(day: date) -> int:
+    """Agência esporádica: publica de tempos em tempos (o último silêncio ≥ 14 dias acabou
+    em 20/10, dentro do defeso) e diariamente desde 26/10."""
+    occasional = {D(2026, 6, 10), D(2026, 8, 20), D(2026, 9, 9), D(2026, 10, 1), D(2026, 10, 20)}
+    return 1 if day in occasional or day >= D(2026, 10, 26) else 0
+
+
+async def test_cenario_30_10_agencia_esporadica_nao_conta_como_retomada(fake_client):
+    now = datetime(2026, 10, 30, 15, 0, tzinfo=BRT)
+    rows = [trending_row("dgb_esporadica", "Pauta Esporádica", vr=2.8, wc=10,
+                         run="2026-10-30 03:00:00+00")]  # fmt: skip
+    ctx = context(
+        "dgb_esporadica",
+        "Pauta Esporádica",
+        rows=coverage_rows("pf", spread(D(2026, 10, 26), D(2026, 10, 29), 9))
+        + coverage_rows(
+            "saude",
+            {
+                **spread(D(2026, 6, 8), D(2026, 6, 30), 8),
+                **spread(D(2026, 9, 1), D(2026, 9, 30), 4),
+                D(2026, 10, 23): 1,
+            },
+        ),  # fmt: skip
+    )
+    route_g2(
+        fake_client,
+        trending=rows,
+        contexts={"dgb_esporadica": ctx},
+        activity={
+            "secom": resumed_on_26_10,
+            "pf": sporadic_until_26_10,
+            "saude": busy,
+            "mec": busy,
+        },
+    )
+
+    report = await build_anomaly_report(fake_client, now=now)
+    signal = _by_id(report)["dgb_esporadica"]
+
+    assert report.calendar.resumed_agencies == 1  # só a secom voltou depois do defeso
+    assert signal.kind == "concentrated_coverage"
+    assert "resumed_agencies" not in signal.flags
+
+
 @pytest.mark.parametrize(
     ("today", "phase", "codes", "baseline_start"),
     [

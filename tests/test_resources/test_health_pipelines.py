@@ -289,8 +289,28 @@ async def test_atividade_das_agencias_com_retomadas_na_recuperacao(fake_client):
 
     (resumed,) = data["agencyActivity"]["resumed"]
     assert (resumed["key"], resumed["resumedOn"]) == ("secom", "2026-10-26")
+    assert resumed["afterBlackout"] is True
     assert data["calendar"]["phase"] == "recovery"
     assert data["calendar"]["resumedAgencies"] == 1
+
+
+def sporadic(day: date) -> int:
+    """Publica de tempos em tempos: o último silêncio ≥ 14 dias acabou em 20/10 (no defeso)."""
+    return 1 if day in {date(2026, 9, 9), date(2026, 10, 1), date(2026, 10, 20)} else 0
+
+
+async def test_retomada_generica_nao_conta_como_retomada_pos_defeso(fake_client):
+    _route(fake_client, activity={"saude": busy, "secom": resumed_on_26_10, "pf": sporadic})
+
+    data = json.loads(
+        await fetch_health_pipelines(fake_client, now=datetime(2026, 10, 30, 12, 0, tzinfo=BRT))
+    )
+
+    resumed = {r["key"]: r for r in data["agencyActivity"]["resumed"]}
+    assert set(resumed) == {"secom", "pf"}  # lista genérica: silêncio ≥ 14 dias, 35 dias
+    assert (resumed["pf"]["resumedOn"], resumed["pf"]["afterBlackout"]) == ("2026-10-20", False)
+    assert resumed["secom"]["afterBlackout"] is True
+    assert data["calendar"]["resumedAgencies"] == 1  # só a pós-defeso
 
 
 async def test_falha_do_snapshot_deixa_so_a_atividade_indisponivel(fake_client):

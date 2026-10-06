@@ -124,6 +124,46 @@ def test_retomada_depois_de_silencio_longo():
     assert secom.pre_daily_mean == pytest.approx(6.0)
 
 
+def test_retomada_pos_defeso_exige_silencio_que_atravessa_o_fim_do_defeso():
+    # Na recuperação, "retomada" que explica sinal é a de quem estava calado no fim do
+    # defeso (25/10) e voltou depois. Agência esporádica que "voltou" dentro do defeso
+    # segue na lista genérica (health), mas não é retomada pós-defeso.
+    today = D(2026, 10, 30)
+    period = snapshot_period(today)
+    zeros = _span(period.start, D(2026, 10, 29), 0)
+    secom = (
+        zeros | _span(period.start, D(2026, 7, 3), 6) | _span(D(2026, 10, 26), D(2026, 10, 29), 4)
+    )
+    tarde = (
+        zeros | _span(period.start, D(2026, 10, 4), 2) | _span(D(2026, 10, 28), D(2026, 10, 29), 3)
+    )
+    sporadic_days = (D(2026, 6, 10), D(2026, 8, 20), D(2026, 9, 9), D(2026, 10, 1), D(2026, 10, 20))
+    esporadica = zeros | dict.fromkeys(sporadic_days, 1)
+    rows = [*_rows("secom", secom), *_rows("tarde", tarde), *_rows("esporadica", esporadica)]
+
+    snap = summarize_activity(rows, today=today, period=period)
+
+    assert snap.by_agency["esporadica"].resumed_on == D(2026, 10, 20)  # dentro do defeso
+    assert "esporadica" in snap.resumed  # genérica: silêncio ≥ 14 dias nos últimos 35
+    assert snap.resumed_after_blackout == frozenset({"secom", "tarde"})
+    assert snap.by_agency["secom"].resumed_after_blackout_on == D(2026, 10, 26)
+    # calada desde 05/10 (no defeso), atravessou 25/10 e voltou em 28/10
+    assert snap.by_agency["tarde"].resumed_after_blackout_on == D(2026, 10, 28)
+    assert snap.by_agency["esporadica"].resumed_after_blackout_on is None
+
+
+def test_no_defeso_nao_ha_retomada_pos_defeso():
+    period = snapshot_period(TODAY)
+    counts = (
+        _span(period.start, D(2026, 10, 4), 0)
+        | _span(period.start, D(2026, 8, 31), 3)
+        | _span(D(2026, 9, 20), D(2026, 10, 4), 2)
+    )
+    snap = summarize_activity(_rows("mec", counts), today=TODAY, period=period)
+    assert snap.resumed == frozenset({"mec"})  # voltou em 20/09, depois de 19 dias
+    assert snap.resumed_after_blackout == frozenset()
+
+
 def test_pre_daily_mean_so_existe_no_defeso_e_na_recuperacao():
     period = snapshot_period(D(2026, 12, 15))
     rows = _rows("saude", _span(period.start, period.end, 3))
