@@ -93,7 +93,9 @@ def test_titulo_escapado():
 def test_nucleo_comum_passa_nos_guards_e_cabe_no_orcamento():
     html = _app()
 
-    assert len(html.encode()) <= 20 * 1024  # núcleo comum (meta: 14 KB; teto do app: 60 KB)
+    # núcleo comum compactado (bridge + dom + svg + tokens): ~24 KB; cada app soma o seu
+    # JS/CSS e o teto por app é 60 KB (meta 25 KB)
+    assert len(html.encode()) <= 26 * 1024
 
 
 # ── guards ──────────────────────────────────────────────────────────────────
@@ -160,7 +162,21 @@ def test_recusa_apis_que_abrem_xss_ou_quebram_no_sandbox(snippet):
 
 def test_recusa_html_acima_do_teto():
     with pytest.raises(AppAssetError, match="KB"):
-        _app(js="bridgeStart({});\n// " + "x" * MAX_HTML_BYTES)
+        _app(js="bridgeStart({});\nconst pad = '" + "x" * MAX_HTML_BYTES + "';")
+
+
+def test_compacta_js_e_css_sem_mudar_o_codigo():
+    js = "// comentário de linha\n    const a = 1;  // fim de linha fica\n\n\tbridgeStart({});"
+    html = _app(js=js, css="/* sai */\n.a  >  .b {\n  color:  red;\n}")
+
+    assert "comentário de linha" not in html
+    assert "const a = 1;  // fim de linha fica\nbridgeStart({});" in html
+    assert ".a>.b{color:red;}" in html
+
+
+def test_recusa_template_literal_no_js():
+    with pytest.raises(AppAssetError, match="template"):
+        _app(js="const t = `x`; bridgeStart({});")
 
 
 def test_teto_de_60_kb():
