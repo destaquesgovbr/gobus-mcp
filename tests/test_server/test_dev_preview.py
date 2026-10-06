@@ -80,7 +80,7 @@ async def test_previews_nao_aparecem_no_servidor_padrao():
 def test_processo_sem_a_variavel_nao_registra_previews():
     names = {t["name"] for t in _tools_in_subprocess()}
 
-    assert len(names) == 13
+    assert len(names) == 14
     assert not {n for n in names if n.startswith(PREVIEW_PREFIX)}
 
 
@@ -91,7 +91,7 @@ def test_processo_com_gobus_dev_preview_1_registra_uma_por_app():
     assert {name: tool["meta"]["ui"]["resourceUri"] for name, tool in previews.items()} == EXPECTED
     for tool in previews.values():
         assert tool["description"].startswith(DEV_NOTE)
-    assert len(tools) == 13 + len(APPS)
+    assert len(tools) == 14 + len(APPS)
 
 
 def test_diretorio_padrao_das_fixtures_e_o_do_repositorio(monkeypatch):
