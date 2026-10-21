@@ -128,3 +128,14 @@ async def test_nome_da_agencia_vem_do_catalogo(fake_client):
 
     assert "[pf] Polícia Federal" in result
     assert "[pf] pf" not in result
+
+
+async def test_titulo_vira_link_markdown(fake_client):
+    route_catalog(fake_client)
+    fake_client.route("GetArticle", _art({"viewCount": 1500}))
+
+    result = await get_article("x1", fake_client)
+
+    assert result.startswith("# [Artigo](https://www.gov.br/x1)\n")
+    assert "🔗" not in result
+    assert "1.500 visualizações" in result

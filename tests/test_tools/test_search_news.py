@@ -131,3 +131,39 @@ class TestSearchNews:
         client.set_response({"search": {"articles": [], "found": 0, "page": 1}})
         result = await search_news("saúde", client, agency_key="invalida_xyz")
         assert "gobus://agencies" in result
+
+
+# ── título como link Markdown e números em pt-BR ─────────────────────────────
+
+
+async def test_titulo_vira_link_markdown_e_mantem_o_id(fake_client):
+    fake_client.route(
+        "SearchNews",
+        {"search": {"articles": [_make_article(1)], "found": 1, "page": 1}},
+    )
+
+    result = await search_news("educação", fake_client)
+
+    assert "## [Artigo 1](https://gov.br/mec/artigo-1)" in result
+    assert "ID: `id1`" in result
+    assert "🔗" not in result
+
+
+async def test_artigo_sem_url_tem_titulo_em_texto(fake_client):
+    article = {**_make_article(1), "url": None}
+    fake_client.route("SearchNews", {"search": {"articles": [article], "found": 1, "page": 1}})
+
+    result = await search_news("educação", fake_client)
+
+    assert "## Artigo 1\n" in result
+
+
+async def test_total_encontrado_com_ponto_de_milhar(fake_client):
+    fake_client.route(
+        "SearchNews",
+        {"search": {"articles": [_make_article(1)], "found": 1234, "page": 1}},
+    )
+
+    result = await search_news("educação", fake_client)
+
+    assert "**1.234 artigos encontrados**" in result
