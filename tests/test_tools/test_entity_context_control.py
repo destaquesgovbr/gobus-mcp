@@ -1,10 +1,9 @@
 import re
-
-import pytest
+from datetime import date
 
 from gobus_mcp.tools.get_entity_network import get_entity_network
 from gobus_mcp.tools.get_entity_profile import get_entity_profile
-from tests.conftest import FakeGraphQLClient, route_catalog
+from tests.conftest import route_catalog
 
 
 def _route_network(client, n_neighbors: int) -> None:
@@ -64,31 +63,27 @@ _COVERAGE_ROW = {
 _RELATED_ROW = {"canonicalId": "Q456", "canonicalName": "SUS", "type": "ORG", "weight": 5}
 
 
+def _route_profile(client, coverage: list[dict], related: list[dict]) -> None:
+    route_catalog(client)
+    client.route("EntitySearch", {"entitySearch": [_ENTITY_SEARCH_HIT]})
+    client.route("EntityCoverage", {"entityCoverage": coverage})
+    client.route("RelatedEntities", {"relatedEntities": related})
+    client.route("EntityDedupCounts", {"all": {"found": 0}, "distinct": {"found": 0}})
+
+
 class TestSummaryOnly:
-    @pytest.mark.asyncio
-    async def test_summary_only_omite_serie_temporal(self):
-        client = FakeGraphQLClient()
-        client.set_responses(
-            [
-                {"entitySearch": [_ENTITY_SEARCH_HIT]},
-                {"entityCoverage": [_COVERAGE_ROW] * 12},
-                {"relatedEntities": [_RELATED_ROW] * 5},
-            ]
+    async def test_summary_only_omite_serie_temporal(self, fake_client):
+        _route_profile(fake_client, [_COVERAGE_ROW] * 12, [_RELATED_ROW] * 5)
+        result = await get_entity_profile(
+            "Saúde", fake_client, summary_only=True, today=date(2026, 10, 21)
         )
-        result = await get_entity_profile("Saúde", client, summary_only=True)
         assert "2026-01" not in result
-        assert "100" in result or "artigos" in result.lower()
+        assert "120 artigos" in result
         assert "SUS" in result
 
-    @pytest.mark.asyncio
-    async def test_summary_only_false_retorna_serie_completa(self):
-        client = FakeGraphQLClient()
-        client.set_responses(
-            [
-                {"entitySearch": [_ENTITY_SEARCH_HIT]},
-                {"entityCoverage": [_COVERAGE_ROW]},
-                {"relatedEntities": []},
-            ]
+    async def test_summary_only_false_retorna_serie_completa(self, fake_client):
+        _route_profile(fake_client, [_COVERAGE_ROW], [])
+        result = await get_entity_profile(
+            "Saúde", fake_client, summary_only=False, today=date(2026, 10, 21)
         )
-        result = await get_entity_profile("Saúde", client, summary_only=False)
-        assert "2026-01" in result
+        assert "| 2026-01 | 10 | 0 |" in result

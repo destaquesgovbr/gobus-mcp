@@ -1,4 +1,4 @@
-import pytest
+from datetime import date
 
 from gobus_mcp.tools.get_entity_network import get_entity_network
 from gobus_mcp.tools.get_entity_profile import get_entity_profile
@@ -6,10 +6,10 @@ from tests.conftest import FakeGraphQLClient, route_catalog
 
 
 class TestGetEntityProfile:
-    @pytest.mark.asyncio
-    async def test_retorna_perfil_completo(self):
-        client = FakeGraphQLClient()
-        responses = [
+    async def test_retorna_perfil_completo(self, fake_client):
+        route_catalog(fake_client)
+        fake_client.route(
+            "EntitySearch",
             {
                 "entitySearch": [
                     {
@@ -26,6 +26,9 @@ class TestGetEntityProfile:
                     }
                 ]
             },
+        )
+        fake_client.route(
+            "EntityCoverage",
             {
                 "entityCoverage": [
                     {
@@ -38,29 +41,24 @@ class TestGetEntityProfile:
                     },
                 ]
             },
+        )
+        fake_client.route(
+            "RelatedEntities",
             {
                 "relatedEntities": [
-                    {"entityId": "Q9592631", "canonicalName": "INEP", "type": "ORG", "weight": 96}
+                    {"canonicalId": "Q9592631", "canonicalName": "INEP", "type": "ORG",
+                     "weight": 96}
                 ]
             },
-        ]
-        call_count = 0
+        )  # fmt: skip
+        fake_client.route("EntityDedupCounts", {"all": {"found": 0}, "distinct": {"found": 0}})
 
-        async def mock_execute(query, variables=None):
-            nonlocal call_count
-            r = responses[call_count]
-            call_count += 1
-            return r
-
-        client.execute = mock_execute
-
-        result = await get_entity_profile("MEC", client)
+        result = await get_entity_profile("MEC", fake_client, today=date(2024, 3, 10))
         assert "Ministério da Educação" in result
         assert "Q4294522" in result
         assert "INEP" in result
         assert "2024-01" in result
 
-    @pytest.mark.asyncio
     async def test_entidade_nao_encontrada(self):
         client = FakeGraphQLClient()
         client.set_response({"entitySearch": []})
