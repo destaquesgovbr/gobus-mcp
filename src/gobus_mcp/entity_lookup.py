@@ -57,10 +57,18 @@ def display_name(row: dict) -> str:
     return row.get("canonicalName") or row.get("canonicalId") or row.get("entityId") or ""
 
 
-async def fetch_entity(client: GobusGraphQLClient, entity_id: str) -> dict | None:
-    """Nó canônico de ``entity_id``; ``None`` quando não existe."""
-    data = await client.execute(ENTITY_NODE_QUERY, {"id": entity_id})
-    return (data or {}).get("entity")
+async def fetch_entity(
+    client: GobusGraphQLClient, entity_id: str, *, cache: TTLCache | None = None
+) -> dict | None:
+    """Nó canônico de ``entity_id``; ``None`` quando não existe. Com ``cache``, 30 min."""
+
+    async def load() -> dict | None:
+        data = await client.execute(ENTITY_NODE_QUERY, {"id": entity_id})
+        return (data or {}).get("entity")
+
+    if cache is None:
+        return await load()
+    return await cache.get_or_load(("entity", "node", entity_id), load, RELATED_TTL)
 
 
 async def fetch_related(
