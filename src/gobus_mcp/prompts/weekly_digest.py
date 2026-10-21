@@ -1,11 +1,6 @@
-def weekly_digest_prompt() -> list[dict]:
+def weekly_digest_prompt() -> str:
     """Boletim semanal para o cidadão — o que o governo fez esta semana."""
-    return [
-        {
-            "role": "user",
-            "content": {
-                "type": "text",
-                "text": """Crie um boletim semanal acessível sobre o que o governo federal publicou esta semana.
+    return """Crie um boletim semanal acessível sobre o que o governo federal publicou esta semana.
 
 ## Roteiro de produção
 
@@ -35,7 +30,4 @@ Escreva um boletim de 400-500 palavras com:
 
 **Para saber mais:** Links para os artigos mais relevantes.
 
-**Formato:** Linguagem simples, direta, sem jargão técnico. Adequada para ser publicada em redes sociais ou newsletter.""",
-            },
-        }
-    ]
+**Formato:** Linguagem simples, direta, sem jargão técnico. Adequada para ser publicada em redes sociais ou newsletter."""

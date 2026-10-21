@@ -630,28 +630,35 @@ if settings.dev_preview:
 # ── Prompts ──────────────────────────────────────────────────────────────────
 
 
+# Prompts devolvem str (uma mensagem de usuário): list[dict] quebra o prompts/get no
+# fastmcp 3.4. Os argumentos numéricos ficam -> str: o host manda texto ("" nos opcionais
+# em branco) e o fastmcp converteria pelo tipo declarado, falhando no vazio.
+
+
 @mcp.prompt()
-def prompt_monitor_agency(agency_key: str, agency_name: str = "", days: int = 1) -> list[dict]:
-    """Briefing diário de comunicação de uma agência governamental."""
+def prompt_monitor_agency(agency_key: str, agency_name: str = "", days: str = "1") -> str:
+    """Briefing diário de comunicação de uma agência governamental (days = dias fechados,
+    1–31; 1 = ontem)."""
     return monitor_agency_prompt(agency_key, agency_name, days)
 
 
 @mcp.prompt()
-def prompt_draft_press_release(topic: str, agency_key: str = "", limit: int = 5) -> list[dict]:
-    """Rascunho de release de imprensa baseado em artigos do portal."""
+def prompt_draft_press_release(topic: str, agency_key: str = "", limit: str = "5") -> str:
+    """Rascunho de release de imprensa baseado em artigos do portal (limit = artigos de
+    referência, 1–20)."""
     return draft_press_release_prompt(topic, agency_key, limit)
 
 
 @mcp.prompt()
 def prompt_trace_entity(
     entity_name: str, entity_type: str = "", date_from: str = "", date_to: str = ""
-) -> list[dict]:
+) -> str:
     """Trajetória completa de uma entidade no portal Gov.BR."""
     return trace_entity_prompt(entity_name, entity_type, date_from, date_to)
 
 
 @mcp.prompt()
-def prompt_weekly_digest() -> list[dict]:
+def prompt_weekly_digest() -> str:
     """Boletim semanal do governo federal em linguagem acessível para o cidadão."""
     return weekly_digest_prompt()
 
