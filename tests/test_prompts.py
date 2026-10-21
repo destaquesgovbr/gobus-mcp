@@ -2,11 +2,13 @@
 que só cita tools registradas, sempre com o prefixo ``gobus_``.
 
 Os prompts devolvem ``str``: no fastmcp 3.4 um ``list[dict]`` quebra o ``prompts/get``
-("messages[0] must be Message or str, got dict"). Por isso os testes renderizam pelo
-``Client`` em memória, como o host faz, e não chamam as funções diretamente.
+("messages[0] must be Message or str, got dict"). Por isso os testes de forma renderizam
+pelo ``Client`` em memória, como o host faz; só os que dependem de data chamam a função
+direto, com ``today`` injetado.
 """
 
 import re
+from datetime import date
 
 import pytest
 from fastmcp import Client
@@ -14,6 +16,11 @@ from fastmcp import Client
 from gobus_mcp import server
 from gobus_mcp.calendario import closed_window, reference_date
 from gobus_mcp.prompts import _int_arg
+from gobus_mcp.prompts.monitor_agency import monitor_agency_prompt
+from gobus_mcp.prompts.trace_entity import trace_entity_prompt
+from gobus_mcp.prompts.weekly_digest import weekly_digest_prompt
+
+D_2110 = date(2026, 10, 21)  # quarta-feira, no defeso eleitoral (04/07–25/10/2026)
 
 PROMPT_ARGS = {
     "prompt_monitor_agency": {
@@ -121,3 +128,60 @@ async def test_draft_press_release_com_limit_vazio_usa_o_padrao():
 )
 def test_int_arg_cai_no_padrao_e_limita_a_faixa(value, expected):
     assert _int_arg(value, 1, 1, 31) == expected
+
+
+@pytest.mark.parametrize("name", list(PROMPT_ARGS))
+async def test_prompt_pede_citacao_com_link_markdown(name):
+    text = await render(name, PROMPT_ARGS[name])
+    assert "[título](url)" in text
+
+
+@pytest.mark.parametrize(
+    ("days", "date_from", "date_to"),
+    [(1, "2026-10-20", "2026-10-20"), (7, "2026-10-14", "2026-10-20")],
+)
+def test_monitor_agency_escreve_as_chamadas_com_a_janela_fechada(days, date_from, date_to):
+    text = monitor_agency_prompt("mec", "Ministério da Educação", days, today=D_2110)
+
+    assert (
+        f'gobus_search_news(query="*", agency_key="mec", '
+        f'date_from="{date_from}", date_to="{date_to}"'
+    ) in text
+    assert (
+        f'gobus_get_agency_analytics(agencies=["mec"], '
+        f'date_from="{date_from}", date_to="{date_to}", granularity="DAY")'
+    ) in text
+
+
+def test_monitor_agency_avisa_quando_a_janela_cai_no_defeso():
+    text = monitor_agency_prompt("mec", days=1, today=D_2110)
+    assert "defeso eleitoral" in text.lower()
+    assert "04/07/2026 a 25/10/2026" in text
+
+
+def test_monitor_agency_avisa_quando_a_janela_cai_na_recuperacao():
+    text = monitor_agency_prompt("mec", days=1, today=date(2026, 11, 10))
+    assert "recuperação" in text.lower()
+    assert "29/11/2026" in text
+    assert "04/07/2026 a 25/10/2026" not in text
+
+
+def test_monitor_agency_fora_do_defeso_nao_avisa():
+    text = monitor_agency_prompt("mec", days=7, today=date(2027, 1, 15)).lower()
+    assert "defeso" not in text
+    assert "recuperação" not in text
+
+
+def test_trace_entity_pede_rede_rasa_e_limitada():
+    text = trace_entity_prompt("Lula", "PER")
+    assert "depth=1, max_nodes=15" in text
+    assert "depth=2" not in text
+
+
+def test_weekly_digest_traz_a_semana_fechada_no_titulo_e_nas_buscas():
+    text = weekly_digest_prompt(today=D_2110)
+
+    title = next(line for line in text.splitlines() if line.startswith("**Título:**"))
+    assert "14/10 a 20/10/2026" in title
+    assert 'date_from="2026-10-14", date_to="2026-10-20"' in text
+    assert "defeso eleitoral" in text.lower()
