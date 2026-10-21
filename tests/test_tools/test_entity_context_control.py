@@ -1,37 +1,44 @@
+import re
+
 import pytest
 
 from gobus_mcp.tools.get_entity_network import get_entity_network
 from gobus_mcp.tools.get_entity_profile import get_entity_profile
-from tests.conftest import FakeGraphQLClient
+from tests.conftest import FakeGraphQLClient, route_catalog
 
 
-def _make_network_response(n_nodes: int) -> dict:
-    nodes = [
-        {"entityId": f"Q{i}", "canonicalName": f"Ent{i}", "type": "ORG", "wikidataId": None}
-        for i in range(n_nodes)
+def _route_network(client, n_neighbors: int) -> None:
+    rows = [
+        {
+            "canonicalId": f"Q{i}",
+            "canonicalName": f"Ent{i}",
+            "type": "ORG",
+            "wikidataId": None,
+            "weight": 1000 - i,
+            "kind": "co_mention",
+        }
+        for i in range(1, n_neighbors + 1)
     ]
-    edges = [
-        {"src": "Q0", "dst": f"Q{i}", "weight": i, "kind": "co_mention"} for i in range(1, n_nodes)
-    ]
-    return {"entityNetwork": {"nodes": nodes, "edges": edges}}
+    route_catalog(client)
+    client.route("EntityNode", {"entity": {"entityId": "Q0", "canonicalName": "Ent0"}})
+    client.route("RelatedEntities", lambda v: {"relatedEntities": rows[: v["limit"]]})
+
+
+def _ranked_lines(text: str) -> list[str]:
+    return [line for line in text.split("\n") if re.match(r"^\d+\. \*\*", line)]
 
 
 class TestMaxNodes:
-    @pytest.mark.asyncio
-    async def test_max_nodes_limita_output(self):
-        client = FakeGraphQLClient()
-        client.set_response(_make_network_response(40))
-        result = await get_entity_network("Q0", client, depth=1, max_nodes=5)
-        node_lines = [line for line in result.split("\n") if line.startswith("- `Q")]
-        assert len(node_lines) <= 5
+    async def test_max_nodes_limita_output(self, fake_client):
+        _route_network(fake_client, 40)
+        result = await get_entity_network("Q0", fake_client, depth=1, max_nodes=5)
+        assert len(_ranked_lines(result)) == 5
+        assert "Mostrando 5 de 40 vizinhos diretos" in result
 
-    @pytest.mark.asyncio
-    async def test_max_nodes_default_e_20(self):
-        client = FakeGraphQLClient()
-        client.set_response(_make_network_response(40))
-        result = await get_entity_network("Q0", client, depth=1)
-        node_lines = [line for line in result.split("\n") if line.startswith("- `Q")]
-        assert len(node_lines) <= 20
+    async def test_max_nodes_default_e_20(self, fake_client):
+        _route_network(fake_client, 40)
+        result = await get_entity_network("Q0", fake_client, depth=1)
+        assert len(_ranked_lines(result)) == 20
 
 
 _ENTITY_SEARCH_HIT = {

@@ -2,7 +2,7 @@ import pytest
 
 from gobus_mcp.tools.get_entity_network import get_entity_network
 from gobus_mcp.tools.get_entity_profile import get_entity_profile
-from tests.conftest import FakeGraphQLClient
+from tests.conftest import FakeGraphQLClient, route_catalog
 
 
 class TestGetEntityProfile:
@@ -69,40 +69,35 @@ class TestGetEntityProfile:
 
 
 class TestGetEntityNetwork:
-    @pytest.mark.asyncio
-    async def test_retorna_rede_formatada(self):
-        client = FakeGraphQLClient()
-        client.set_response(
-            {
-                "entityNetwork": {
-                    "nodes": [
-                        {
-                            "entityId": "Q4294522",
-                            "canonicalName": "MEC",
-                            "type": "ORG",
-                            "wikidataId": "Q4294522",
-                        },
-                        {
-                            "entityId": "Q9592631",
-                            "canonicalName": "INEP",
-                            "type": "ORG",
-                            "wikidataId": "Q9592631",
-                        },
-                    ],
-                    "edges": [
-                        {"src": "Q4294522", "dst": "Q9592631", "weight": 96, "kind": "co_mention"}
-                    ],
-                }
-            }
+    async def test_retorna_rede_formatada(self, fake_client):
+        route_catalog(fake_client)
+        fake_client.route(
+            "EntityNode",
+            {"entity": {"entityId": "Q4294522", "canonicalName": "MEC", "type": "ORG"}},
         )
-        result = await get_entity_network("Q4294522", client)
+        fake_client.route(
+            "RelatedEntities",
+            {
+                "relatedEntities": [
+                    {
+                        "canonicalId": "Q9592631",
+                        "canonicalName": "INEP",
+                        "type": "ORG",
+                        "wikidataId": "Q9592631",
+                        "weight": 96,
+                        "kind": "co_mention",
+                    }
+                ]
+            },
+        )
+        result = await get_entity_network("Q4294522", fake_client)
         assert "MEC" in result
         assert "INEP" in result
         assert "96" in result
 
-    @pytest.mark.asyncio
-    async def test_rede_vazia_retorna_mensagem(self):
-        client = FakeGraphQLClient()
-        client.set_response({"entityNetwork": {"nodes": [], "edges": []}})
-        result = await get_entity_network("Q_inexistente", client)
+    async def test_rede_vazia_retorna_mensagem(self, fake_client):
+        route_catalog(fake_client)
+        fake_client.route("EntityNode", {"entity": None})
+        fake_client.route("RelatedEntities", {"relatedEntities": []})
+        result = await get_entity_network("Q_inexistente", fake_client)
         assert "Nenhuma" in result
