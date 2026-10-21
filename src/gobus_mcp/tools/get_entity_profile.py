@@ -12,7 +12,8 @@ passa pelo ``entitySearch(limit: 1)``. Depois, em paralelo e cada parte degradan
   o acervo);
 - ``EntityDedupCounts``: artigos × textos distintos (o ``dedup`` do Typesense agrupa por
   ``content_hash``), só desde ``ENTITY_CANONICAL_INDEX_SINCE`` (antes, o índice não marca a
-  entidade);
+  entidade). Conteúdo idêntico é raro (republicação costuma mudar o texto), então a saída
+  só ganha uma linha quando há cópia;
 - ``catalog_info``: republicadoras (coluna à parte).
 """
 
@@ -158,33 +159,18 @@ def _totals_line(totals: CoverageTotals) -> str:
     )
 
 
-def _dedup_text(
-    window: tuple[date, date | None] | None, end: date | None, counts: tuple[int, int]
-) -> str:
-    if window is None:
-        return (
-            "Cópias idênticas não medidas: o índice de busca só marca a entidade desde "
-            f"{_d(ENTITY_CANONICAL_INDEX_SINCE)} e o período termina antes."
-        )
-    since, _ = window
-    scope = f"De {_d(since)} a {_d(end)}" if end is not None else f"Desde {_d(since)}"
+def _copies_line(
+    window: tuple[date, date | None], end: date | None, counts: tuple[int, int]
+) -> str | None:
+    """Uma linha só quando há cópia idêntica (``distinct < all``); senão ``None``."""
     total, distinct = counts
-    if total == 0:
-        return (
-            f"{scope} (índice de busca): nenhum artigo com a entidade marcada (o índice pode "
-            "atrasar; a cobertura acima vem do Postgres)."
-        )
     copies = total - distinct
-    detail = (
-        f"{_plural(copies, 'cópia idêntica', 'cópias idênticas')} entre agências"
-        if copies > 0
-        else "nenhuma cópia idêntica"
-    )
-    return (
-        f"{scope} (índice de busca): {_plural(total, 'artigo', 'artigos')} → "
-        f"{_plural(distinct, 'texto distinto', 'textos distintos')} ({detail}; só conteúdo "
-        "idêntico, por hash)"
-    )
+    if copies <= 0:
+        return None
+    since, _ = window
+    scope = f"de {_d(since)} a {_d(end)}" if end is not None else f"desde {_d(since)}"
+    label = "cópia idêntica" if copies == 1 else "cópias idênticas"
+    return f"{_n(copies)} {label} entre agências {scope} (índice de busca)."
 
 
 def _agency_lines(rows: list[dict], republishers: frozenset[str]) -> list[str]:
@@ -308,6 +294,10 @@ async def get_entity_profile(
         if totals.total:
             rows = coverage_r
             lines.append(_totals_line(totals))
+            if window is not None and isinstance(dedup_r, tuple):  # só roda dentro do índice
+                copies = _copies_line(window, end, dedup_r)
+                if copies:
+                    lines.append(copies)
         else:
             lines.append("Nenhum artigo no período (entityCoverage).")
 
@@ -339,11 +329,8 @@ async def get_entity_profile(
             lines.append(f"| {row.label} | {_n(row.own)} | {_n(row.republished)} |")
         lines.extend(_agency_lines(rows, info.republishers))
 
-    lines.append("\n## Cópias idênticas")
     if isinstance(dedup_r, BaseException):
-        lines.append(f"> Contagem de cópias idênticas indisponível ({_error_text(dedup_r)}).")
-    else:
-        lines.append(_dedup_text(window, end, dedup_r or (0, 0)))
+        notes.append(f"> Contagem de cópias idênticas indisponível ({_error_text(dedup_r)}).")
 
     lines.append("\n## Entidades relacionadas (co-menção, todo o acervo)")
     lines.extend([related_note] if related_note else _related_lines(kept, hidden))
