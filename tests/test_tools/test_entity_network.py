@@ -287,7 +287,7 @@ async def test_depth2_expande_so_os_5_vizinhos_mais_fortes(fake_client):
     assert sorted(c["id"] for c in calls[1:]) == sorted(
         r["canonicalId"] for r in (MEC, ENEM, INEP, ESCOLA, CAMILO)
     )
-    assert all(c["limit"] == 15 for c in calls[1:])
+    assert all(c["limit"] == 25 for c in calls[1:])  # top 25 de cada vizinho
 
 
 async def test_depth2_expande_no_maximo_os_exibidos(fake_client):
