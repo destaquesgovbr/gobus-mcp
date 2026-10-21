@@ -10,6 +10,7 @@ from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.cache import TTLCache
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.config import settings
+from gobus_mcp.instructions import SERVER_INSTRUCTIONS
 from gobus_mcp.prompts.draft_press_release import draft_press_release_prompt
 from gobus_mcp.prompts.monitor_agency import monitor_agency_prompt
 from gobus_mcp.prompts.trace_entity import trace_entity_prompt
@@ -43,7 +44,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-mcp = FastMCP(name="Gobus")
+mcp = FastMCP(name="Gobus", instructions=SERVER_INSTRUCTIONS)
 
 # ── Backward-compat SSE (spec 2024-11-05) ────────────────────────────────────
 # O endpoint primário é /mcp (stateless, spec 2025-03-26) sem expiração de sessão.
