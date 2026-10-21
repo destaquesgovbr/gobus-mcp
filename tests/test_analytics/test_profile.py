@@ -114,7 +114,7 @@ def test_top_agencies_desempata_pelo_codigo():
 
 def test_tabela_ate_24_meses_e_anos_anteriores_agregados():
     rows = [_row(f"{y}-{m:02d}-01 00:00:00+00", "mec", 1) for y in (2024, 2025, 2026)
-            for m in range(1, 13)]  # fmt: skip
+            for m in range(1, 13) if (y, m) <= (2026, 10)]  # fmt: skip
     rows.append(_row("2024-03-01 00:00:00+00", "agencia_brasil", 4))
     series = monthly_series(rows, date(2024, 1, 1), date(2026, 10, 20), REPUBLISHERS)
     assert len(series) == 34
