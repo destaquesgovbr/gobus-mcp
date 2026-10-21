@@ -40,7 +40,7 @@ Fundações compartilhadas (Fase 2.5):
 | Módulo | Papel |
 |--------|-------|
 | `cache.py` | `TTLCache` assíncrono com single-flight por chave e relógio injetável |
-| `formatting.py` | Markdown compartilhado das tools: `md_link` (link `[título](url)` só para `http(s)`, com escape), `agency_label` (`[código] Nome`), `fmt_int` (ponto de milhar) e `brt_day` (dia de publicação em Brasília) |
+| `formatting.py` | Markdown compartilhado das tools: `md_link` (link `[título](url)` só para `http(s)`, com escape), `agency_label` (`[código] Nome`), `fmt_int` (ponto de milhar), `plural` (contagem com concordância), `fmt_date` (`DD/MM/AAAA`), `brt_day` (dia de publicação em Brasília) e `error_text` (texto da exceção nas notas de falha) |
 | `agency_catalog.py` | `AgencyCatalog`: códigos, nomes humanos (via `agencyAnalytics` de D−1), republicadoras, validação com aliases curados (`ms`→`saude`) antes do `difflib`, agências ativas (`topAgencies`). Cache de 24 h |
 | `calendario.py` | fuso BRT, defeso eleitoral 2026 (04/07–25/10) e recuperação até 29/11, feriados, janelas fechadas `[D−N, D−1]` e baseline. O nome evita sombrear o `calendar` da stdlib |
 | `readability.py` | escala do Flesch (`flesch_en_textstat`), clamp em 0–100, faixas únicas 0/25/50/75, médias ponderadas que ignoram nulo, janela efetiva |

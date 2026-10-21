@@ -36,6 +36,7 @@ from gobus_mcp.calendario import DateRange, reference_date, utc_day_bounds
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import ENTITY_CANONICAL_INDEX_SINCE
 from gobus_mcp.entity_lookup import display_name, fetch_entity, fetch_related, looks_like_id
+from gobus_mcp.formatting import error_text, fmt_date, fmt_int, plural
 
 _ENTITY_SEARCH_QUERY = """
 query EntitySearch($query: String!, $entityType: EntityKind) {
@@ -70,22 +71,6 @@ RELATED_SHOWN = 8
 SUMMARY_RELATED = 3
 TOP_AGENCIES = 5
 MAX_HIDDEN_SHOWN = 6
-
-
-def _n(value: int) -> str:
-    return f"{value:,}".replace(",", ".")
-
-
-def _d(day: date) -> str:
-    return day.strftime("%d/%m/%Y")
-
-
-def _plural(count: int, singular: str, plural: str) -> str:
-    return f"{_n(count)} {singular if count == 1 else plural}"
-
-
-def _error_text(exc: BaseException) -> str:
-    return str(exc) or type(exc).__name__
 
 
 def _parse_day(value: str | None, label: str) -> date | None:
@@ -142,20 +127,20 @@ async def _dedup_counts(
 
 def _period_text(start: date | None, end: date | None) -> str:
     if start and end:
-        return f"{_d(start)} a {_d(end)}"
+        return f"{fmt_date(start)} a {fmt_date(end)}"
     if start:
-        return f"desde {_d(start)}"
+        return f"desde {fmt_date(start)}"
     if end:
-        return f"até {_d(end)}"
+        return f"até {fmt_date(end)}"
     return "todo o acervo"
 
 
 def _totals_line(totals: CoverageTotals) -> str:
     return (
-        f"**{_plural(totals.own, 'artigo', 'artigos')} de "
-        f"{_plural(totals.agencies, 'agência', 'agências')} + "
-        f"{_plural(totals.republished, 'republicação', 'republicações')} · "
-        f"{_plural(totals.mentions, 'menção', 'menções')}**"
+        f"**{plural(totals.own, 'artigo', 'artigos')} de "
+        f"{plural(totals.agencies, 'agência', 'agências')} + "
+        f"{plural(totals.republished, 'republicação', 'republicações')} · "
+        f"{plural(totals.mentions, 'menção', 'menções')}**"
     )
 
 
@@ -168,9 +153,11 @@ def _copies_line(
     if copies <= 0:
         return None
     since, _ = window
-    scope = f"de {_d(since)} a {_d(end)}" if end is not None else f"desde {_d(since)}"
+    scope = (
+        f"de {fmt_date(since)} a {fmt_date(end)}" if end is not None else f"desde {fmt_date(since)}"
+    )
     label = "cópia idêntica" if copies == 1 else "cópias idênticas"
-    return f"{_n(copies)} {label} entre agências {scope} (índice de busca)."
+    return f"{fmt_int(copies)} {label} entre agências {scope} (índice de busca)."
 
 
 def _agency_lines(rows: list[dict], republishers: frozenset[str]) -> list[str]:
@@ -183,14 +170,14 @@ def _agency_lines(rows: list[dict], republishers: frozenset[str]) -> list[str]:
         share = agency.articles / own_total if own_total else 0.0
         lines.append(
             f"{position}. {agency.name} (`{agency.agency_key}`) — "
-            f"{_plural(agency.articles, 'artigo', 'artigos')} ({share:.0%})"
+            f"{plural(agency.articles, 'artigo', 'artigos')} ({share:.0%})"
         )
     return lines
 
 
 def _related_lines(kept: list[dict], hidden: list[dict]) -> list[str]:
     lines = [
-        f"- **{display_name(r)}** ({r.get('type') or '?'}) · {_n(int(r.get('weight') or 0))} "
+        f"- **{display_name(r)}** ({r.get('type') or '?'}) · {fmt_int(int(r.get('weight') or 0))} "
         f"artigos em co-menção · `{r['canonicalId']}`"
         for r in kept[:RELATED_SHOWN]
     ]
@@ -198,7 +185,7 @@ def _related_lines(kept: list[dict], hidden: list[dict]) -> list[str]:
         lines.append("Nenhuma entidade relacionada (fora as genéricas).")
     if hidden:
         shown = ", ".join(
-            f"{display_name(r)} ({_n(int(r.get('weight') or 0))})"
+            f"{display_name(r)} ({fmt_int(int(r.get('weight') or 0))})"
             for r in hidden[:MAX_HIDDEN_SHOWN]
         )
         extra = len(hidden) - MAX_HIDDEN_SHOWN
@@ -230,7 +217,7 @@ async def get_entity_profile(
     except ValueError as exc:
         return f"Data inválida: {exc}. Use o formato AAAA-MM-DD."
     if start and end and start > end:
-        return f"Data inválida: date_from ({_d(start)}) depois de date_to ({_d(end)})."
+        return f"Data inválida: date_from ({fmt_date(start)}) depois de date_to ({fmt_date(end)})."
     today = today or reference_date()
     catalog = catalog or AgencyCatalog(client)
 
@@ -245,7 +232,7 @@ async def get_entity_profile(
         try:
             search = await client.execute(_ENTITY_SEARCH_QUERY, search_vars)
         except Exception as exc:
-            return f"Busca da entidade **{query}** indisponível ({_error_text(exc)})."
+            return f"Busca da entidade **{query}** indisponível ({error_text(exc)})."
         hits = (search or {}).get("entitySearch") or []
         if not hits:
             return f"Entidade não encontrada: **{query}**"
@@ -269,7 +256,7 @@ async def get_entity_profile(
         if node_r is None:
             return f"Entidade não encontrada: `{entity_id}`"
         if isinstance(node_r, BaseException):
-            notes.append(f"> Nome da entidade indisponível ({_error_text(node_r)}).")
+            notes.append(f"> Nome da entidade indisponível ({error_text(node_r)}).")
         else:
             entity = node_r
     if info.fallback:
@@ -288,7 +275,7 @@ async def get_entity_profile(
 
     rows: list[dict] = []
     if isinstance(coverage_r, BaseException):
-        lines.append(f"> Cobertura indisponível ({_error_text(coverage_r)}).")
+        lines.append(f"> Cobertura indisponível ({error_text(coverage_r)}).")
     else:
         totals = coverage_totals(coverage_r, info.republishers)
         if totals.total:
@@ -304,7 +291,7 @@ async def get_entity_profile(
     kept: list[dict] = []
     hidden: list[dict] = []
     if isinstance(related_r, BaseException):
-        related_note = f"> Entidades relacionadas indisponíveis ({_error_text(related_r)})."
+        related_note = f"> Entidades relacionadas indisponíveis ({error_text(related_r)})."
     else:
         related_note = None
         kept, hidden = split_generic(related_r, generic_ids())
@@ -326,11 +313,11 @@ async def get_entity_profile(
         lines.append("| Mês | Artigos | Republicações |")
         lines.append("|-----|---------|---------------|")
         for row in coverage_table(series):
-            lines.append(f"| {row.label} | {_n(row.own)} | {_n(row.republished)} |")
+            lines.append(f"| {row.label} | {fmt_int(row.own)} | {fmt_int(row.republished)} |")
         lines.extend(_agency_lines(rows, info.republishers))
 
     if isinstance(dedup_r, BaseException):
-        notes.append(f"> Contagem de cópias idênticas indisponível ({_error_text(dedup_r)}).")
+        notes.append(f"> Contagem de cópias idênticas indisponível ({error_text(dedup_r)}).")
 
     lines.append("\n## Entidades relacionadas (co-menção, todo o acervo)")
     lines.extend([related_note] if related_note else _related_lines(kept, hidden))

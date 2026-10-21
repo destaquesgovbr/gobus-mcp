@@ -1,8 +1,19 @@
-"""Formatação compartilhada do Markdown das tools: link, rótulo de agência, inteiro e dia."""
+"""Formatação compartilhada do Markdown das tools: link, rótulo de agência, inteiro, plural,
+datas e texto de erro."""
+
+from datetime import date
 
 import pytest
 
-from gobus_mcp.formatting import agency_label, brt_day, fmt_int, md_link
+from gobus_mcp.formatting import (
+    agency_label,
+    brt_day,
+    error_text,
+    fmt_date,
+    fmt_int,
+    md_link,
+    plural,
+)
 
 URL = "https://www.gov.br/mec/pt-br/assuntos/noticias/x"
 
@@ -68,6 +79,30 @@ def test_agency_label(code, name, expected):
 )
 def test_fmt_int_usa_ponto_de_milhar(n, expected):
     assert fmt_int(n) == expected
+
+
+@pytest.mark.parametrize(
+    ("count", "expected"),
+    [(0, "0 artigos"), (1, "1 artigo"), (2, "2 artigos"), (1234, "1.234 artigos")],
+)
+def test_plural_concorda_e_usa_ponto_de_milhar(count, expected):
+    assert plural(count, "artigo", "artigos") == expected
+
+
+@pytest.mark.parametrize(
+    ("day", "expected"),
+    [(date(2026, 5, 20), "20/05/2026"), (date(2026, 1, 1), "01/01/2026")],
+)
+def test_fmt_date_dia_mes_ano(day, expected):
+    assert fmt_date(day) == expected
+
+
+class TestErrorText:
+    def test_usa_a_mensagem(self):
+        assert error_text(RuntimeError("timeout da API")) == "timeout da API"
+
+    def test_sem_mensagem_usa_o_nome_da_classe(self):
+        assert error_text(TimeoutError()) == "TimeoutError"
 
 
 @pytest.mark.parametrize(

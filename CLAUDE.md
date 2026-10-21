@@ -120,7 +120,8 @@ domains.py           # 7 domínios de policies.domain + OTHER, aliases PT, mapas
 calendario.py        # BRT, defeso 2026 (04/07–25/10), recuperação até 29/11, feriados, janelas fechadas,
                      #   limites do dia em BRT (brt_day_start/brt_day_end)
 instructions.py      # SERVER_INSTRUCTIONS (≤ 1,5 KB, pt-BR) → FastMCP(instructions=…) no initialize
-formatting.py        # Markdown compartilhado: md_link (só http(s)), agency_label, fmt_int (pt-BR), brt_day
+formatting.py        # Markdown compartilhado: md_link (só http(s)), agency_label, fmt_int (pt-BR), brt_day,
+                     #   plural, fmt_date (DD/MM/AAAA), error_text (notas de falha)
 readability.py       # Flesch: escala (textstat-en), clamp 0–100, faixas 0/25/50/75, médias null-aware, janela efetiva
 readability_data.py  # legibilidade por agência via agencyAnalytics (janela pedida/efetiva, agregação)
 theme_data.py        # ThemeRangeCounts (topThemes + analyticsKpis por range móvel), cache 5 min

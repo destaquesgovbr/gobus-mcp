@@ -25,6 +25,7 @@ from gobus_mcp.analytics.generic_entities import generic_ids, split_generic
 from gobus_mcp.cache import TTLCache
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.entity_lookup import display_name, fetch_entity, fetch_related
+from gobus_mcp.formatting import error_text, fmt_int
 
 MAX_LIMIT = 200
 MAX_PLACES = 5
@@ -36,14 +37,6 @@ MAX_BRIDGES = 8
 PLACE = "LOC"
 
 WEIGHT_NOTE = "pesos = artigos em co-menção em todo o acervo, inclui republicações"
-
-
-def _n(value: int) -> str:
-    return f"{value:,}".replace(",", ".")
-
-
-def _error_text(exc: BaseException) -> str:
-    return str(exc) or type(exc).__name__
 
 
 def _type(row: dict) -> str:
@@ -60,11 +53,13 @@ def _parse_types(node_types: str) -> frozenset[str] | None:
 
 
 def _item(row: dict) -> str:
-    return f"{display_name(row)} ({_n(_weight(row))}, `{row['canonicalId']}`)"
+    return f"{display_name(row)} ({fmt_int(_weight(row))}, `{row['canonicalId']}`)"
 
 
 def _hidden_line(hidden: Sequence[dict]) -> str:
-    shown = ", ".join(f"{display_name(r)} ({_n(_weight(r))})" for r in hidden[:MAX_HIDDEN_SHOWN])
+    shown = ", ".join(
+        f"{display_name(r)} ({fmt_int(_weight(r))})" for r in hidden[:MAX_HIDDEN_SHOWN]
+    )
     extra = len(hidden) - MAX_HIDDEN_SHOWN
     more = f", +{extra}" if extra > 0 else ""
     return (
@@ -95,7 +90,7 @@ async def _second_hop(
     for seed, result in zip(seeds, results, strict=True):
         seed_name = display_name(seed)
         if isinstance(result, BaseException):
-            notes.append(f"> Não foi possível expandir **{seed_name}** ({_error_text(result)}).")
+            notes.append(f"> Não foi possível expandir **{seed_name}** ({error_text(result)}).")
             continue
         fresh = [
             r
@@ -107,7 +102,7 @@ async def _second_hop(
             reached[row["canonicalId"]] = (first, [*via, seed_name], total + _weight(row))
         items = ", ".join(_item(r) for r in fresh[:SECOND_HOP_SHOWN])
         lines.append(
-            f"- via **{seed_name}** ({_n(_weight(seed))}): "
+            f"- via **{seed_name}** ({fmt_int(_weight(seed))}): "
             + (items or f"nada novo entre os {SECOND_HOP_LIMIT} vizinhos mais fortes")
         )
 
@@ -160,7 +155,7 @@ async def get_entity_network(
     if isinstance(related_r, BaseException):
         return (
             f"Rede de `{entity_id}` indisponível: falha ao buscar os vizinhos "
-            f"({_error_text(related_r)})."
+            f"({error_text(related_r)})."
         )
     node = None if isinstance(node_r, BaseException) else node_r
     if not related_r:
@@ -190,20 +185,20 @@ async def get_entity_network(
 
     notes: list[str] = []
     if isinstance(node_r, BaseException):
-        notes.append(f"> Nome da entidade indisponível ({_error_text(node_r)}).")
+        notes.append(f"> Nome da entidade indisponível ({error_text(node_r)}).")
     if truncated:
         cap = " (o máximo)" if limit == MAX_LIMIT else ""
         hint = "" if limit == MAX_LIMIT else f" Aumente `limit` (máx {MAX_LIMIT})."
         notes.append(
             f"> O limite de {limit} vizinhos{cap} foi atingido: há mais vizinhos, todos com "
-            f"peso ≤ {_n(_weight(related_r[-1]))}.{hint}"
+            f"peso ≤ {fmt_int(_weight(related_r[-1]))}.{hint}"
         )
 
     lines.append("\n## Vizinhos diretos")
     for position, row in enumerate(ranked, 1):
         lines.append(
             f"{position}. **{display_name(row)}** ({_type(row) or '?'}) · "
-            f"{_n(_weight(row))} artigos em co-menção · `{row['canonicalId']}`"
+            f"{fmt_int(_weight(row))} artigos em co-menção · `{row['canonicalId']}`"
         )
     if len(ranked_all) > len(ranked):
         lines.append(f"… +{len(ranked_all) - len(ranked)} vizinhos (aumente `max_nodes`)")

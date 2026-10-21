@@ -1,6 +1,7 @@
-"""Formatação compartilhada do Markdown das tools: link, rótulo de agência, inteiros e dia."""
+"""Formatação compartilhada do Markdown das tools: link, rótulo de agência, inteiros, plural,
+datas e texto de erro."""
 
-from datetime import datetime
+from datetime import date, datetime
 from urllib.parse import urlsplit
 
 from gobus_mcp.calendario import BRT
@@ -47,6 +48,21 @@ def agency_label(code: str | None, name: str | None) -> str:
 def fmt_int(n: int) -> str:
     """Inteiro com ponto de milhar (pt-BR): ``1234567`` → ``1.234.567``."""
     return f"{n:,}".replace(",", ".")
+
+
+def plural(count: int, singular: str, plural_form: str) -> str:
+    """Contagem com o substantivo concordando: ``1 artigo``, ``1.234 artigos``."""
+    return f"{fmt_int(count)} {singular if count == 1 else plural_form}"
+
+
+def fmt_date(day: date) -> str:
+    """Data no formato ``DD/MM/AAAA``."""
+    return day.strftime("%d/%m/%Y")
+
+
+def error_text(exc: BaseException) -> str:
+    """Texto de uma exceção para notas da saída: a mensagem, ou o nome da classe sem ela."""
+    return str(exc) or type(exc).__name__
 
 
 def brt_day(published_at: str | None) -> str:
