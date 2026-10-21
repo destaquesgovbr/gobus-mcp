@@ -52,10 +52,11 @@ da busca) — prefira o ID resolvido, que evita homônimos.
 
 ### Regra 5: Rede e perfil de entidades
 - `gobus_get_entity_network` é centrada no foco: vizinhos por peso (artigos em co-menção em
-  todo o acervo, inclui republicações). depth=2 expande só os 5 vizinhos mais fortes (~5 KB);
+  todo o acervo, inclui republicações). depth=2 expande só os 5 vizinhos mais fortes (~5–6,5 KB);
   `limit` = vizinhos considerados (máx 200), `max_nodes` = itens da lista
-- Genéricas (Brasil, Brasília, Governo Federal, Portal Gov.br, `dgb_{agência}`) ficam ocultas
-  e listadas à parte; use `include_generic=true` só se a pergunta for sobre elas
+- Genéricas (Brasil, Brasília, Governo Federal, Portal Gov.br) ficam ocultas e listadas à
+  parte; use `include_generic=true` só se a pergunta for sobre elas. Ministérios e secretarias
+  (inclusive `dgb_{agência}`) sempre aparecem
 - `gobus_get_entity_profile`: o cabeçalho soma o período inteiro (próprias + republicações);
   quando só precisar de resumo, use `summary_only=True`
 

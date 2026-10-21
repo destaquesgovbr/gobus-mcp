@@ -138,7 +138,7 @@ ui/                  # MCP Apps (SEP-1865): render_app (HTML único, estático, 
 analytics/           # funções puras: ratios (Laplace, share-of-voice, severidade/faixa), weekday
                      #   (perfil de dia útil, feriados, nível por fase), themes, entities, forecast,
                      #   coherence (E/T/F/S e índice 1–5), framing (léxico pt-BR de enquadramento),
-                     #   generic_entities (lista curada de genéricas + dgb_{code}), profile (série
+                     #   generic_entities (lista curada de genéricas), profile (série
                      #   mensal do perfil: próprias × republicações, zeros, parcial, anos agregados),
                      #   render (Markdown a partir dos modelos; max_bytes=None = completo)
 tools/               # 14 tools (funções async puras, recebem client/catalog como arg);
@@ -192,8 +192,8 @@ Gotchas conhecidos do schema atual:
 
 ## Dados (estado e convenções)
 
-- **Entidades genéricas** (`analytics/generic_entities.py`): Brasil (`Q155`), Brasília (`Q2844`), Governo Federal (`Q5440531`), Portal Gov.br (`dgb_portal-gov-br`, em revisão) e as `dgb_{code}` dos códigos do catálogo ficam ocultas por padrão na rede (`include_generic=true` traz de volta) e nas relacionadas do perfil, sempre listadas numa linha "Ocultas como genéricas". UFs (inclusive `Q119158`), capitais, QIDs de ministérios e pessoas continuam. Detalhes em `docs/tools/get-entity-network.md`.
-- **Cópias idênticas:** só o Typesense deduplica (`articles.filter.dedup` agrupa por `content_hash`); o perfil compara `found` com e sem `dedup` desde `data_status.ENTITY_CANONICAL_INDEX_SINCE` (20/05/2026).
+- **Entidades genéricas** (`analytics/generic_entities.py`): só Brasil (`Q155`), Brasília (`Q2844`), Governo Federal (`Q5440531`) e Portal Gov.br (`dgb_portal-gov-br`, em revisão) ficam ocultas por padrão na rede (`include_generic=true` traz de volta) e nas relacionadas do perfil, sempre listadas numa linha "Ocultas como genéricas". As entidades das agências (`dgb_{code}`: Secretaria-Geral, Fazenda, Casa Civil…) são vizinhos com sentido e ficam visíveis; a exclusão delas é só da coerência (`coherence.excluded_entities`). UFs (inclusive `Q119158`), capitais, QIDs de ministérios e pessoas também continuam. Detalhes em `docs/tools/get-entity-network.md`.
+- **Cópias idênticas:** só o Typesense deduplica (`articles.filter.dedup` agrupa por `content_hash`); o perfil compara `found` com e sem `dedup` desde `data_status.ENTITY_CANONICAL_INDEX_SINCE` (20/05/2026) e só mostra uma linha quando há cópia (conteúdo idêntico é raro: Pé-de-Meia 189 → 189, INSS 371 → 370 em 21/10/2026).
 - **Null ≠ 0:** métrica sem dado vira "indisponível"/`null`, nunca 0.0 nem nota neutra. Médias ignoram nulos (`readability.weighted_metric`).
 - **Flesch:** fórmula inglesa do `textstat` (`FLESCH_SCALE_ID = "flesch_en_textstat"`), limitado a 0–100 com o bruto exibido quando houve clamp; faixas únicas 0/25/50/75.
 - **Detecção dinâmica:** o estado das fontes é medido na resposta (`data_status`); datas de incidente (`SINCE_HINTS`) só redigem "desde dd/mm".

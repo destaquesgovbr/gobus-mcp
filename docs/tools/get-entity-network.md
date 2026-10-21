@@ -31,18 +31,17 @@ Lista curada em `analytics/generic_entities.py` (contagens do `entitySearch.arti
 | Brasília | `Q2844` | dateline e sede do governo ("brasilia - df"; 33.284) |
 | Governo Federal | `Q5440531` | o próprio emissor (aliases União, Governo do Brasil; 12.952) |
 | Portal Gov.br | `dgb_portal-gov-br` | boilerplate de serviço (2.099); **em revisão**, às vezes é o serviço de fato |
-| Entidade da própria agência | `dgb_{código}` | uma por código do catálogo de agências (ex.: `dgb_saude`), como na coerência |
 
-Continuam visíveis: as UFs (inclusive o Distrito Federal, `Q119158`), as demais capitais, os QIDs dos ministérios (ex.: MEC, `Q4294522`) e as pessoas. Se o catálogo de agências estiver fora do ar, as `dgb_{código}` não são ocultadas (a saída avisa).
+Continuam visíveis: as UFs (inclusive o Distrito Federal, `Q119158`), as demais capitais, as pessoas e os ministérios, tanto pelo QID (ex.: MEC, `Q4294522`) quanto pela entidade da própria agência (`dgb_{código}`: Secretaria-Geral, Fazenda, Casa Civil, Saúde…), que são vizinhos com sentido. A exclusão das `dgb_{código}` só vale na [coerência de mensagem](get-message-coherence.md). O foco nunca aparece na própria lista.
 
 ### Segundo grau (`depth=2`)
 
 1. Pega os 5 primeiros da lista ranqueada (ou menos, se `max_nodes` for menor).
-2. Busca em paralelo os 15 vizinhos mais fortes de cada um.
+2. Busca em paralelo os 25 vizinhos mais fortes de cada um (medido ao vivo: com 15, sobravam 1–3 entidades novas por vizinho; com 25, a rodada continua em ≤ 0,8 s).
 3. Mostra, por vizinho, até 5 entidades **novas**: sem o foco, sem as genéricas e sem os vizinhos diretos já considerados; `node_types` também vale aqui.
 4. Lista as **pontes**: entidades novas alcançadas por 2 ou mais vizinhos (as de mais vizinhos primeiro).
 
-Um vizinho cuja consulta falha vira nota ("Não foi possível expandir …") e os demais seguem. O nó e cada consulta de vizinhos ficam 30 minutos no cache do servidor.
+Um vizinho cuja consulta falha vira nota ("Não foi possível expandir …") e os demais seguem. O nó e cada consulta de vizinhos ficam 30 minutos no cache do servidor. A rede não consulta o catálogo de agências.
 
 ## Retorno
 
@@ -51,29 +50,31 @@ Um vizinho cuja consulta falha vira nota ("Não foi possível expandir …") e o
 ```
 # Rede de entidades: Pé-de-Meia (POLICY)
 
-`dgb_pe-de-meia` · Mostrando 25 de 45+ vizinhos diretos (pesos = artigos em co-menção em todo o acervo, inclui republicações)
+`dgb_pe-de-meia` · Mostrando 25 de 46+ vizinhos diretos (pesos = artigos em co-menção em todo o acervo, inclui republicações)
 
 ## Vizinhos diretos
 1. **Ministério da Educação (MEC)** (ORG) · 650 artigos em co-menção · `Q4294522`
 2. **Exame Nacional do Ensino Médio (Enem)** (EVENT) · 306 artigos em co-menção · `Q5419278`
 3. **Instituto Nacional de Estudos e Pesquisas Educacionais Anísio Teixeira (Inep)** (ORG) · 295 artigos em co-menção · `Q6041403`
 …
-… +14 vizinhos (aumente `max_nodes`)
+18. **Secretaria-Geral da Presidência da República** (ORG) · 41 artigos em co-menção · `dgb_secretariageral`
+…
+… +15 vizinhos (aumente `max_nodes`)
 
 **Lugares:** Distrito Federal (70, `Q119158`), São Paulo (37, `dgb_sao-paulo`), Ceará (30, `dgb_ceara`), … +6 lugares
 
-Ocultas como genéricas: República Federativa do Brasil (341), Portal Gov.br (139), Brasília (77), Governo Federal do Brasil (69), Secretaria-Geral da Presidência da República (41) — use include_generic=true para incluí-las (…).
+Ocultas como genéricas: República Federativa do Brasil (341), Portal Gov.br (139), Brasília (77), Governo Federal do Brasil (69) — use include_generic=true para incluí-las (país, dateline, o próprio emissor e boilerplate).
 
 > O limite de 50 vizinhos foi atingido: há mais vizinhos, todos com peso ≤ 18. Aumente `limit` (máx 200).
 
 ## Segundo grau (via os 5 vizinhos mais fortes)
-- via **Ministério da Educação (MEC)** (650): Fundo Nacional de Desenvolvimento da Educação (FNDE) (1.300, `Q10286468`), Coordenação de Aperfeiçoamento de Pessoal de Nível Superior (CAPES) (1.030, `Q5167991`), …
-- via **Camilo Sobreira de Santana** (170): Fundo Nacional de Desenvolvimento da Educação (FNDE) (213, `Q10286468`), Fortaleza (106, `dgb_fortaleza`)
+- via **Ministério da Educação (MEC)** (650): Fundo Nacional de Desenvolvimento da Educação (FNDE) (1.300, `Q10286468`), Coordenação de Aperfeiçoamento de Pessoal de Nível Superior (CAPES) (1.030, `Q5167991`), …, Ministério da Saúde (617, `dgb_saude`), Diário Oficial da União (DOU) (577, `Q3712237`)
+- via **Camilo Sobreira de Santana** (170): Fundo Nacional de Desenvolvimento da Educação (FNDE) (213, `Q10286468`), Fortaleza (106, `dgb_fortaleza`), …
 
-**Pontes** (alcançadas por 2+ vizinhos): Fundo Nacional de Desenvolvimento da Educação (FNDE) (via Ministério da Educação (MEC), Programa Escola em Tempo Integral, Camilo Sobreira de Santana)
+**Pontes** (alcançadas por 2+ vizinhos): Diário Oficial da União (DOU) (via Ministério da Educação (MEC), Exame Nacional do Ensino Médio (Enem), Instituto Nacional de Estudos e Pesquisas Educacionais Anísio Teixeira (Inep), Camilo Sobreira de Santana), Fundo Nacional de Desenvolvimento da Educação (FNDE) (via …), …
 ```
 
-Em produção, `depth=2` leva ~0,7 s e ~5 KB (uma rodada para o foco e uma rodada paralela para os 5 vizinhos).
+Em produção (21/10/2026), `depth=2` leva ≤ 0,8 s e ~5–6,5 KB (uma rodada para o foco e uma rodada paralela para os 5 vizinhos).
 
 ## Exemplos
 

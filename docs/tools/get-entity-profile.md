@@ -18,7 +18,7 @@ Monta o perfil completo de uma entidade: dados canônicos, a série mensal intei
 2. **Em paralelo**, cada parte degradando sozinha (uma falha vira nota na seção, as demais seguem):
     - `entityCoverage(MONTH)` com `dateTo` = último dia + 1: o resolver compara `published_at <= dateTo::timestamptz` e a data pura vira 00:00 UTC, o que cortaria o último dia;
     - `relatedEntities(limit: 40)`;
-    - contagem de cópias idênticas (`EntityDedupCounts`);
+    - contagem de cópias idênticas (`EntityDedupCounts`; a falha vira nota no fim);
     - catálogo de agências (republicadoras e códigos).
 
 ### Cabeçalho e série mensal
@@ -29,11 +29,19 @@ Monta o perfil completo de uma entidade: dados canônicos, a série mensal intei
 
 ### Cópias idênticas
 
-O mesmo release costuma sair em várias agências (INSS, Previdência, Secom, AGU…) sem marca de republicação. A única deduplicação exata disponível é a do índice de busca (Typesense), que agrupa por `content_hash`: `articles(filter: {entityCanonical, dedup})` conta os textos distintos. Como o índice só marca a entidade desde **20/05/2026** (`ENTITY_CANONICAL_INDEX_SINCE`), a contagem começa em `max(date_from, 20/05/2026)`; se o período termina antes, a seção diz que as cópias não foram medidas. Só conteúdo **idêntico** conta: releases reescritos não são detectados.
+O mesmo release costuma sair em várias agências (INSS, Previdência, Secom, AGU…) sem marca de republicação. A única deduplicação exata disponível é a do índice de busca (Typesense), que agrupa por `content_hash`: `articles(filter: {entityCanonical, dedup})` conta os textos distintos, e a diferença para a contagem sem `dedup` são as cópias.
+
+Quando há cópia, o perfil ganha **uma linha** logo abaixo do cabeçalho: "16 cópias idênticas entre agências desde 20/05/2026 (índice de busca)." Sem cópia, a linha não aparece.
+
+**Limitações** (ficam aqui, não na saída):
+
+- Só conteúdo **idêntico** conta. Republicações costumam mudar algo no texto (boilerplate, assinatura, links), então a diferença é rara: em 21/10/2026, desde 20/05, Pé-de-Meia teve 189 → 189 textos distintos, INSS 371 → 370 e Brasil 7.506 → 7.496. Releases reescritos não são detectados; isso exigiria detecção de quase-duplicatas no upstream.
+- O índice só marca a entidade desde **20/05/2026** (`ENTITY_CANONICAL_INDEX_SINCE`): a contagem começa em `max(date_from, 20/05/2026)` e não roda quando o período termina antes.
+- A contagem do índice e a do `entityCoverage` (Postgres) podem diferir: o índice pode atrasar.
 
 ### Entidades relacionadas
 
-As 8 mais fortes por co-menção, **em todo o acervo** (os pesos não respeitam o período), sem as [entidades genéricas](get-entity-network.md#entidades-genericas) (Brasil, Brasília, Governo Federal, Portal Gov.br e as `dgb_{código}` das agências), que aparecem numa linha "Ocultas como genéricas". Para vê-las, use [get_entity_network](get-entity-network.md) com `include_generic=true`.
+As 8 mais fortes por co-menção, **em todo o acervo** (os pesos não respeitam o período), sem as [entidades genéricas](get-entity-network.md#entidades-genericas) (Brasil, Brasília, Governo Federal e Portal Gov.br), que aparecem numa linha "Ocultas como genéricas" (para vê-las na lista, use [get_entity_network](get-entity-network.md) com `include_generic=true`). Ministérios e secretarias, inclusive as entidades das próprias agências (`dgb_{código}`), continuam na lista.
 
 ## Retorno
 
@@ -60,15 +68,18 @@ As 8 mais fortes por co-menção, **em todo o acervo** (os pesos não respeitam 
 2. Instituto Nacional de Estudos e Pesquisas Educacionais Anísio Teixeira (`inep`) — 78 artigos (24%)
 …
 
-## Cópias idênticas
-De 20/05/2026 a 20/10/2026 (índice de busca): 189 artigos → 189 textos distintos (nenhuma cópia idêntica; só conteúdo idêntico, por hash)
-
 ## Entidades relacionadas (co-menção, todo o acervo)
 - **Ministério da Educação (MEC)** (ORG) · 650 artigos em co-menção · `Q4294522`
 - **Exame Nacional do Ensino Médio (Enem)** (EVENT) · 306 artigos em co-menção · `Q5419278`
 …
 
 Ocultas como genéricas: República Federativa do Brasil (341), Portal Gov.br (139), Brasília (77), …
+```
+
+O Pé-de-Meia não tem cópia idêntica desde 20/05, então a linha de cópias não aparece. No mesmo recorte, o Brasil (`Q155`) mostra, logo abaixo do cabeçalho:
+
+```
+10 cópias idênticas entre agências de 20/05/2026 a 20/10/2026 (índice de busca).
 ```
 
 ## Exemplos
@@ -86,4 +97,3 @@ Ocultas como genéricas: República Federativa do Brasil (341), Portal Gov.br (1
 
 - Em produção, o perfil completo leva ~0,5 s (a busca pelo nome, quando há, mais uma rodada paralela).
 - O `articleCount` do `entitySearch` (todo o acervo) não aparece mais: o cabeçalho é sempre a soma do período pedido.
-- Contagem do índice de busca e do `entityCoverage` (Postgres) podem diferir: o índice pode atrasar e não tem o histórico antes de 20/05/2026.

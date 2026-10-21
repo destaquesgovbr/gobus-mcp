@@ -205,8 +205,8 @@ async def gobus_get_entity_profile(
     Retorna: Markdown com o cabeçalho "N artigos de A agências + R republicações · M
     menções" (soma de todas as linhas do período), a tabela mensal Mês | Artigos |
     Republicações (meses sem artigo = 0; mês corrente ou cortado = parcial; até 24 meses,
-    anos anteriores somados), as agências que mais publicaram, as cópias idênticas entre
-    agências (só desde 20/05/2026, início do índice de busca; conteúdo idêntico por hash) e
+    anos anteriores somados), as agências que mais publicaram, uma linha com as
+    cópias idênticas entre agências só quando houver (índice de busca, desde 20/05/2026) e
     as entidades relacionadas por co-menção em todo o acervo, sem as genéricas (Brasil,
     Brasília, Governo Federal, Portal Gov.br).
 
