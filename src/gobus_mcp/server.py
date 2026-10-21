@@ -192,28 +192,37 @@ async def gobus_get_entity_profile(
     date_to: str = "",
     summary_only: bool = False,
 ) -> str:
-    """Perfil completo de entidade: cobertura temporal + entidades relacionadas.
+    """Perfil completo de entidade: série mensal inteira, agências, cópias e relacionadas.
 
     Parâmetros:
-    - entity_name: Nome ou alias da entidade (ex: "Ministério da Saúde")
-    - entity_type: Tipo para filtrar — ORG, PER, LOC, EVENT, POLICY, LAW (opcional)
-    - date_from: Data de início ISO (ex: "2024-01-01") — opcional
-    - date_to: Data de fim ISO (ex: "2024-12-31") — opcional
-    - summary_only: Se True, retorna apenas totais e top-3 relacionadas (sem série temporal)
+    - entity_name: ID canônico ("Q4294522", "dgb_pe-de-meia" — vai direto, sem busca
+      fuzzy) ou nome/alias (ex: "Ministério da Saúde"; usa o 1º resultado da busca)
+    - entity_type: Tipo para desambiguar o nome — ORG, PER, LOC, EVENT, POLICY, LAW
+    - date_from: Data de início ISO (ex: "2026-01-01") — opcional (padrão: todo o acervo)
+    - date_to: Data de fim ISO, inclusiva (ex: "2026-10-20") — opcional
+    - summary_only: Se True, só os totais e as 3 relacionadas mais fortes
 
-    Retorna: Markdown com identidade, série temporal de cobertura e entidades relacionadas.
+    Retorna: Markdown com o cabeçalho "N artigos de A agências + R republicações · M
+    menções" (soma de todas as linhas do período), a tabela mensal Mês | Artigos |
+    Republicações (meses sem artigo = 0; mês corrente ou cortado = parcial; até 24 meses,
+    anos anteriores somados), as agências que mais publicaram, as cópias idênticas entre
+    agências (só desde 20/05/2026, início do índice de busca; conteúdo idêntico por hash) e
+    as entidades relacionadas por co-menção em todo o acervo, sem as genéricas (Brasil,
+    Brasília, Governo Federal, Portal Gov.br, dgb_{agência}).
 
-    Dica de paralelismo: Após resolver o entityId, execute em paralelo com
-    gobus_get_entity_network para economizar latência.
-    Use summary_only=True quando precisar apenas de um overview rápido.
+    Dica: execute em paralelo com gobus_get_entity_network. Use summary_only=True para um
+    overview rápido.
     """
+    deps = get_deps()
     return await get_entity_profile(
         entity_name,
-        get_deps().client,
+        deps.client,
         entity_type or None,
         date_from or None,
         date_to or None,
         summary_only,
+        catalog=deps.catalog,
+        cache=deps.cache,
     )
 
 

@@ -103,13 +103,14 @@ def _month_end(month: date) -> date:
 
 def monthly_series(
     rows: Iterable[Mapping],
-    start: date,
+    start: date | None,
     end: date,
     republishers: frozenset[str],
     *,
     today: date | None = None,
 ) -> list[MonthCoverage]:
-    """Um ponto por mês de ``start`` a ``end`` (inclusivos), com zero nos meses sem artigo.
+    """Um ponto por mês de ``start`` a ``end`` (inclusivos), com zero nos meses sem artigo;
+    ``start=None`` começa no primeiro mês com artigo (sem artigo: série vazia).
 
     Linha fora da janela estende a série (o total nunca perde artigo). Mês é parcial quando
     a janela não o cobre inteiro ou quando contém ``today`` (ainda em curso)."""
@@ -119,13 +120,16 @@ def monthly_series(
         bucket = republished if point.agency in republishers else own
         bucket[point.month] = bucket.get(point.month, 0) + point.articles
     months = set(own) | set(republished)
-    first = min([start.replace(day=1), *months])
-    last = max([end.replace(day=1), *months])
+    if start is not None:
+        months.add(start.replace(day=1))
+    if not months:
+        return []
+    first, last = min(months), max([end.replace(day=1), *months])
 
     series = []
     month = first
     while month <= last:
-        partial = month < start or _month_end(month) > end
+        partial = (start is not None and month < start) or _month_end(month) > end
         if today is not None and month <= today <= _month_end(month):
             partial = True
         series.append(MonthCoverage(month, own.get(month, 0), republished.get(month, 0), partial))
