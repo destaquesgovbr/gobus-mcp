@@ -41,7 +41,6 @@ import asyncio
 import difflib
 import logging
 import math
-import re
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -86,6 +85,7 @@ from gobus_mcp.data_status import (
     share_status,
     theme_coverage_status,
 )
+from gobus_mcp.entity_lookup import looks_like_id
 from gobus_mcp.payloads.coherence import (
     DIMENSION_ORDER,
     DIMENSION_WEIGHTS,
@@ -114,8 +114,6 @@ MAX_TONE_AGENCIES = 12
 TAXONOMY_TTL = 86_400.0
 NAMES_DEADLINE = 2.0  # segundos desde o início: depois disso a tabela usa os códigos
 SENTIMENT_MIN_COVERAGE = 0.5
-
-_ID_RE = re.compile(r"^(Q\d+|dgb_\S+)$")
 
 _ENTITY_QUERY = """
 query CoherenceEntity($id: String!) {
@@ -311,11 +309,6 @@ async def _validate_agencies(
 
 
 # ── assunto ─────────────────────────────────────────────────────────────────
-
-
-def looks_like_id(value: str) -> bool:
-    """``Q123`` (Wikidata) ou ``dgb_…`` (id interno)."""
-    return bool(_ID_RE.match(value))
 
 
 async def _search_entity(client: GobusGraphQLClient, query: str) -> CoherenceSubject:
