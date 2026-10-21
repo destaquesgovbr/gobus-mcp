@@ -360,3 +360,26 @@ async def test_summary_only_traz_totais_e_top3_sem_genericas(fake_client):
         "**Top relacionadas:** Ministério da Educação (MEC) (ORG), Enem (EVENT), Inep (ORG)"
     ) in text
     assert fake_client.calls("EntityDedupCounts") == []
+
+
+# ── link do Wikidata ────────────────────────────────────────────────────────
+
+
+async def test_wikidata_vira_link_markdown(fake_client):
+    url = "https://www.wikidata.org/wiki/Q4294522"
+    _route(fake_client, EntityNode={"entity": {**NODE, "wikidataUrl": url}})
+    text = await _profile(fake_client)
+    assert f"**ID:** `{ID}` · [Wikidata]({url})" in text
+
+
+async def test_wikidata_com_url_nao_http_nao_vira_link(fake_client):
+    _route(fake_client, EntityNode={"entity": {**NODE, "wikidataUrl": "javascript:alert(1)"}})
+    text = await _profile(fake_client)
+    assert "javascript:" not in text
+    assert f"**ID:** `{ID}` · Wikidata" in text
+
+
+async def test_sem_wikidata_mostra_travessao(fake_client):
+    _route(fake_client)
+    text = await _profile(fake_client)
+    assert f"**ID:** `{ID}` · —" in text
