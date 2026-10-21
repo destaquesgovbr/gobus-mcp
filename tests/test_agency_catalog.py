@@ -4,7 +4,13 @@ from datetime import date
 
 import pytest
 
-from gobus_mcp.agency_catalog import Agency, AgencyCatalog
+from gobus_mcp.agency_catalog import (
+    FALLBACK_REPUBLISHERS,
+    Agency,
+    AgencyCatalog,
+    CatalogInfo,
+    catalog_info,
+)
 from gobus_mcp.cache import TTLCache
 from tests.conftest import FakeGraphQLClient
 
@@ -208,3 +214,23 @@ async def test_display_names_resolve_o_mapa_uma_vez_e_nunca_levanta():
     broken = FakeGraphQLClient()
     broken.route("CatalogAgencies", RuntimeError("graphql fora do ar"))
     assert await _catalog(broken).display_names() == {}
+
+
+async def test_catalog_info_traz_republicadoras_e_codigos_sem_consultar_nomes():
+    client = _client()
+    info = await catalog_info(_catalog(client))
+    assert info == CatalogInfo(
+        republishers=frozenset({"agencia_brasil", "tvbrasil", "ebc", "radioagencia_nacional"}),
+        codes=frozenset(c for c, _, _ in _CATALOG),
+    )
+    assert not info.fallback
+    assert client.calls("CatalogAgencyNames") == []  # a consulta lenta fica de fora
+
+
+async def test_catalog_info_nunca_levanta_e_cai_na_lista_fixa():
+    broken = FakeGraphQLClient()
+    broken.route("CatalogAgencies", RuntimeError("graphql fora do ar"))
+    info = await catalog_info(_catalog(broken))
+    assert info.fallback
+    assert info.republishers == FALLBACK_REPUBLISHERS
+    assert info.codes == frozenset()

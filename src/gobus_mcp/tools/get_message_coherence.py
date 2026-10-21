@@ -46,7 +46,12 @@ import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
-from gobus_mcp.agency_catalog import AgencyCatalog, normalize_code
+from gobus_mcp.agency_catalog import (
+    FALLBACK_CATALOG_INFO,
+    AgencyCatalog,
+    catalog_info,
+    normalize_code,
+)
 from gobus_mcp.analytics.coherence import (
     PRIOR_DAYS,
     TONE_LABELS,
@@ -96,7 +101,6 @@ from gobus_mcp.payloads.coherence import (
     SampleInfo,
 )
 from gobus_mcp.payloads.common import DataStatus, Notice, ReportStatus
-from gobus_mcp.tools.detect_anomalies import FALLBACK_REPUBLISHERS
 
 logger = logging.getLogger(__name__)
 
@@ -453,23 +457,6 @@ def _split_coverage(
     return _PgCoverage(prior, inside)
 
 
-@dataclass
-class _CatalogInfo:
-    republishers: frozenset[str]
-    codes: frozenset[str]
-    fallback: bool = False
-
-
-async def _catalog_info(catalog: AgencyCatalog) -> _CatalogInfo:
-    """Republicadoras e códigos (``agencies``, rápido). Os nomes vêm à parte: a consulta de
-    nomes do catálogo é a mais lenta (~1,3–1,9 s a frio) e não pode segurar a análise."""
-    try:
-        return _CatalogInfo(await catalog.republishers(), await catalog.codes())
-    except Exception as exc:
-        logger.warning("coerência: catálogo indisponível (%s)", exc)
-        return _CatalogInfo(FALLBACK_REPUBLISHERS, frozenset(), fallback=True)
-
-
 # Tarefas de nomes que passaram do prazo: seguem em segundo plano e enchem o cache do
 # catálogo para a próxima chamada (referência guardada para não serem coletadas).
 _BACKGROUND: set[asyncio.Task] = set()
@@ -691,17 +678,17 @@ async def build_coherence_output(
     names_task = asyncio.ensure_future(catalog.display_names())  # nunca levanta
 
     coverage_filters = [dict(base)] + [{**base, "themeLabel": lbl} for lbl in labels]
-    entity_r, page1_r, pg_result, coverage_result, catalog_info = await asyncio.gather(
+    entity_r, page1_r, pg_result, coverage_result, info = await asyncio.gather(
         entity_task if entity_task is not None else none(),
         _page(client, filt, 1),
         _coverage(client, subject.id, window) if subject.kind == "entity" else none(),
         _counts(client, coverage_filters) if labels else none(),
-        _catalog_info(catalog),
+        catalog_info(catalog),
         return_exceptions=True,
     )
-    if isinstance(catalog_info, BaseException):  # defensivo: _catalog_info não levanta
-        catalog_info = _CatalogInfo(FALLBACK_REPUBLISHERS, frozenset(), fallback=True)
-    if catalog_info.fallback:
+    if isinstance(info, BaseException):  # defensivo: catalog_info não levanta
+        info = FALLBACK_CATALOG_INFO
+    if info.fallback:
         notes.append(
             "Catálogo indisponível: republicadoras por lista fixa e sem exclusão das "
             "entidades das agências (dgb_{código})."
@@ -856,7 +843,7 @@ async def build_coherence_output(
     truncated = fetch.found > len(fetch.rows) and fetch.found > SAMPLE_CAP
 
     # ── tom (aliases de contagem) ──
-    split = split_agencies(articles, catalog_info.republishers)
+    split = split_agencies(articles, info.republishers)
     tone_agencies = list(split.emitters)[:MAX_TONE_AGENCIES]
     tone_counts = tone_totals = None
     tone_error: str | None = None
@@ -911,11 +898,11 @@ async def build_coherence_output(
             f"índice de busca parcial ({fetch.found} de {pg.window} artigos do Postgres): a "
             "1ª publicação de cada agência pode faltar"
         )
-    exclude = excluded_entities(subject.id, catalog_info.codes)
+    exclude = excluded_entities(subject.id, info.codes)
     names = await _names_within(names_task, started + NAMES_DEADLINE)
     assessment = assess(
         articles,
-        republishers=catalog_info.republishers,
+        republishers=info.republishers,
         exclude=exclude,
         names=names,
         tone_counts=tone_counts,

@@ -29,7 +29,7 @@ import logging
 from dataclasses import dataclass, field
 
 from gobus_mcp.agency_activity import ActivitySnapshot, AgencyActivityService, activity_status
-from gobus_mcp.agency_catalog import EXTRA_REPUBLISHERS, AgencyCatalog
+from gobus_mcp.agency_catalog import FALLBACK_REPUBLISHERS, AgencyCatalog
 from gobus_mcp.analytics.entities import (
     MAX_CANDIDATES,
     CandidateSelection,
@@ -86,11 +86,6 @@ logger = logging.getLogger(__name__)
 TRENDING_TTL = 600.0  # 10 min (o ranking roda 2×/dia)
 ENTITY_CONTEXT_TTL = 1_800.0  # 30 min
 ENTITY_CONCURRENCY = 8
-
-# Republicadoras conhecidas, para quando o catálogo estiver fora do ar.
-FALLBACK_REPUBLISHERS: frozenset[str] = (
-    frozenset({"agencia_brasil", "tvbrasil", "ebc"}) | EXTRA_REPUBLISHERS
-)
 
 TITLE = "## Detector de Anomalias Comunicacionais"
 
