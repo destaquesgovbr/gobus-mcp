@@ -635,8 +635,8 @@ if settings.dev_preview:
 
 
 # Prompts devolvem str (uma mensagem de usuário): list[dict] quebra o prompts/get no
-# fastmcp 3.4. Os argumentos numéricos ficam -> str: o host manda texto ("" nos opcionais
-# em branco) e o fastmcp converteria pelo tipo declarado, falhando no vazio.
+# fastmcp 3.4. Os argumentos numéricos são declarados str: o host manda texto ("" nos
+# opcionais em branco) e o fastmcp converteria pelo tipo declarado, falhando no vazio.
 
 
 @mcp.prompt()
