@@ -65,16 +65,16 @@ class TestSearchNews:
         client.set_response({"search": {"articles": [], "found": 0, "page": 1}})
         await search_news("saúde", client, date_from="2026-06-01")
         variables = client.execute.call_args[0][1]
-        assert variables["filter"]["startDate"] == "2026-06-01"
+        assert variables["filter"]["startDate"] == "2026-06-01T00:00:00-03:00"
 
     @pytest.mark.asyncio
     async def test_date_to_passado_no_filter(self):
-        """date_to deve ir para filter.endDate."""
+        """date_to deve ir para filter.endDate, incluindo o dia inteiro (BRT)."""
         client = FakeGraphQLClient()
         client.set_response({"search": {"articles": [], "found": 0, "page": 1}})
         await search_news("saúde", client, date_to="2026-06-24")
         variables = client.execute.call_args[0][1]
-        assert variables["filter"]["endDate"] == "2026-06-24"
+        assert variables["filter"]["endDate"] == "2026-06-24T23:59:59-03:00"
 
     @pytest.mark.asyncio
     async def test_date_filter_combinado_com_agency(self):
@@ -86,8 +86,8 @@ class TestSearchNews:
         )
         variables = client.execute.call_args[0][1]
         assert "saude" in variables["filter"]["agencies"]
-        assert variables["filter"]["startDate"] == "2026-06-01"
-        assert variables["filter"]["endDate"] == "2026-06-24"
+        assert variables["filter"]["startDate"] == "2026-06-01T00:00:00-03:00"
+        assert variables["filter"]["endDate"] == "2026-06-24T23:59:59-03:00"
 
     @pytest.mark.asyncio
     async def test_limit_fatia_resultados_cliente(self):
@@ -167,3 +167,77 @@ async def test_total_encontrado_com_ponto_de_milhar(fake_client):
     result = await search_news("educação", fake_client)
 
     assert "**1.234 artigos encontrados**" in result
+
+
+# ── datas: dia inteiro em Brasília, validação e query "*" ────────────────────
+
+EMPTY = {"search": {"articles": [], "found": 0, "page": 1}}
+
+
+async def test_date_from_igual_a_date_to_cobre_o_dia_inteiro(fake_client):
+    """O upstream compara published_at <= endDate: só a data (00:00 UTC) perdia o dia."""
+    fake_client.route("SearchNews", EMPTY)
+
+    await search_news("*", fake_client, date_from="2026-10-20", date_to="2026-10-20")
+
+    (variables,) = fake_client.calls("SearchNews")
+    assert variables["filter"]["startDate"] == "2026-10-20T00:00:00-03:00"
+    assert variables["filter"]["endDate"] == "2026-10-20T23:59:59-03:00"
+
+
+async def test_data_com_hora_passa_sem_conversao(fake_client):
+    fake_client.route("SearchNews", EMPTY)
+
+    await search_news(
+        "*", fake_client, date_from="2026-10-20T10:00:00-03:00", date_to="2026-10-20T15:00:00Z"
+    )
+
+    (variables,) = fake_client.calls("SearchNews")
+    assert variables["filter"]["startDate"] == "2026-10-20T10:00:00-03:00"
+    assert variables["filter"]["endDate"] == "2026-10-20T15:00:00Z"
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "field"),
+    [
+        ({"date_from": "20/10/2026"}, "date_from"),
+        ({"date_to": "2026-13-01"}, "date_to"),
+        ({"date_to": "ontem"}, "date_to"),
+    ],
+)
+async def test_data_invalida_devolve_mensagem_sem_chamar_a_api(fake_client, kwargs, field):
+    fake_client.route("SearchNews", EMPTY)
+
+    result = await search_news("*", fake_client, **kwargs)
+
+    assert f"`{field}`" in result
+    assert "AAAA-MM-DD" in result
+    assert fake_client.calls("SearchNews") == []
+
+
+async def test_date_from_depois_de_date_to_devolve_mensagem(fake_client):
+    fake_client.route("SearchNews", EMPTY)
+
+    result = await search_news("*", fake_client, date_from="2026-10-21", date_to="2026-10-20")
+
+    assert "date_from" in result and "date_to" in result
+    assert fake_client.calls("SearchNews") == []
+
+
+async def test_query_em_branco_vira_curinga(fake_client):
+    """search() rejeita query vazia; "*" lista tudo (com agency_key/datas)."""
+    fake_client.route("SearchNews", EMPTY)
+
+    await search_news("  ", fake_client, agency_key="mec")
+
+    assert fake_client.calls("SearchNews")[0]["query"] == "*"
+
+
+async def test_data_exibida_e_o_dia_de_brasilia(fake_client):
+    article = {**_make_article(1), "publishedAt": "2026-10-21T02:30:00+00:00"}
+    fake_client.route("SearchNews", {"search": {"articles": [article], "found": 1, "page": 1}})
+
+    result = await search_news("*", fake_client, date_from="2026-10-20", date_to="2026-10-20")
+
+    assert "· 2026-10-20" in result
+    assert "2026-10-21" not in result

@@ -20,6 +20,8 @@ from gobus_mcp.calendario import (
     as_window,
     baseline_for,
     brt_bounds,
+    brt_day_end,
+    brt_day_start,
     calendar_context,
     calendar_notices,
     classifier_changed_within,
@@ -118,6 +120,12 @@ def test_closed_window_termina_em_d_menos_1():
 def test_brt_bounds_com_offset_e_fim_exclusivo():
     r = DateRange(D(2026, 9, 28), D(2026, 10, 4))
     assert brt_bounds(r) == ("2026-09-28T00:00:00-03:00", "2026-10-05T00:00:00-03:00")
+
+
+def test_brt_day_start_e_end_cobrem_o_dia_inteiro_em_segundos():
+    # search()/articles(): published_at >= startDate e published_at <= endDate (segundos)
+    assert brt_day_start(D(2026, 10, 20)) == "2026-10-20T00:00:00-03:00"
+    assert brt_day_end(D(2026, 10, 20)) == "2026-10-20T23:59:59-03:00"
 
 
 def test_utc_day_bounds_fim_exclusivo_ou_inclusivo():

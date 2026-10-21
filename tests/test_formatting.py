@@ -2,7 +2,7 @@
 
 import pytest
 
-from gobus_mcp.formatting import agency_label, fmt_int, md_link
+from gobus_mcp.formatting import agency_label, brt_day, fmt_int, md_link
 
 URL = "https://www.gov.br/mec/pt-br/assuntos/noticias/x"
 
@@ -68,3 +68,21 @@ def test_agency_label(code, name, expected):
 )
 def test_fmt_int_usa_ponto_de_milhar(n, expected):
     assert fmt_int(n) == expected
+
+
+@pytest.mark.parametrize(
+    ("published_at", "expected"),
+    [
+        ("2026-10-20T22:48:56+00:00", "2026-10-20"),
+        ("2026-10-21T02:30:00+00:00", "2026-10-20"),  # 23:30 em Brasília
+        ("2026-10-21T02:30:00Z", "2026-10-20"),
+        ("2026-10-21T03:00:00+00:00", "2026-10-21"),
+        ("2026-10-20", "2026-10-20"),
+        ("2026-10-20T10:00:00", "2026-10-20"),  # sem fuso: sem conversão
+        ("lixo", "lixo"),
+        (None, ""),
+        ("", ""),
+    ],
+)
+def test_brt_day_converte_publicacao_para_o_dia_de_brasilia(published_at, expected):
+    assert brt_day(published_at) == expected

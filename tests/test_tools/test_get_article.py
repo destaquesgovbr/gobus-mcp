@@ -139,3 +139,14 @@ async def test_titulo_vira_link_markdown(fake_client):
     assert result.startswith("# [Artigo](https://www.gov.br/x1)\n")
     assert "🔗" not in result
     assert "1.500 visualizações" in result
+
+
+async def test_data_exibida_e_o_dia_de_brasilia(fake_client):
+    route_catalog(fake_client)
+    art = _art({})
+    art["article"]["publishedAt"] = "2026-10-21T02:30:00+00:00"  # 23:30 de 20/10 em Brasília
+    fake_client.route("GetArticle", art)
+
+    result = await get_article("x1", fake_client)
+
+    assert "· 2026-10-20" in result
