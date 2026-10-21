@@ -10,7 +10,7 @@ foco, por peso decrescente.
   (``include_generic`` as traz de volta; as entidades das agências, ``dgb_{code}``, ficam
   visíveis) e filtrados por ``node_types``; os lugares (LOC) vão para uma linha à parte, com
   teto de 5, salvo quando ``node_types`` pede LOC.
-- **depth=2:** além disso, expande em paralelo os 5 vizinhos mais fortes da lista (top 15
+- **depth=2:** além disso, expande em paralelo os 5 vizinhos mais fortes da lista (top 25
   de cada) e mostra, por vizinho, até 5 entidades novas (sem o foco, as genéricas e os
   vizinhos diretos), mais as "pontes": entidades alcançadas por 2+ vizinhos. Um vizinho
   que falha vira nota; os demais seguem.
@@ -29,7 +29,7 @@ from gobus_mcp.entity_lookup import display_name, fetch_entity, fetch_related
 MAX_LIMIT = 200
 MAX_PLACES = 5
 FAN_OUT = 5
-SECOND_HOP_LIMIT = 15
+SECOND_HOP_LIMIT = 25  # medido ao vivo em 21/10/2026: depth=2 ≤ 0,75 s
 SECOND_HOP_SHOWN = 5
 MAX_HIDDEN_SHOWN = 8
 MAX_BRIDGES = 8
