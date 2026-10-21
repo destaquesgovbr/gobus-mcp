@@ -131,6 +131,7 @@ Gotchas conhecidos do schema atual:
 |-------------------|--------|---------|
 | Enum de tipo de entidade | `EntityType` | `EntityKind` |
 | Argumento de `relatedEntities` e `entityNetwork` | `entityId:` | `id:` |
+| Rede de uma entidade | `entityNetwork` (nós sem ordem; `limit` corta arestas entre quaisquer pares) | `relatedEntities(id, limit)`: arestas do foco por peso |
 | Campo em `RelatedEntity` | `entityId` | `canonicalId` |
 | Campos de `Agency` | `key`, `name` | `code`, `label` |
 | Datas em `agencyAnalytics` / `entityCoverage` | strings ISO | `datetime.date` no lado da graphql-api (asyncpg rejeita strings) |

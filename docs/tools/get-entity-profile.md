@@ -1,37 +1,74 @@
 # get_entity_profile
 
-Monta o perfil completo de uma entidade a partir do seu nome: dados canônicos, cobertura temporal (quantos artigos e menções por mês) e entidades relacionadas por co-menção. Use para entender a presença de uma entidade na mídia ao longo do tempo sem precisar resolver o ID manualmente antes.
+Monta o perfil completo de uma entidade: dados canônicos, a série mensal inteira de cobertura (artigos próprios × republicações), as agências que mais publicaram, as cópias idênticas entre agências e as entidades relacionadas por co-menção. Aceita o ID canônico ou o nome.
 
 ## Parâmetros
 
 | Parâmetro | Tipo | Obrigatório | Default | Descrição |
 |-----------|------|-------------|---------|-----------|
-| `entity_name` | `str` | Sim | — | Nome ou alias da entidade |
-| `entity_type` | `str` | Não | — | Tipo — `ORG`, `PER`, `LOC`, `EVENT`, `POLICY`, `LAW` |
-| `date_from` | `str` | Não | — | Data de início no formato ISO (ex: `"2024-01-01"`) |
-| `date_to` | `str` | Não | — | Data de fim no formato ISO (ex: `"2024-12-31"`) |
+| `entity_name` | `str` | Sim | — | ID canônico (`"Q4294522"`, `"dgb_pe-de-meia"`) ou nome/alias |
+| `entity_type` | `str` | Não | — | Tipo para desambiguar o nome: `ORG`, `PER`, `LOC`, `EVENT`, `POLICY`, `LAW` |
+| `date_from` | `str` | Não | — | Data de início ISO (ex.: `"2026-01-01"`); sem ela, todo o acervo |
+| `date_to` | `str` | Não | — | Data de fim ISO, **inclusiva** (ex.: `"2026-10-20"`) |
+| `summary_only` | `bool` | Não | `false` | Só os totais e as 3 relacionadas mais fortes |
+
+## Como o perfil é montado
+
+1. **Entidade:** ID canônico (`Q…`/`dgb_…`) vai direto ao `entity(id)`, sem busca fuzzy; nome passa pelo `entitySearch(limit: 1)` (use `entity_type` para desambiguar).
+2. **Em paralelo**, cada parte degradando sozinha (uma falha vira nota na seção, as demais seguem):
+    - `entityCoverage(MONTH)` com `dateTo` = último dia + 1: o resolver compara `published_at <= dateTo::timestamptz` e a data pura vira 00:00 UTC, o que cortaria o último dia;
+    - `relatedEntities(limit: 40)`;
+    - contagem de cópias idênticas (`EntityDedupCounts`);
+    - catálogo de agências (republicadoras e códigos).
+
+### Cabeçalho e série mensal
+
+- **Cabeçalho:** "N artigos de A agências + R republicações · M menções", a soma de **todas** as linhas mês × agência do período. As republicadoras (Agência Brasil, TV Brasil, …) ficam em R e fora de A.
+- **Tabela `Mês | Artigos | Republicações`:** um mês por linha, de `date_from` (ou do primeiro mês com artigo) até `date_to` (ou hoje), com 0 nos meses sem artigo. O mês corrente, ou cortado pela janela, aparece como "parcial". Até 24 meses; os anteriores viram totais anuais ("2023", "2024 (jan–out)"). A soma da tabela é igual ao cabeçalho.
+- **Agências que mais publicaram:** as 5 não republicadoras com mais artigos, com a fatia sobre N.
+
+### Cópias idênticas
+
+O mesmo release costuma sair em várias agências (INSS, Previdência, Secom, AGU…) sem marca de republicação. A única deduplicação exata disponível é a do índice de busca (Typesense), que agrupa por `content_hash`: `articles(filter: {entityCanonical, dedup})` conta os textos distintos. Como o índice só marca a entidade desde **20/05/2026** (`ENTITY_CANONICAL_INDEX_SINCE`), a contagem começa em `max(date_from, 20/05/2026)`; se o período termina antes, a seção diz que as cópias não foram medidas. Só conteúdo **idêntico** conta: releases reescritos não são detectados.
+
+### Entidades relacionadas
+
+As 8 mais fortes por co-menção, **em todo o acervo** (os pesos não respeitam o período), sem as [entidades genéricas](get-entity-network.md#entidades-genericas) (Brasil, Brasília, Governo Federal, Portal Gov.br e as `dgb_{código}` das agências), que aparecem numa linha "Ocultas como genéricas". Para vê-las, use [get_entity_network](get-entity-network.md) com `include_generic=true`.
 
 ## Retorno
 
-Retorna Markdown com cabeçalho da entidade (nome canônico, tipo, ID, Wikidata, total de artigos, aliases, descrição), uma seção de cobertura mensal com artigos/menções e sentimento médio, e uma seção de entidades relacionadas por co-menção.
-
-**Exemplo de saída:**
+**Exemplo (Pé-de-Meia, 01/01–20/10/2026, em 21/10/2026, abreviado):**
 
 ```
-# Ministério da Educação (ORG)
-**ID:** `Q1808456` · [Wikidata](https://www.wikidata.org/wiki/Q1808456)
-**Artigos:** 8.412
-**Aliases:** MEC, Min. Educação
+# Pé-de-Meia (POLICY)
+**ID:** `dgb_pe-de-meia` · —
+**Aliases:** Pé-de-Meia, pe-de-meia, Programa Pé-de-Meia, Pé de Meia
 
-Órgão do governo federal responsável pela política nacional de educação.
+**Período:** 01/01/2026 a 20/10/2026
+**327 artigos de 18 agências + 51 republicações · 1.214 menções**
 
-## Cobertura (1.204 artigos, 3.890 menções)
-- **2024-03** — 112 artigos (Ministério da Educação) · sentimento 0.18
-- **2024-04** — 98 artigos (Ministério da Educação) · sentimento 0.05
+## Cobertura mensal
+| Mês | Artigos | Republicações |
+|-----|---------|---------------|
+| 2026-01 | 4 | 0 |
+| 2026-02 | 8 | 1 |
+…
+| 2026-10 (parcial) | 1 | 6 |
 
-## Entidades relacionadas (co-menção)
-- **Fundo Nacional de Desenvolvimento da Educação** (ORG) · 240 artigos
-- **Camilo Santana** (PER) · 187 artigos
+## Agências que mais publicaram
+1. Ministério da Educação (`mec`) — 183 artigos (56%)
+2. Instituto Nacional de Estudos e Pesquisas Educacionais Anísio Teixeira (`inep`) — 78 artigos (24%)
+…
+
+## Cópias idênticas
+De 20/05/2026 a 20/10/2026 (índice de busca): 189 artigos → 189 textos distintos (nenhuma cópia idêntica; só conteúdo idêntico, por hash)
+
+## Entidades relacionadas (co-menção, todo o acervo)
+- **Ministério da Educação (MEC)** (ORG) · 650 artigos em co-menção · `Q4294522`
+- **Exame Nacional do Ensino Médio (Enem)** (EVENT) · 306 artigos em co-menção · `Q5419278`
+…
+
+Ocultas como genéricas: República Federativa do Brasil (341), Portal Gov.br (139), Brasília (77), …
 ```
 
 ## Exemplos
@@ -40,14 +77,13 @@ Retorna Markdown com cabeçalho da entidade (nome canônico, tipo, ID, Wikidata,
 > "Faça um perfil do Ministério da Saúde no último ano"
 
 **Recorte temporal:**
-> "Como foi a cobertura do MEC entre janeiro e junho de 2024?"
+> "Como foi a cobertura do Pé-de-Meia entre janeiro e outubro de 2026?"
 
 **Mapa de associações:**
-> "Com quais pessoas e órgãos o Ministério da Economia mais aparece junto?"
+> "Com quais pessoas e órgãos o MEC mais aparece junto?"
 
 ## Notas
 
-- Esta tool executa **3 queries GraphQL em sequência**: `entitySearch` (resolve o nome no primeiro resultado), `entityCoverage` (cobertura temporal) e `relatedEntities` (relacionadas). É mais pesada que as demais; espere maior latência.
-- A cobertura usa granularidade mensal (`MONTH`) e a saída mostra os últimos 12 períodos.
-- As entidades relacionadas são limitadas às 8 mais fortes na saída.
-- Como a entidade é resolvida pelo primeiro resultado da busca, use `entity_type` para desambiguar nomes comuns.
+- Em produção, o perfil completo leva ~0,5 s (a busca pelo nome, quando há, mais uma rodada paralela).
+- O `articleCount` do `entitySearch` (todo o acervo) não aparece mais: o cabeçalho é sempre a soma do período pedido.
+- Contagem do índice de busca e do `entityCoverage` (Postgres) podem diferir: o índice pode atrasar e não tem o histórico antes de 20/05/2026.
