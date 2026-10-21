@@ -1,4 +1,5 @@
 from gobus_mcp.client import GobusGraphQLClient
+from gobus_mcp.formatting import agency_label, fmt_int, md_link
 
 _SEARCH_QUERY = """
 query SearchNews($query: String!, $filter: ArticleFilter, $page: Int) {
@@ -38,7 +39,7 @@ async def search_news(
     data = await client.execute(_SEARCH_QUERY, variables)
     result = data.get("search") or {}
     articles = (result.get("articles") or [])[:effective_limit]
-    found = result.get("found", 0)
+    found = result.get("found") or 0
 
     if not articles:
         msg = f"Nenhum resultado encontrado para: **{query}**"
@@ -46,25 +47,18 @@ async def search_news(
             msg += f"\n\n> Chave `{agency_key}` não encontrou artigos. Consulte `gobus://agencies` para códigos válidos."
         return msg
 
-    lines = [f"# Resultados: {query}\n\n**{found:,} artigos encontrados** (página {page})\n"]
+    lines = [f"# Resultados: {query}\n\n**{fmt_int(found)} artigos encontrados** (página {page})\n"]
     for art in articles:
         pub_at = art.get("publishedAt", "")[:10] if art.get("publishedAt") else ""
-        agency_code = art.get("agency") or ""
-        agency_name = art.get("agencyName") or ""
-        if agency_code and agency_name:
-            agency_str = f"[{agency_code}] {agency_name}"
-        elif agency_code:
-            agency_str = f"[{agency_code}]"
-        else:
-            agency_str = agency_name
+        agency_str = agency_label(art.get("agency"), art.get("agencyName"))
         features = art.get("features") or {}
         trending = features.get("trendingScore")
         trending_str = f" 🔥 trending={trending:.1f}" if trending and trending > 1.0 else ""
         lines.append(
-            f"## {art['title']}\n"
+            f"## {md_link(art['title'], art.get('url'))}\n"
             f"**{agency_str}** · {pub_at}{trending_str}\n"
             f"{art.get('summary') or ''}\n"
-            f"🔗 {art.get('url', '')}  ID: `{art.get('uniqueId', '')}`\n"
+            f"ID: `{art.get('uniqueId', '')}`\n"
         )
 
     return "\n".join(lines)
