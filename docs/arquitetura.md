@@ -29,15 +29,18 @@ flowchart TB
 Camadas:
 
 - **`server.py`** — registro de tools/resources/prompts e o contêiner `Deps(client, catalog, activity, cache)` com `get_deps()`. Toda tool é registrada com `output_schema=None` e `annotations={"readOnlyHint": True}`.
+- **`instructions.py`** — `SERVER_INSTRUCTIONS`, as instruções do servidor (`FastMCP(name="Gobus", instructions=SERVER_INSTRUCTIONS)`) que o host recebe no `initialize` e passa ao modelo antes de qualquer tool: resolver entidades com `gobus_resolve_entity`, citar artigos como `[título](url)` só com URLs devolvidas pelas tools, datas do `gobus_search_news`, "indisponível" ≠ zero (consultar `gobus://health/pipelines`), o defeso eleitoral (datas lidas de `calendario.BLACKOUTS`), paralelismo e 2–3 perguntas de continuação. Até 1,5 KB, em pt-BR.
 - **`config.py`** — `Settings` (pydantic-settings, prefixo `GOBUS_`), lido no import.
 - **`client.py`** — `GobusGraphQLClient`, wrapper httpx que executa queries e lança `GobusGraphQLError` quando a resposta traz `errors[]`.
 - **`tools/` · `resources/` · `prompts/`** — a lógica de cada capacidade, isolada do framework.
+- **Prompts** devolvem `str`: o fastmcp 3.4 só aceita `str`, `Message` ou lista deles, e um `list[dict]` quebra o `prompts/get` ("messages[0] must be Message or str, got dict"). O texto vira uma única mensagem de usuário. Os argumentos numéricos são declarados `str` (o host manda texto, e `""` nos opcionais em branco) e convertidos com limites pelo próprio prompt; datas (`today`) são injetáveis. Os testes renderizam pelo `Client` em memória (`tests/test_prompts.py`).
 
 Fundações compartilhadas (Fase 2.5):
 
 | Módulo | Papel |
 |--------|-------|
 | `cache.py` | `TTLCache` assíncrono com single-flight por chave e relógio injetável |
+| `formatting.py` | Markdown compartilhado das tools: `md_link` (link `[título](url)` só para `http(s)`, com escape), `agency_label` (`[código] Nome`), `fmt_int` (ponto de milhar) e `brt_day` (dia de publicação em Brasília) |
 | `agency_catalog.py` | `AgencyCatalog`: códigos, nomes humanos (via `agencyAnalytics` de D−1), republicadoras, validação com aliases curados (`ms`→`saude`) antes do `difflib`, agências ativas (`topAgencies`). Cache de 24 h |
 | `calendario.py` | fuso BRT, defeso eleitoral 2026 (04/07–25/10) e recuperação até 29/11, feriados, janelas fechadas `[D−N, D−1]` e baseline. O nome evita sombrear o `calendar` da stdlib |
 | `readability.py` | escala do Flesch (`flesch_en_textstat`), clamp em 0–100, faixas únicas 0/25/50/75, médias ponderadas que ignoram nulo, janela efetiva |
@@ -137,7 +140,7 @@ Gotchas conhecidos do schema atual:
 | Limite em `search()` | `limit:` | `search` não tem `limit`; use `articles(page, limit ≤ 250, filter, sort)` |
 | `themeCode` em `trendingThemes` | — | sempre `null`; use `themeLabel` |
 | `agencies { label }` | nome humano | `label == code`; o nome vem de `agencyAnalytics.agencyName` (catálogo) |
-| `endDate` / `dateTo` | — | `articles.filter.endDate` e `entityCoverage.dateTo` são exclusivos; `agencyAnalytics.dateTo` é inclusivo em `DAY` e exclusivo na prática em `MONTH`/`WEEK` (00:00 do dia; use `calendario.agency_analytics_bounds`); dias da API em UTC |
+| `endDate` / `dateTo` | — | `search`/`articles.filter.endDate` compara `published_at <= endDate` (segundos; data pura = 00:00 UTC, que perde o dia — o `gobus_search_news` manda `T23:59:59-03:00` via `calendario.brt_day_end`); `entityCoverage.dateTo` é exclusivo; `agencyAnalytics.dateTo` é inclusivo em `DAY` e exclusivo na prática em `MONTH`/`WEEK` (00:00 do dia; use `calendario.agency_analytics_bounds`); dias da API em UTC |
 
 !!! warning "Mantenha as queries alinhadas ao SDL"
     O teste de contrato (`tests/test_graphql_contract.py`) valida as queries contra o snapshot do SDL. Para atualizar o snapshot depois de mudanças na `graphql-api`: `python tests/fixtures/refresh_schema.py` (introspecção, só leitura). A variante `pytest -m live` compara o snapshot com a API de produção.

@@ -1,5 +1,6 @@
 from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.client import GobusGraphQLClient
+from gobus_mcp.formatting import agency_label, brt_day, fmt_int, md_link
 from gobus_mcp.readability import describe_flesch
 
 _ARTICLE_QUERY = """
@@ -54,20 +55,13 @@ async def get_article(
     if not art:
         return f"Artigo não encontrado: `{unique_id}`"
 
-    pub_at = (art.get("publishedAt") or "")[:10]
+    pub_at = brt_day(art.get("publishedAt"))
     tags = ", ".join(art.get("tags") or [])
     agency_code = art.get("agency") or ""
     agency_name = await catalog.display_name(agency_code, art.get("agencyName"))
-    if agency_code and agency_name:
-        agency_str = f"[{agency_code}] {agency_name}"
-    elif agency_code:
-        agency_str = f"[{agency_code}]"
-    else:
-        agency_str = agency_name
     lines = [
-        f"# {art['title']}\n",
-        f"**{agency_str}** · {pub_at}",
-        f"🔗 {art.get('url', '')}",
+        f"# {md_link(art['title'], art.get('url'))}\n",
+        f"**{agency_label(agency_code, agency_name)}** · {pub_at}",
     ]
     if tags:
         lines.append(f"Tags: {tags}")
@@ -86,7 +80,7 @@ async def get_article(
             meta_parts.append("⏱ Tamanho: indisponível")
         meta_parts.append(f"📖 Legibilidade: {describe_flesch(flesch)}")
         if vc:
-            meta_parts.append(f"👁 {vc:,} visualizações")
+            meta_parts.append(f"👁 {fmt_int(vc)} visualizações")
         if ts and ts > 1.0:
             meta_parts.append(f"🔥 Em alta (score {ts:.1f})")
         if meta_parts:

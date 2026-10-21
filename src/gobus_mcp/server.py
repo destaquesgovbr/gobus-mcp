@@ -10,6 +10,7 @@ from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.cache import TTLCache
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.config import settings
+from gobus_mcp.instructions import SERVER_INSTRUCTIONS
 from gobus_mcp.prompts.draft_press_release import draft_press_release_prompt
 from gobus_mcp.prompts.monitor_agency import monitor_agency_prompt
 from gobus_mcp.prompts.trace_entity import trace_entity_prompt
@@ -43,7 +44,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-mcp = FastMCP(name="Gobus")
+mcp = FastMCP(name="Gobus", instructions=SERVER_INSTRUCTIONS)
 
 # ── Backward-compat SSE (spec 2024-11-05) ────────────────────────────────────
 # O endpoint primário é /mcp (stateless, spec 2025-03-26) sem expiração de sessão.
@@ -125,14 +126,17 @@ async def gobus_search_news(
     """Busca notícias no portal Gov.BR por texto livre e/ou agência.
 
     Parâmetros:
-    - query: Texto livre de busca (ex: "vacinação infantil")
+    - query: Texto livre de busca (ex: "vacinação infantil"); "*" lista todas as
+      publicações (use com agency_key e/ou datas)
     - agency_key: Chave da agência para filtrar (ex: "saude", "mec") — ver gobus://agencies
-    - date_from: Data de início ISO (ex: "2024-01-01") — opcional
-    - date_to: Data de fim ISO (ex: "2024-12-31") — opcional
+    - date_from: Data de início AAAA-MM-DD, inclusiva (dia inteiro em Brasília) — opcional
+    - date_to: Data de fim AAAA-MM-DD, inclusiva (dia inteiro em Brasília) — opcional;
+      date_from == date_to = um único dia
     - page: Página de resultados (default 1)
     - limit: Artigos por página (default 10, máx 50)
 
-    Retorna: Lista de artigos com título, agência, data e trecho do conteúdo.
+    Retorna: Lista de artigos com o título como link Markdown [título](url), agência,
+    data (dia de Brasília), resumo e o unique_id (para gobus_get_article).
 
     Dica: Execute em paralelo com gobus_get_agency_analytics para a mesma agência.
     """
@@ -630,28 +634,35 @@ if settings.dev_preview:
 # ── Prompts ──────────────────────────────────────────────────────────────────
 
 
+# Prompts devolvem str (uma mensagem de usuário): list[dict] quebra o prompts/get no
+# fastmcp 3.4. Os argumentos numéricos são declarados str: o host manda texto ("" nos
+# opcionais em branco) e o fastmcp converteria pelo tipo declarado, falhando no vazio.
+
+
 @mcp.prompt()
-def prompt_monitor_agency(agency_key: str, agency_name: str = "", days: int = 1) -> list[dict]:
-    """Briefing diário de comunicação de uma agência governamental."""
+def prompt_monitor_agency(agency_key: str, agency_name: str = "", days: str = "1") -> str:
+    """Briefing diário de comunicação de uma agência governamental (days = dias fechados,
+    1–31; 1 = ontem)."""
     return monitor_agency_prompt(agency_key, agency_name, days)
 
 
 @mcp.prompt()
-def prompt_draft_press_release(topic: str, agency_key: str = "", limit: int = 5) -> list[dict]:
-    """Rascunho de release de imprensa baseado em artigos do portal."""
+def prompt_draft_press_release(topic: str, agency_key: str = "", limit: str = "5") -> str:
+    """Rascunho de release de imprensa baseado em artigos do portal (limit = artigos de
+    referência, 1–20)."""
     return draft_press_release_prompt(topic, agency_key, limit)
 
 
 @mcp.prompt()
 def prompt_trace_entity(
     entity_name: str, entity_type: str = "", date_from: str = "", date_to: str = ""
-) -> list[dict]:
+) -> str:
     """Trajetória completa de uma entidade no portal Gov.BR."""
     return trace_entity_prompt(entity_name, entity_type, date_from, date_to)
 
 
 @mcp.prompt()
-def prompt_weekly_digest() -> list[dict]:
+def prompt_weekly_digest() -> str:
     """Boletim semanal do governo federal em linguagem acessível para o cidadão."""
     return weekly_digest_prompt()
 

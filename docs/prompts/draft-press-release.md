@@ -2,6 +2,8 @@
 
 Gera um rascunho de release de imprensa a partir de artigos já publicados no acervo. Atende o caso de uso [UC-05](../casos-de-uso.md) e serve redatores de assessoria que precisam de um ponto de partida factual e rastreável.
 
+O prompt chega ao modelo como **uma única mensagem de usuário** (texto) com o roteiro já preenchido.
+
 ## Workflow
 
 O prompt guia o LLM por 4 passos sequenciais:
@@ -10,6 +12,9 @@ O prompt guia o LLM por 4 passos sequenciais:
 2. **Aprofundamento** — [`gobus_get_article`](../tools/get-article.md) nos 3 mais relevantes — obtém o conteúdo completo.
 3. **Síntese de fatos** — análise — extrai dados e estatísticas, ações anunciadas, declarações de autoridades e impactos para a população.
 4. **Rascunho do release** — síntese — o LLM escreve título, lead, corpo, citação e notas para editores, marcando com `[VERIFICAR]` todo dado não confirmado.
+
+
+O texto pede que cada artigo seja citado como link Markdown `[título](url)`, só com as URLs devolvidas pelas tools.
 
 ## Como ativar
 
@@ -27,8 +32,9 @@ ou
 |-----------|-----------|---------|
 | `topic` | Tema ou assunto do release | `"emprego formal"` |
 | `agency_key` | Filtrar artigos por agência (opcional) | `"trabalho-e-emprego"` |
-| `limit` | Número de artigos de referência a usar (default `5`) | `5` |
+| `limit` | Número de artigos de referência (default `5`; limitado a 1–20). Vazio ou inválido cai no padrão | `"5"` |
 
 ## Notas
 
+- Os argumentos chegam do host como texto (o Claude Desktop manda `""` nos opcionais em branco); por isso `limit` é declarado como `str` e convertido pelo próprio prompt.
 - O rascunho é factual mas não auditado: toda citação ou dado inferido vem marcado com `[VERIFICAR]`. Revise antes de publicar.

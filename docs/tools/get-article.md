@@ -10,15 +10,14 @@ Retorna o conteúdo completo de um artigo a partir do seu ID único. Use após [
 
 ## Retorno
 
-Retorna Markdown com título, agência, data, URL, tags, um bloco de features (tempo de leitura, legibilidade, visualizações, trending), uma seção de entidades mencionadas agrupadas por tipo, e o conteúdo completo do artigo.
+Retorna Markdown com o título como link Markdown `[título](url)` (texto puro sem URL `http(s)`), agência, data (dia de Brasília), tags, um bloco de features (tempo de leitura, legibilidade, visualizações, trending), uma seção de entidades mencionadas agrupadas por tipo, e o conteúdo completo do artigo.
 
 **Exemplo de saída:**
 
 ```
-# Campanha Nacional de Vacinação contra a Gripe é prorrogada
+# [Campanha Nacional de Vacinação contra a Gripe é prorrogada](https://www.gov.br/saude/...)
 
 **[saude] Ministério da Saúde** · 2024-05-12
-🔗 https://www.gov.br/saude/...
 Tags: vacinação, gripe, saúde pública
 
 ⏱ 4 min leitura (812 palavras) · 📖 Legibilidade: 58.0 (médio)
@@ -46,6 +45,7 @@ A campanha foi estendida até o fim de maio...
 - A legibilidade usa o índice Flesch (fórmula inglesa do `textstat`), limitado a 0–100, com as faixas únicas 0–25 muito difícil · 25–50 difícil · 50–75 médio · 75–100 fácil. Um Flesch negativo aparece como `0.0 (muito difícil; valor bruto -12.3)`.
 - **Nulo não é zero:** sem Flesch ou contagem de palavras, a saída mostra "Legibilidade: indisponível" / "Tamanho: indisponível" (o pipeline de features parou em 30/06/2026; ver `gobus://health/pipelines`). Um Flesch 0.0 real é exibido.
 - O nome da agência vem do catálogo (`gobus://agencies`), não do código.
+- Visualizações usam ponto de milhar (`1.500 visualizações`).
 - Visualizações e `trendingScore` só aparecem quando existem (hoje estão nulos em quase todo o acervo).
 - As entidades por tipo são limitadas a 8 nomes por categoria na saída.
 - Tipos de entidade exibidos: `ORG` (Instituições), `PER` (Pessoas), `LOC` (Locais), `EVENT` (Eventos), `POLICY` (Políticas), `LAW` (Leis).

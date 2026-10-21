@@ -1,6 +1,9 @@
+from gobus_mcp.prompts import CITE_AS_LINKS
+
+
 def trace_entity_prompt(
     entity_name: str, entity_type: str = "", date_from: str = "", date_to: str = ""
-) -> list[dict]:
+) -> str:
     """Trajetória completa de uma entidade ao longo do tempo.
 
     Args:
@@ -12,12 +15,7 @@ def trace_entity_prompt(
     type_filter = f" do tipo {entity_type}" if entity_type else ""
     period = f" de {date_from}" if date_from else ""
     period += f" a {date_to}" if date_to else ""
-    return [
-        {
-            "role": "user",
-            "content": {
-                "type": "text",
-                "text": f"""Trace a trajetória completa de **{entity_name}**{type_filter}{period} no portal Gov.BR.
+    return f"""Trace a trajetória completa de **{entity_name}**{type_filter}{period} no portal Gov.BR.
 
 ## Roteiro de análise
 
@@ -32,10 +30,10 @@ Use `gobus_get_entity_profile` com o entity_name encontrado{f', date_from="{date
 > e podem ser executadas em paralelo.
 
 ### 3. Rede de relacionamentos
-Use `gobus_get_entity_network` com o entityId canônico e depth=2 para mapear as entidades conectadas.
+Use `gobus_get_entity_network` com o entityId canônico, depth=1, max_nodes=15 para mapear as entidades conectadas (a rede de 2 níveis passa de centenas de nós).
 
 ### 4. Artigos âncoras
-Use `gobus_search_news` com o nome da entidade para encontrar as publicações mais relevantes. Use `gobus_get_article` nos 3 mais relevantes para extrair detalhes.
+Use `gobus_search_news` com query="{entity_name}"{f', date_from="{date_from}"' if date_from else ""}{f', date_to="{date_to}"' if date_to else ""} para encontrar as publicações mais relevantes. Use `gobus_get_article` nos 3 mais relevantes para extrair detalhes.
 
 ### 5. Linha do tempo narrativa
 Com base nos dados, construa:
@@ -45,7 +43,6 @@ Com base nos dados, construa:
 - **Estado atual:** Tendência recente de cobertura
 - **Conclusão:** Relevância desta entidade no contexto do governo federal
 
-**Formato:** Relatório estruturado em português, com dados concretos (datas, contagens, nomes de agências).""",
-            },
-        }
-    ]
+{CITE_AS_LINKS}
+
+**Formato:** Relatório estruturado em português, com dados concretos (datas, contagens, nomes de agências)."""

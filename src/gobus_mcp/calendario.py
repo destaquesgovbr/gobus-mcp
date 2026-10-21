@@ -179,6 +179,22 @@ def brt_bounds(r: DateRange) -> tuple[str, str]:
     )
 
 
+def brt_day_start(day: date) -> str:
+    """Início do dia em BRT (``"<day>T00:00:00-03:00"``), para ``startDate``."""
+    return _brt_midnight(day).isoformat()
+
+
+def brt_day_end(day: date) -> str:
+    """Último segundo do dia em BRT (``"<day>T23:59:59-03:00"``), para o ``endDate`` do
+    ``search()``.
+
+    O upstream compara ``published_at <= endDate`` em segundos inteiros: assim o dia entra
+    inteiro e o seguinte fica fora (a meia-noite de D+1 incluiria um artigo publicado
+    exatamente às 00:00:00; só a data vira 00:00 UTC e perde o dia).
+    """
+    return datetime.combine(day, time(23, 59, 59), BRT).isoformat()
+
+
 def utc_day_bounds(r: DateRange, *, end_exclusive: bool = True) -> tuple[str, str]:
     """Datas ISO (dias UTC da API). ``entityCoverage`` e ``agencyAnalytics`` MONTH/WEEK
     usam ``dateTo`` exclusivo; ``agencyAnalytics`` DAY é inclusivo (``end_exclusive=False``).

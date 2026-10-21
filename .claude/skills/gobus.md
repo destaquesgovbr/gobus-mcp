@@ -12,7 +12,7 @@ description: >
 
 | UC | Pergunta típica | Tool principal | Tools auxiliares |
 |----|----------------|----------------|-----------------|
-| UC-01 | "O que saiu hoje/ontem no MEC?" | `gobus_search_news` (agency_key + date_from) | `gobus_get_agency_analytics` (em paralelo) |
+| UC-01 | "O que saiu hoje/ontem no MEC?" | `gobus_search_news` (query="*", agency_key, date_from + date_to) | `gobus_get_agency_analytics` (em paralelo) |
 | UC-02 | "Quero ler este artigo completo" | `gobus_get_article` (unique_id) | — |
 | UC-03 | "Quem é [entidade] no gov.br?" | `gobus_resolve_entity` → `gobus_get_entity_profile` | `gobus_get_entity_network` (em paralelo com perfil) |
 | UC-04 | "Quais temas estão crescendo?" | `gobus_detect_trends` | `gobus_search_news` por tema (paralelo entre temas) |
@@ -33,8 +33,11 @@ description: >
 Nunca use nomes literais diretamente — sempre resolva primeiro.
 
 ### Regra 2: UC-01 — perguntas "o que saiu hoje/ontem"
-→ Use `gobus_search_news` com agency_key + date_from (ontem ou hoje ISO).
-→ Execute `gobus_get_agency_analytics` em paralelo para métricas de volume.
+→ Use `gobus_search_news(query="*", agency_key=..., date_from=D, date_to=D)` com o dia em
+  AAAA-MM-DD: as datas são dias inteiros em horário de Brasília, ambas inclusivas.
+→ Execute `gobus_get_agency_analytics(..., granularity="DAY")` com as mesmas datas, em paralelo
+  (dias UTC: a contagem pode diferir em poucos artigos).
+→ Ou use o prompt `prompt_monitor_agency`, que já escreve as chamadas com as datas.
 
 ### Regra 3: UC-04 — perguntas sobre tendências
 → Use `gobus_detect_trends` com window_days=7 e baseline_days=28.
@@ -47,8 +50,14 @@ Nunca use nomes literais diretamente — sempre resolva primeiro.
 - `gobus_search_news` para temas diferentes em UC-04: **paralelo entre temas**
 
 ### Regra 5: Controle de contexto para redes grandes
-- `gobus_get_entity_network` com depth=2: sempre use `max_nodes ≤ 15`
+- `gobus_get_entity_network`: prefira `depth=1, max_nodes=15`; com depth=2, sempre `max_nodes ≤ 15`
+  e `node_types`
 - `gobus_get_entity_profile` quando só precisar de resumo: use `summary_only=True`
+
+### Regra 6: Citações
+- Cite cada artigo como link Markdown `[título](url)` no ponto em que o fato aparece, só com
+  URLs devolvidas pelas tools (`gobus_search_news` e `gobus_get_article` já trazem o título
+  como link). Sem URL, cite o `unique_id` e ofereça `gobus_get_article`.
 
 ## Glossário Mínimo
 
