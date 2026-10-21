@@ -198,10 +198,16 @@ async def test_relacionadas_sem_genericas_rotuladas_todo_o_acervo(fake_client):
     section = text.split("## Entidades relacionadas", 1)[1]
     assert section.startswith(" (co-menção, todo o acervo)")
     names = re.findall(r"^- \*\*(.+?)\*\*", section, flags=re.MULTILINE)
-    assert names == ["Ministério da Educação (MEC)", "Enem", "Inep", "Camilo Santana"]
+    assert names == [
+        "Ministério da Educação (MEC)",
+        "Enem",
+        "Inep",
+        "Camilo Santana",
+        "Ministério da Saúde",  # dgb_saude: entidade da agência é relacionada comum
+    ]
     hidden = next(line for line in section.splitlines() if line.startswith("Ocultas como"))
     assert "República Federativa do Brasil (341)" in hidden
-    assert "Ministério da Saúde (4)" in hidden  # dgb_saude: agência do catálogo
+    assert "Ministério da Saúde" not in hidden
     assert fake_client.calls("RelatedEntities") == [{"id": ID, "limit": 40}]
 
 

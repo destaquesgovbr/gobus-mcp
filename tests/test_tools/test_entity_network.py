@@ -1,8 +1,8 @@
 """Rede de entidades centrada no foco (``relatedEntities``), com filtro de genéricas.
 
 O grafo fictício imita o Pé-de-Meia de 21/10/2026: o MEC é o vizinho mais forte; Brasil,
-Brasília, Governo Federal e Portal Gov.br são genéricas; ``dgb_saude`` é a entidade da
-própria agência ``saude`` do catálogo.
+Brasília, Governo Federal e Portal Gov.br são genéricas; ``dgb_saude`` (entidade da própria
+agência ``saude``) é um vizinho comum: na rede, ministérios não são ruído.
 """
 
 import asyncio
@@ -11,7 +11,6 @@ import re
 from gobus_mcp.cache import TTLCache
 from gobus_mcp.tools import get_entity_network as network_module
 from gobus_mcp.tools.get_entity_network import get_entity_network
-from tests.conftest import route_catalog
 
 FOCUS = "dgb_pe-de-meia"
 
@@ -106,9 +105,7 @@ def _related(v: dict) -> dict:
     return {"relatedEntities": rows[: v["limit"]]}
 
 
-def _route(client, *, catalog: bool = True, related=_related):
-    if catalog:
-        route_catalog(client)
+def _route(client, *, related=_related):
     client.route("EntityNode", lambda v: {"entity": NODES.get(v["id"])})
     client.route("RelatedEntities", related)
     return client
@@ -136,6 +133,7 @@ async def test_ranking_por_peso_e_nao_por_nome(fake_client):
         "Escola em Tempo Integral",
         "Camilo Santana",
         "Bolsa Família",
+        "Ministério da Saúde",
     ]
     assert "# Rede de entidades: Pé-de-Meia" in text
     assert "1. **Ministério da Educação (MEC)** (ORG) · 650 artigos em co-menção · `Q4294522`" in (
@@ -146,8 +144,8 @@ async def test_ranking_por_peso_e_nao_por_nome(fake_client):
 async def test_cabecalho_honesto_mostrados_de_total(fake_client):
     _route(fake_client)
     text = await get_entity_network(FOCUS, fake_client, max_nodes=3)
-    # 6 não-lugares + 7 lugares visíveis = 13; mostra 3 da lista + 5 lugares
-    assert "Mostrando 8 de 13 vizinhos diretos" in text
+    # 7 não-lugares + 7 lugares visíveis = 14; mostra 3 da lista + 5 lugares
+    assert "Mostrando 8 de 14 vizinhos diretos" in text
     assert "pesos = artigos em co-menção em todo o acervo, inclui republicações" in text
     assert _ranked(text) == ["Ministério da Educação (MEC)", "Enem", "Inep"]
 
@@ -161,7 +159,7 @@ async def test_genericas_ocultas_por_padrao_com_linha_de_aviso(fake_client):
     hidden = _line(text, "Ocultas como genéricas:")
     assert hidden.startswith(
         "Ocultas como genéricas: República Federativa do Brasil (341), Portal Gov.br (139), "
-        "Brasília (77), Governo Federal do Brasil (69), Ministério da Saúde (4)"
+        "Brasília (77), Governo Federal do Brasil (69) — "
     )
     assert "include_generic=true" in hidden
     assert "Brasília" not in _line(text, "**Lugares:**")
@@ -179,20 +177,18 @@ async def test_include_generic_mostra_as_genericas(fake_client):
     assert "Ocultas como genéricas" not in text
 
 
-async def test_entidade_da_agencia_oculta_pelo_catalogo(fake_client):
+async def test_entidade_da_agencia_e_vizinho_comum(fake_client):
     _route(fake_client)
     text = await get_entity_network(FOCUS, fake_client)
-    assert "Ministério da Saúde" not in _ranked(text)
-    assert "Ministério da Saúde (4)" in _line(text, "Ocultas como genéricas:")
+    assert "Ministério da Saúde" in _ranked(text)
+    assert "Ministério da Saúde" not in _line(text, "Ocultas como genéricas:")
 
 
-async def test_catalogo_fora_do_ar_mantem_a_lista_curada_e_avisa(fake_client):
-    _route(fake_client, catalog=False)
-    fake_client.route("CatalogAgencies", RuntimeError("graphql fora do ar"))
-    text = await get_entity_network(FOCUS, fake_client)
-    assert "Ministério da Saúde" in _ranked(text)  # sem códigos, dgb_saude não é oculta
-    assert "Portal Gov.br" not in _ranked(text)
-    assert "Catálogo indisponível" in text
+async def test_nao_consulta_o_catalogo_de_agencias(fake_client):
+    _route(fake_client)
+    fake_client.route("CatalogAgencies", {"agencies": [{"code": "saude"}]})
+    await get_entity_network(FOCUS, fake_client, depth=2)
+    assert fake_client.calls("CatalogAgencies") == []
 
 
 async def test_lugares_em_linha_separada_limitados_a_5(fake_client):

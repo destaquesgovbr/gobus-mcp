@@ -42,23 +42,25 @@ def test_generic_entity_e_imutavel():
         generic.name = "outro"  # type: ignore[misc]
 
 
-def test_generic_ids_inclui_as_entidades_das_agencias_do_catalogo():
-    ids = generic_ids(["saude", "mec"])
-    assert {"Q155", "Q2844", "Q5440531", "dgb_portal-gov-br", "dgb_saude", "dgb_mec"} <= ids
+def test_generic_ids_e_so_a_lista_curada():
+    assert generic_ids() == frozenset({"Q155", "Q2844", "Q5440531", "dgb_portal-gov-br"})
 
 
-def test_generic_ids_nunca_por_prefixo_e_mantem_ufs_capitais_e_ministerios():
-    ids = generic_ids(["saude"])
+def test_entidades_das_agencias_nao_sao_genericas():
+    """Ministérios e secretarias (``dgb_{code}``) são vizinhos com sentido na rede e no
+    perfil; a exclusão deles só vale na coerência (``coherence.excluded_entities``)."""
+    ids = generic_ids()
+    for agency_self in ("dgb_saude", "dgb_secretariageral", "dgb_fazenda", "dgb_planalto"):
+        assert agency_self not in ids
+
+
+def test_generic_ids_mantem_ufs_capitais_ministerios_e_pessoas():
+    ids = generic_ids()
     assert "dgb_pe-de-meia" not in ids
-    assert "dgb_saude-indigena" not in ids
     assert "dgb_ceara" not in ids  # UF sem QID continua visível
     assert "Q119158" not in ids  # Distrito Federal (UF)
     assert "Q4294522" not in ids  # MEC (QID do ministério)
     assert "Q37181" not in ids  # pessoas
-
-
-def test_generic_ids_sem_catalogo_fica_so_com_a_lista_curada():
-    assert generic_ids([]) == frozenset(g.entity_id for g in GENERIC_ENTITIES)
 
 
 def test_split_generic_separa_preservando_a_ordem():
@@ -68,13 +70,13 @@ def test_split_generic_separa_preservando_a_ordem():
         {"canonicalId": "Q5419278", "weight": 306},
         {"canonicalId": "dgb_portal-gov-br", "weight": 139},
     ]
-    kept, hidden = split_generic(rows, generic_ids([]))
+    kept, hidden = split_generic(rows, generic_ids())
     assert [r["canonicalId"] for r in kept] == ["Q4294522", "Q5419278"]
     assert [r["canonicalId"] for r in hidden] == ["Q155", "dgb_portal-gov-br"]
 
 
 def test_split_generic_aceita_entity_id():
     rows = [{"entityId": "Q2844"}, {"entityId": "Q1"}]
-    kept, hidden = split_generic(rows, generic_ids([]))
+    kept, hidden = split_generic(rows, generic_ids())
     assert kept == [{"entityId": "Q1"}]
     assert hidden == [{"entityId": "Q2844"}]

@@ -188,12 +188,12 @@ async def test_entity_network_documenta_rede_centrada_e_genericas():
     description = tool.description or ""
     assert "centenas de nós" not in description
     for text in ("vizinhos considerados", "máx 200", "co-menção", "include_generic",
-                 "Brasil", "Brasília", "Governo Federal", "dgb_"):  # fmt: skip
+                 "Brasil", "Brasília", "Governo Federal", "Portal Gov.br"):  # fmt: skip
         assert text in description, text
+    assert "dgb_{" not in description  # entidades das agências não são genéricas
 
 
-async def test_entity_network_usa_catalogo_e_cache_do_conteiner(deps):
-    route_catalog(deps.client)
+async def test_entity_network_usa_o_cache_do_conteiner(deps):
     deps.client.route("EntityNode", {"entity": {"entityId": "Q1", "canonicalName": "Foco"}})
     deps.client.route(
         "RelatedEntities",
@@ -212,7 +212,7 @@ async def test_entity_network_usa_catalogo_e_cache_do_conteiner(deps):
 
     text = first.content[0].text
     assert "1. **Vizinha**" in text
-    assert "Min. Saúde (5)" in text  # oculta: dgb_{code} do catálogo do contêiner
+    assert "2. **Min. Saúde**" in text  # entidade da agência: vizinho comum
     assert len(deps.client.calls("RelatedEntities")) == 1  # cache do contêiner
 
 
