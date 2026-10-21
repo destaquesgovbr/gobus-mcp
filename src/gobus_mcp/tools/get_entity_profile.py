@@ -36,7 +36,7 @@ from gobus_mcp.calendario import DateRange, reference_date, utc_day_bounds
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import ENTITY_CANONICAL_INDEX_SINCE
 from gobus_mcp.entity_lookup import display_name, fetch_entity, fetch_related, looks_like_id
-from gobus_mcp.formatting import error_text, fmt_date, fmt_int, plural
+from gobus_mcp.formatting import error_text, fmt_date, fmt_int, md_link, plural
 
 _ENTITY_SEARCH_QUERY = """
 query EntitySearch($query: String!, $entityType: EntityKind) {
@@ -265,7 +265,7 @@ async def get_entity_profile(
     entity = entity or {}
     name = entity.get("canonicalName") or entity_id
     kind = entity.get("type")
-    wikidata = f"[Wikidata]({entity['wikidataUrl']})" if entity.get("wikidataUrl") else "—"
+    wikidata = md_link("Wikidata", entity["wikidataUrl"]) if entity.get("wikidataUrl") else "—"
     lines = [f"# {name} ({kind})" if kind else f"# {name}", f"**ID:** `{entity_id}` · {wikidata}"]
     if entity.get("aliases"):
         lines.append(f"**Aliases:** {', '.join(entity['aliases'])}")
