@@ -1,7 +1,7 @@
 from datetime import date
 
 from gobus_mcp.calendario import closed_window, reference_date
-from gobus_mcp.prompts import _int_arg
+from gobus_mcp.prompts import CITE_AS_LINKS, _calendar_note, _int_arg
 
 
 def monitor_agency_prompt(
@@ -23,8 +23,11 @@ def monitor_agency_prompt(
     window = closed_window(n, today or reference_date())
     date_from, date_to = window.start.isoformat(), window.end.isoformat()
     display = agency_name or agency_key
-    return f"""Crie um briefing de comunicação para a agência **{display}** dos últimos {n} dia(s) fechados: de {date_from} a {date_to} (horário de Brasília).
-
+    period = f"do dia {date_to}" if n == 1 else f"de {date_from} a {date_to} ({n} dias fechados)"
+    note = _calendar_note(window)
+    note = f"\n{note}\n" if note else ""
+    return f"""Crie um briefing de comunicação para a agência **{display}** {period}, em horário de Brasília.
+{note}
 Siga este roteiro:
 
 ## 1. Busca de publicações do período
@@ -35,7 +38,7 @@ Chame `gobus_search_news(query="*", agency_key="{agency_key}", date_from="{date_
 A busca devolve até 20 artigos por página: se o total encontrado passar disso, peça `page=2`, `page=3`…
 
 ## 2. Análise de volume e performance
-Chame `gobus_get_agency_analytics(agencies=["{agency_key}"], date_from="{date_from}", date_to="{date_to}", granularity="DAY")` para ver as métricas de publicação por dia.
+Chame `gobus_get_agency_analytics(agencies=["{agency_key}"], date_from="{date_from}", date_to="{date_to}", granularity="DAY")` para ver as métricas de publicação por dia (os dias do analytics são em UTC: a contagem pode diferir em poucos artigos da busca, que usa dias de Brasília).
 
 ## 3. Destaques
 Identifique os artigos de maior impacto entre os resultados da busca (anúncios de
@@ -47,5 +50,7 @@ Com base nos dados, escreva um briefing executivo de 200-300 palavras cobrindo:
 - Artigos de destaque e por que estão em alta
 - Sentimento geral das publicações (quando disponível)
 - Recomendações para a equipe de comunicação
+
+{CITE_AS_LINKS}
 
 **Formato de saída:** Briefing em português, linguagem direta, adequada para assessor de comunicação."""

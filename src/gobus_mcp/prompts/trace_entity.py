@@ -1,3 +1,6 @@
+from gobus_mcp.prompts import CITE_AS_LINKS
+
+
 def trace_entity_prompt(
     entity_name: str, entity_type: str = "", date_from: str = "", date_to: str = ""
 ) -> str:
@@ -27,10 +30,10 @@ Use `gobus_get_entity_profile` com o entity_name encontrado{f', date_from="{date
 > e podem ser executadas em paralelo.
 
 ### 3. Rede de relacionamentos
-Use `gobus_get_entity_network` com o entityId canônico e depth=2 para mapear as entidades conectadas.
+Use `gobus_get_entity_network` com o entityId canônico, depth=1, max_nodes=15 para mapear as entidades conectadas (a rede de 2 níveis passa de centenas de nós).
 
 ### 4. Artigos âncoras
-Use `gobus_search_news` com o nome da entidade para encontrar as publicações mais relevantes. Use `gobus_get_article` nos 3 mais relevantes para extrair detalhes.
+Use `gobus_search_news` com query="{entity_name}"{f', date_from="{date_from}"' if date_from else ""}{f', date_to="{date_to}"' if date_to else ""} para encontrar as publicações mais relevantes. Use `gobus_get_article` nos 3 mais relevantes para extrair detalhes.
 
 ### 5. Linha do tempo narrativa
 Com base nos dados, construa:
@@ -39,5 +42,7 @@ Com base nos dados, construa:
 - **Rede institucional:** Com quem/o quê a entidade aparece associada
 - **Estado atual:** Tendência recente de cobertura
 - **Conclusão:** Relevância desta entidade no contexto do governo federal
+
+{CITE_AS_LINKS}
 
 **Formato:** Relatório estruturado em português, com dados concretos (datas, contagens, nomes de agências)."""

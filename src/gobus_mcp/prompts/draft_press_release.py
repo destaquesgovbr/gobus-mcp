@@ -1,4 +1,4 @@
-from gobus_mcp.prompts import _int_arg
+from gobus_mcp.prompts import CITE_AS_LINKS, _int_arg
 
 
 def draft_press_release_prompt(topic: str, agency_key: str = "", limit: int | str = 5) -> str:
@@ -34,6 +34,8 @@ Escreva um release de imprensa com:
 - **Lead**: Quem, o quê, quando, onde, por quê (1 parágrafo)
 - **Corpo**: Dados e contexto (2-3 parágrafos)
 - **Citação**: Autoridade relevante (marque com [VERIFICAR] se inferida)
-- **Notas para editores**: Fontes e contato
+- **Notas para editores**: Fontes (links dos artigos usados) e contato
+
+{CITE_AS_LINKS}
 
 **Importante:** Marque todo dado não confirmado com [VERIFICAR]. Mantenha linguagem oficial, objetiva e acessível."""
