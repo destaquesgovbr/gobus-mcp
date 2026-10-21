@@ -211,13 +211,14 @@ async def test_relacionadas_sem_genericas_rotuladas_todo_o_acervo(fake_client):
     assert fake_client.calls("RelatedEntities") == [{"id": ID, "limit": 40}]
 
 
-async def test_copias_identicas_desde_o_indice(fake_client):
+async def test_copias_identicas_numa_linha_logo_abaixo_do_cabecalho(fake_client):
     _route(fake_client)
     text = await _profile(fake_client, "Pé-de-Meia")
-    assert (
-        "Desde 20/05/2026 (índice de busca): 120 artigos → 104 textos distintos "
-        "(16 cópias idênticas entre agências; só conteúdo idêntico, por hash)"
-    ) in text
+    line = "16 cópias idênticas entre agências desde 20/05/2026 (índice de busca)."
+    assert line in text
+    assert text.index("menções**") < text.index(line) < text.index("## Cobertura mensal")
+    assert "## Cópias idênticas" not in text
+    assert "por hash" not in text  # a limitação fica na documentação
     (call,) = fake_client.calls("EntityDedupCounts")
     assert call["all"] == {"entityCanonical": [ID], "startDate": "2026-05-20T00:00:00+00:00"}
     assert call["dedup"] == {**call["all"], "dedup": True}
@@ -226,7 +227,7 @@ async def test_copias_identicas_desde_o_indice(fake_client):
 async def test_copias_com_janela_dentro_do_indice(fake_client):
     _route(fake_client)
     text = await _profile(fake_client, "Pé-de-Meia", date_from="2026-08-01", date_to="2026-10-20")
-    assert "De 01/08/2026 a 20/10/2026 (índice de busca): 120 artigos" in text
+    assert "16 cópias idênticas entre agências de 01/08/2026 a 20/10/2026" in text
     (call,) = fake_client.calls("EntityDedupCounts")
     assert call["all"] == {
         "entityCanonical": [ID],
@@ -235,18 +236,26 @@ async def test_copias_com_janela_dentro_do_indice(fake_client):
     }
 
 
-async def test_janela_antes_do_indice_nao_conta_copias(fake_client):
+async def test_uma_copia_no_singular(fake_client):
+    _route(fake_client, EntityDedupCounts={"all": {"found": 8}, "distinct": {"found": 7}})
+    text = await _profile(fake_client, "Pé-de-Meia")
+    assert "1 cópia idêntica entre agências desde 20/05/2026" in text
+
+
+async def test_janela_antes_do_indice_nao_conta_nem_mostra_copias(fake_client):
     _route(fake_client)
     text = await _profile(fake_client, "Pé-de-Meia", date_from="2026-01-01", date_to="2026-04-30")
     assert fake_client.calls("EntityDedupCounts") == []
-    assert "20/05/2026" in text
-    assert "não medidas" in text
+    assert "cópia" not in text.lower()
 
 
-async def test_sem_copias(fake_client):
-    _route(fake_client, EntityDedupCounts={"all": {"found": 7}, "distinct": {"found": 7}})
-    text = await _profile(fake_client, "Pé-de-Meia")
-    assert "7 artigos → 7 textos distintos (nenhuma cópia idêntica" in text
+async def test_sem_copias_omite_a_linha(fake_client):
+    for found in (7, 0):
+        _route(
+            fake_client, EntityDedupCounts={"all": {"found": found}, "distinct": {"found": found}}
+        )
+        text = await _profile(fake_client, "Pé-de-Meia")
+        assert "cópia" not in text.lower(), found
 
 
 # ── entrada e degradação ────────────────────────────────────────────────────

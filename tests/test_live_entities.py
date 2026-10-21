@@ -94,5 +94,5 @@ async def test_perfil_pe_de_meia_jan_out_soma_a_serie(live):
     assert table[-1][0] == "2026-10 (parcial)"
     series_total = sum(_int(own) + _int(rep) for _, own, rep in table)
     assert _int(header.group(1)) + _int(header.group(2)) == series_total
-    assert "(índice de busca)" in markdown
+    assert "## Cópias idênticas" not in markdown  # no máximo uma linha, e só se houver cópia
     assert "## Entidades relacionadas (co-menção, todo o acervo)" in markdown
