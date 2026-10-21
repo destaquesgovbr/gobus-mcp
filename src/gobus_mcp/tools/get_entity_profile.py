@@ -8,11 +8,12 @@ passa pelo ``entitySearch(limit: 1)``. Depois, em paralelo e cada parte degradan
   o resolver compara ``published_at <= dateTo::timestamptz`` e a data pura vira 00:00 UTC,
   cortando o último dia. Cabeçalho, série e tabela somam as mesmas linhas
   (``analytics.profile``);
-- ``relatedEntities(limit: 40)`` sem as entidades genéricas (pesos de todo o acervo);
+- ``relatedEntities(limit: 40)`` sem as entidades genéricas da lista curada (pesos de todo
+  o acervo);
 - ``EntityDedupCounts``: artigos × textos distintos (o ``dedup`` do Typesense agrupa por
   ``content_hash``), só desde ``ENTITY_CANONICAL_INDEX_SINCE`` (antes, o índice não marca a
   entidade);
-- ``catalog_info``: republicadoras (coluna à parte) e códigos das agências (``dgb_{code}``).
+- ``catalog_info``: republicadoras (coluna à parte).
 """
 
 from __future__ import annotations
@@ -286,10 +287,7 @@ async def get_entity_profile(
         else:
             entity = node_r
     if info.fallback:
-        notes.append(
-            "> Catálogo indisponível: republicadoras por lista fixa e sem ocultar as entidades "
-            "das agências (dgb_{código})."
-        )
+        notes.append("> Catálogo indisponível: republicadoras por lista fixa.")
 
     entity = entity or {}
     name = entity.get("canonicalName") or entity_id
@@ -319,7 +317,7 @@ async def get_entity_profile(
         related_note = f"> Entidades relacionadas indisponíveis ({_error_text(related_r)})."
     else:
         related_note = None
-        kept, hidden = split_generic(related_r, generic_ids(info.codes))
+        kept, hidden = split_generic(related_r, generic_ids())
 
     if summary_only:
         if related_note:

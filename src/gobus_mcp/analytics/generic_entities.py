@@ -2,21 +2,21 @@
 
 São entidades que co-ocorrem com quase tudo no acervo e por isso dominam os pesos de
 co-menção sem dizer nada sobre o foco: o país, a dateline/sede do governo, o próprio
-emissor e o boilerplate de serviço. Somam-se as ``dgb_{code}`` das agências do catálogo
-(a entidade da própria agência, como na coerência; ver ``coherence.excluded_entities``).
+emissor e o boilerplate de serviço.
 
 Continuam visíveis: as UFs (inclusive o Distrito Federal, ``Q119158``), as demais
-capitais, os QIDs dos ministérios e as pessoas. A lista é curada à mão; as contagens no
-``reason`` são o ``entitySearch.articleCount`` conferido em 21/10/2026.
+capitais, os ministérios (pelo QID ou pela entidade da própria agência, ``dgb_{code}``:
+Secretaria-Geral, Fazenda, Casa Civil… são vizinhos com sentido) e as pessoas. A exclusão
+das ``dgb_{code}`` fica só na coerência (``coherence.excluded_entities``). A lista é curada
+à mão; as contagens no ``reason`` são o ``entitySearch.articleCount`` conferido em
+21/10/2026.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
-
-from gobus_mcp.analytics.coherence import excluded_entities
 
 GenericKind = Literal["country", "dateline", "issuer", "boilerplate"]
 
@@ -66,10 +66,9 @@ GENERIC_ENTITIES: tuple[GenericEntity, ...] = (
 STATIC_GENERIC_IDS: frozenset[str] = frozenset(g.entity_id for g in GENERIC_ENTITIES)
 
 
-def generic_ids(agency_codes: Iterable[str]) -> frozenset[str]:
-    """Ids ocultos por padrão: a lista curada e as ``dgb_{code}`` dos códigos do catálogo
-    (nunca por prefixo)."""
-    return STATIC_GENERIC_IDS | excluded_entities(None, agency_codes)
+def generic_ids() -> frozenset[str]:
+    """Ids ocultos por padrão na rede e nas relacionadas do perfil: só a lista curada."""
+    return STATIC_GENERIC_IDS
 
 
 def _entity_id(row: dict) -> str | None:

@@ -6,8 +6,9 @@ Brasília) expulsam as arestas do foco. O ``relatedEntities`` traz só as aresta
 foco, por peso decrescente.
 
 - **depth=1:** vizinhos diretos por peso (artigos em co-menção em todo o acervo, sem
-  deduplicar republicações), sem as entidades genéricas (``include_generic`` as traz de
-  volta) e filtrados por ``node_types``; os lugares (LOC) vão para uma linha à parte, com
+  deduplicar republicações), sem as entidades genéricas da lista curada
+  (``include_generic`` as traz de volta; as entidades das agências, ``dgb_{code}``, ficam
+  visíveis) e filtrados por ``node_types``; os lugares (LOC) vão para uma linha à parte, com
   teto de 5, salvo quando ``node_types`` pede LOC.
 - **depth=2:** além disso, expande em paralelo os 5 vizinhos mais fortes da lista (top 15
   de cada) e mostra, por vizinho, até 5 entidades novas (sem o foco, as genéricas e os
@@ -20,7 +21,6 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Sequence
 
-from gobus_mcp.agency_catalog import FALLBACK_CATALOG_INFO, AgencyCatalog, catalog_info
 from gobus_mcp.analytics.generic_entities import generic_ids, split_generic
 from gobus_mcp.cache import TTLCache
 from gobus_mcp.client import GobusGraphQLClient
@@ -69,7 +69,7 @@ def _hidden_line(hidden: Sequence[dict]) -> str:
     more = f", +{extra}" if extra > 0 else ""
     return (
         f"Ocultas como genéricas: {shown}{more} — use include_generic=true para incluí-las "
-        "(país, dateline, o próprio emissor, boilerplate e as entidades das agências)."
+        "(país, dateline, o próprio emissor e boilerplate)."
     )
 
 
@@ -139,7 +139,6 @@ async def get_entity_network(
     node_types: str = "",
     include_generic: bool = False,
     *,
-    catalog: AgencyCatalog | None = None,
     cache: TTLCache | None = None,
 ) -> str:
     """Rede de co-menções centrada em ``entity_id`` (Markdown).
@@ -152,12 +151,10 @@ async def get_entity_network(
     limit = max(1, min(limit, MAX_LIMIT))
     max_nodes = max(1, max_nodes)
     allowed = _parse_types(node_types)
-    catalog = catalog or AgencyCatalog(client)
 
-    node_r, related_r, info = await asyncio.gather(
+    node_r, related_r = await asyncio.gather(
         fetch_entity(client, entity_id, cache=cache),
         fetch_related(client, entity_id, limit, cache=cache),
-        catalog_info(catalog),
         return_exceptions=True,
     )
     if isinstance(related_r, BaseException):
@@ -168,10 +165,7 @@ async def get_entity_network(
     node = None if isinstance(node_r, BaseException) else node_r
     if not related_r:
         return f"Nenhuma rede encontrada para: `{entity_id}`"
-    if isinstance(info, BaseException):  # defensivo: catalog_info não levanta
-        info = FALLBACK_CATALOG_INFO
-
-    hide = frozenset() if include_generic else generic_ids(info.codes)
+    hide = frozenset() if include_generic else generic_ids()
     typed = [r for r in related_r if allowed is None or _type(r) in allowed]
     visible, hidden = split_generic(typed, hide)
     if allowed is None or PLACE not in allowed:
@@ -197,11 +191,6 @@ async def get_entity_network(
     notes: list[str] = []
     if isinstance(node_r, BaseException):
         notes.append(f"> Nome da entidade indisponível ({_error_text(node_r)}).")
-    if info.fallback and not include_generic:
-        notes.append(
-            "> Catálogo indisponível: as entidades das próprias agências (dgb_{código}) não "
-            "foram ocultadas."
-        )
     if truncated:
         cap = " (o máximo)" if limit == MAX_LIMIT else ""
         hint = "" if limit == MAX_LIMIT else f" Aumente `limit` (máx {MAX_LIMIT})."

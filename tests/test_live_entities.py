@@ -42,8 +42,8 @@ def _int(text: str) -> int:
 
 
 async def test_pe_de_meia_depth1_mec_primeiro_e_sem_genericas(live):
-    client, catalog = live
-    markdown = await get_entity_network(PE_DE_MEIA, client, depth=1, catalog=catalog)
+    client, _ = live
+    markdown = await get_entity_network(PE_DE_MEIA, client, depth=1)
     print(markdown)
 
     ranked = _ranked_ids(markdown)
@@ -51,20 +51,15 @@ async def test_pe_de_meia_depth1_mec_primeiro_e_sem_genericas(live):
     assert "`Q155`" not in markdown.split("Ocultas como genéricas", 1)[0]
     assert "República Federativa do Brasil" in markdown.split("Ocultas como genéricas", 1)[1]
 
-    with_generic = await get_entity_network(
-        PE_DE_MEIA, client, depth=1, include_generic=True, catalog=catalog
-    )
+    with_generic = await get_entity_network(PE_DE_MEIA, client, depth=1, include_generic=True)
     assert "`Q155`" in with_generic
 
 
 async def test_pe_de_meia_depth2_em_ate_3s(live):
-    client, catalog = live
-    await catalog.codes()  # catálogo aquecido (cache de 24 h no servidor)
+    client, _ = live
 
     start = time.perf_counter()
-    markdown = await get_entity_network(
-        PE_DE_MEIA, client, depth=2, catalog=catalog, cache=TTLCache()
-    )
+    markdown = await get_entity_network(PE_DE_MEIA, client, depth=2, cache=TTLCache())
     elapsed = time.perf_counter() - start
     print(f"\n[rede depth=2] {elapsed:.2f} s · {len(markdown.encode())} B")
     print(markdown)
