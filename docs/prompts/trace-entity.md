@@ -2,15 +2,20 @@
 
 Reconstrói a trajetória completa de uma entidade (órgão, pessoa, programa, lei, evento) no portal Gov.BR ao longo do tempo. Atende o caso de uso [UC-03](../casos-de-uso.md) e serve assessores e pesquisadores que querem entender toda a cobertura de um ator ou política.
 
+O prompt chega ao modelo como **uma única mensagem de usuário** (texto) com o roteiro já preenchido.
+
 ## Workflow
 
 O prompt guia o LLM por 5 passos sequenciais:
 
 1. **Identificação da entidade** — [`gobus_resolve_entity`](../tools/resolve-entity.md) com `query` (e `entity_type`, se informado) — encontra o ID canônico da entidade.
 2. **Perfil e cobertura temporal** — [`gobus_get_entity_profile`](../tools/get-entity-profile.md) com o intervalo de datas — obtém a série temporal de menções.
-3. **Rede de relacionamentos** — [`gobus_get_entity_network`](../tools/get-entity-network.md) com o `entityId` canônico e `depth=2` — mapeia as entidades conectadas.
-4. **Artigos âncoras** — [`gobus_search_news`](../tools/search-news.md) + [`gobus_get_article`](../tools/get-article.md) nos 3 mais relevantes — extrai detalhes das publicações-chave.
+3. **Rede de relacionamentos** — [`gobus_get_entity_network`](../tools/get-entity-network.md) com o `entityId` canônico, `depth=1` e `max_nodes=15` — mapeia as entidades conectadas (a rede de 2 níveis passa de centenas de nós).
+4. **Artigos âncoras** — [`gobus_search_news`](../tools/search-news.md) com o nome da entidade (e o período, se informado) + [`gobus_get_article`](../tools/get-article.md) nos 3 mais relevantes — extrai detalhes das publicações-chave.
 5. **Linha do tempo narrativa** — síntese — o LLM monta um relatório com contexto inicial, momentos-chave, rede institucional, estado atual e conclusão sobre a relevância da entidade.
+
+
+O texto pede que cada artigo seja citado como link Markdown `[título](url)`, só com as URLs devolvidas pelas tools.
 
 ## Como ativar
 

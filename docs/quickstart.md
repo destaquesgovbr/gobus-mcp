@@ -64,20 +64,17 @@ Com o servidor conectado, peça algo em linguagem natural. O cliente escolhe a _
 O cliente chama `gobus_search_news` e recebe Markdown formatado, mais ou menos assim:
 
 ```markdown
-## Resultados para "vacinação" (Ministério da Saúde)
+# Resultados: vacinação
 
 **3 artigos encontrados** (página 1)
 
-### Campanha Nacional de Vacinação alcança 80% do público-alvo
-- **Agência:** Ministério da Saúde
-- **Data:** 2026-06-18
-- **ID:** ms-2026-06-18-campanha-vacinacao-80
-- Resumo: A campanha nacional ultrapassou a meta intermediária...
+## [Campanha Nacional de Vacinação alcança 80% do público-alvo](https://www.gov.br/saude/...)
+**[saude] Ministério da Saúde** · 2026-06-18
+A campanha nacional ultrapassou a meta intermediária...
+ID: `ms-2026-06-18-campanha-vacinacao-80`
 
-### Novas doses chegam aos estados do Norte
-- **Agência:** Ministério da Saúde
-- **Data:** 2026-06-15
-- **ID:** ms-2026-06-15-doses-norte
+## [Novas doses chegam aos estados do Norte](https://www.gov.br/saude/...)
+**[saude] Ministério da Saúde** · 2026-06-15
 ...
 ```
 

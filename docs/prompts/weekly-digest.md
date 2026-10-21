@@ -2,14 +2,20 @@
 
 Boletim semanal em linguagem cidadã sobre o que o governo federal publicou na semana. Atende o caso de uso [UC-10](../casos-de-uso.md) e é voltado para o cidadão comum — texto simples, sem jargão, pronto para newsletter ou redes sociais.
 
+O prompt chega ao modelo como **uma única mensagem de usuário** (texto) com o roteiro já preenchido. A semana é a dos 7 dias **fechados** em horário de Brasília (`[D−7, D−1]`, em que D é hoje), com as datas escritas no texto.
+
 ## Workflow
 
 O prompt guia o LLM por 4 passos sequenciais:
 
 1. **Temas em alta** — [`gobus_detect_trends`](../tools/detect-trends.md) com `window_days=7` e `baseline_days=28` — identifica os temas mais relevantes da semana.
-2. **Panorama da semana** — [`gobus_get_agency_summary`](../tools/get-agency-summary.md) para as 2 ou 3 agências que mais aparecem nos temas do passo 1 — volume e temas em alta de cada uma. (O `viewCount` está 99,8% nulo e não é usado.)
-3. **Notícias representativas** — [`gobus_search_news`](../tools/search-news.md) + [`gobus_get_article`](../tools/get-article.md) — para os 3 temas em maior crescimento, busca exemplos concretos e lê os 2 mais relevantes de cada.
-4. **Boletim em linguagem cidadã** — síntese — o LLM escreve um boletim de 400-500 palavras com título datado, destaques da semana, quem mais publicou, temas emergentes e links para saber mais.
+2. **Panorama da semana** — [`gobus_get_agency_summary`](../tools/get-agency-summary.md) com `days=7` para as 2 ou 3 agências que mais aparecem nos temas do passo 1 — volume e temas em alta de cada uma. (O `viewCount` está 99,8% nulo e não é usado.)
+3. **Notícias representativas** — [`gobus_search_news`](../tools/search-news.md) com os termos do tema e as datas da semana (ex.: `date_from="2026-10-14", date_to="2026-10-20"`) + [`gobus_get_article`](../tools/get-article.md) — para os 3 temas em maior crescimento, busca exemplos concretos e lê os 2 mais relevantes de cada.
+4. **Boletim em linguagem cidadã** — síntese — o LLM escreve um boletim de 400-500 palavras com o título datado (ex.: "O que o governo fez esta semana — 14/10 a 20/10/2026"), destaques da semana, quem mais publicou, temas emergentes e links para saber mais.
+
+O texto pede que cada artigo seja citado como link Markdown `[título](url)`, só com as URLs devolvidas pelas tools.
+
+Quando a semana toca o defeso eleitoral (04/07–25/10/2026) ou a recuperação (até 29/11/2026), o prompt ganha uma linha de atenção.
 
 ## Como ativar
 
@@ -23,4 +29,4 @@ ou
 
 ## Parâmetros
 
-Este prompt não recebe parâmetros — sempre cobre a semana corrente (janela de 7 dias contra baseline de 28 dias).
+Este prompt não recebe parâmetros — sempre cobre os 7 dias fechados até ontem (o `gobus_detect_trends` compara a janela de 7 dias com o baseline de 28).

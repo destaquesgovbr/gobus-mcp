@@ -54,6 +54,7 @@ pytest tests/test_tools/test_search_news.py     # um arquivo
 pytest -k test_retorna_artigos                  # um teste por nome
 pytest -m live                                  # contra a graphql-api de produção (só leitura)
 pytest -m live tests/test_live_coherence.py -s  # F5: Q575545 em ago–set (≤ 3 s, ≤ 5 KB)
+pytest -m live tests/test_live_search_news.py    # MEC no último dia útil: date_from == date_to > 0
 python -m playwright install chromium           # 1x: browser do mini-host dos MCP Apps
 pytest -m ui                                    # MCP Apps no mini-host headless (Playwright)
 
@@ -114,7 +115,10 @@ cache.py             # TTLCache assíncrono, single-flight, relógio injetável
 agency_catalog.py    # AgencyCatalog: nomes, republicadoras, validate (aliases curados + difflib), active()
 agency_activity.py   # snapshot agencyAnalytics DAY de todas as agências (cache 6 h): silenciadas, retomadas, platform_daily
 domains.py           # 7 domínios de policies.domain + OTHER, aliases PT, mapas curados de tema e agência
-calendario.py        # BRT, defeso 2026 (04/07–25/10), recuperação até 29/11, feriados, janelas fechadas
+calendario.py        # BRT, defeso 2026 (04/07–25/10), recuperação até 29/11, feriados, janelas fechadas,
+                     #   limites do dia em BRT (brt_day_start/brt_day_end)
+instructions.py      # SERVER_INSTRUCTIONS (≤ 1,5 KB, pt-BR) → FastMCP(instructions=…) no initialize
+formatting.py        # Markdown compartilhado: md_link (só http(s)), agency_label, fmt_int (pt-BR), brt_day
 readability.py       # Flesch: escala (textstat-en), clamp 0–100, faixas 0/25/50/75, médias null-aware, janela efetiva
 readability_data.py  # legibilidade por agência via agencyAnalytics (janela pedida/efetiva, agregação)
 theme_data.py        # ThemeRangeCounts (topThemes + analyticsKpis por range móvel), cache 5 min
@@ -143,6 +147,7 @@ resources/           # 6 resources: agencies, themes, platform-stats, taxonomy-q
                      #   agency_activity); os 4 ui:// (readability-dashboard, article-scorecard,
                      #   anomaly-radar, forecast-radar) vêm de ui.register_ui_resources
 prompts/             # 4 prompts: monitor_agency, trace_entity, weekly_digest, draft_press_release
+                     #   (__init__: _int_arg, _calendar_note, CITE_AS_LINKS)
 ```
 
 **Padrão de separação:** cada tool é uma função async pura em `tools/<nome>.py` que recebe `GobusGraphQLClient` (e `catalog=` quando precisa de nomes/validação). O `server.py` lê `get_deps()` a cada chamada e repassa `deps.client`/`deps.catalog` (e, nas tools do G2 e no health, `deps.activity`/`deps.cache`); os testes trocam `server._deps` (o `Deps` sem `activity` cria o serviço a partir de `client` e `catalog`). Tools de MCP App separam o builder (I/O → modelo pydantic: `build_*_payload`, `build_anomaly_report`, `build_forecast_report`) do render (puro); o Markdown vai em `summary`.
@@ -150,6 +155,10 @@ prompts/             # 4 prompts: monitor_agency, trace_entity, weekly_digest, d
 **Registro:** toda tool sem app usa `@mcp.tool(output_schema=None, annotations={"readOnlyHint": True})` — sem isso o fastmcp 3.4 embrulha o retorno `-> str` em `{"result": "…"}`. Resources JSON declaram `mime_type="application/json"`.
 
 **MCP Apps** (`gobus_get_readability_recommendations` → `ui://readability-dashboard`, `gobus_score_article` → `ui://article-scorecard`, `gobus_detect_anomalies` → `ui://anomaly-radar`, `gobus_forecast_trends` → `ui://forecast-radar`): `@mcp.tool(**app_tool_kwargs(<app>))` (`app=AppConfig(resource_uri)`, `meta={"ui/resourceUri": …}`, `readOnlyHint`) e `-> ToolResult` via `app_result(report, content=markdown)`: `content` = o Markdown **completo** e `structuredContent` = payload camelCase com `summary` (o mesmo Markdown cortado em 6 KB; idênticos quando cabe) como **primeiro** campo (≤ 20 KB). Os radares compactam o payload (`compact_anomaly_payload`: séries só nos 6 sinais anômalos exibidos, ≤ 3 normais sem série, resto contado em `entities.omitted`; `compact_forecast_payload`: série da projeção só no top-3). O resource é `render_app(<app>)`: HTML estático, sem dado e sem I/O (`resources/read` não chama a GraphQL); `prefersBorder`. Campo opcional novo no payload mantém `schemaVersion=1`; a URI `ui://` só muda em quebra. O Claude Code não renderiza apps (mostra o `structuredContent`). Parâmetro inválido de tool de app devolve só texto (sem `structuredContent`; o app mostra a mensagem). Detalhes em `docs/apps/`.
+
+**Prompts:** devolvem `str` (uma mensagem de usuário). **Nunca `list[dict]`:** no fastmcp 3.4 isso quebra o `prompts/get` ("messages[0] must be Message or str, got dict"; o `Message(dict)` sugerido pelo erro serializa o dict como JSON). Argumentos numéricos são `str` no wrapper (o host manda texto, `""` nos opcionais em branco) e passam por `_int_arg`; datas concretas da janela vêm do `calendario` com `today` injetável. Teste renderizando pelo `Client` em memória (`get_prompt`), não só chamando a função.
+
+**Instruções do servidor:** `instructions.py` → `FastMCP(name="Gobus", instructions=SERVER_INSTRUCTIONS)`. Mantenha ≤ 1,5 KB e só com tools registradas (`tests/test_instructions.py`).
 
 **Transport:** determinado em runtime pelo env var `PORT`:
 - `PORT` ausente → `stdio`
@@ -165,8 +174,8 @@ Gotchas conhecidos do schema atual:
 - `RelatedEntity` retorna `canonicalId` (não `entityId`)
 - Agências: `agencies { code label isRepublisher }` — `label == code` (156/156); o nome humano vem de `agencyAnalytics.agencyName` (use o `AgencyCatalog`)
 - `agencyAnalytics`: datas devem ser `datetime.date` no lado da graphql-api (strings ISO são rejeitadas pelo asyncpg); `metrics:` é ignorado pelo resolver. **`dateTo` depende da granularidade:** `DAY` é inclusivo (`published_at::date BETWEEN`); `MONTH`/`WEEK` é exclusivo na prática (`published_at BETWEEN …::timestamptz`, e o asyncpg converte a data em 00:00). Monte as datas com `calendario.agency_analytics_bounds(r, granularity)`
-- `search()`: **não tem `limit`** e rejeita `query:""`; filtro de agência via `filter: {agencies: [...]}`. Para listar, use `articles(page, limit ≤ 250, filter, sort)`
-- `articles.filter.startDate/endDate` aceitam offset (`-03:00`); `endDate` exclusivo. Dias da API em UTC
+- `search()`: **não tem `limit`** (20 por página) e rejeita `query:""` (`"*"` lista tudo); filtro de agência via `filter: {agencies: [...]}`. Para listar, use `articles(page, limit ≤ 250, filter, sort)`
+- `search`/`articles.filter.startDate/endDate` aceitam offset (`-03:00`) e comparam `published_at >= startDate` / `<= endDate` (segundos). Data pura vira 00:00 UTC e perde o dia do `endDate`: para incluir o dia D inteiro em BRT, mande `calendario.brt_day_end(D)` (`T23:59:59-03:00`; o `search_news` já faz). O `brt_bounds` (fim = 00:00 de D+1) inclui o instante 00:00:00 de D+1. Dias da API em UTC
 - `trendingThemes`: `TrendingThemeResult { themeLabel themeCode windowCount baselineDailyAvg growthScore topArticles }` — **`baselineDailyAvg`** (não `baseDailyAvg`, nem `baselineCount`); `themeCode` sempre `null`; o baseline **inclui a janela**: converta o limiar do usuário com `analytics.ratios.overlap_growth_threshold` e nunca envie `growthThreshold: 0` (dispara N+1 de `topArticles`)
 - `trendingEntities`: `{ entityId canonicalName type trendingScore volumeRatio windowCount windowAgencies computedAt baselineCount baselineAgencies isNew }` (os três últimos vieram com o GA-1 e são nulos em linha gravada antes da migração 029); o resolver limita a 50 e, desde o GA-1, devolve só a última execução, que ainda pode trazer linhas no piso antigo (ver `data_status.entity_ranking_status`)
 - `features { trendingScore viewCount }` estão nulos em quase todo o acervo; não use como sinal
@@ -206,6 +215,6 @@ async def test_exemplo(fake_client):
 - **Idioma:** português em docstrings, comentários e mensagens; inglês em identificadores Python e nos enums dos payloads (rótulos PT só em texto).
 - **Commits:** português, prefixos `fix:` / `feature:` / `refactor:` / `chore:` / `test:` / `docs:`; TDD com `test: … (red)` antes de `fix:`/`feature: … (green)`.
 - **Sem Co-Authored-By** nos commits deste repo.
-- Tools retornam Markdown formatado (não JSON) — são consumidas diretamente por LLMs. **Exceção — tools de app = summary + payload:** as 4 tools de MCP App devolvem o Markdown completo no `content` e, no `structuredContent`, o payload estruturado com o mesmo Markdown em `summary` (primeiro campo, até 6 KB). No Claude Code, que mostra o `structuredContent`, isso custa até ~20 KB (~7k tokens) por chamada; por isso o `summary` vem primeiro e o payload leva só o que o app desenha. As `gobus_dev_preview_*` (só dev) ficam fora da regra e da contagem de tools: devolvem fixtures marcadas "DEV — dados fictícios".
+- Tools retornam Markdown formatado (não JSON) — são consumidas diretamente por LLMs. Artigo citado = título como link `formatting.md_link(título, url)` (`[título](url)`) e o `unique_id` na linha seguinte. **Exceção — tools de app = summary + payload:** as 4 tools de MCP App devolvem o Markdown completo no `content` e, no `structuredContent`, o payload estruturado com o mesmo Markdown em `summary` (primeiro campo, até 6 KB). No Claude Code, que mostra o `structuredContent`, isso custa até ~20 KB (~7k tokens) por chamada; por isso o `summary` vem primeiro e o payload leva só o que o app desenha. As `gobus_dev_preview_*` (só dev) ficam fora da regra e da contagem de tools: devolvem fixtures marcadas "DEV — dados fictícios".
 - **JS dos apps:** só `createElement`/`textContent` (o `render_app` recusa `innerHTML`, `eval`, storage do navegador, URL externa e template literal); limiares e cores vêm do payload, nunca codificados no JS.
 - O repositório é público: nunca versionar IPs, ids de conta ou segredos (redigir como `<IP-CLOUD-SQL>`, `<AWS-ACCOUNT-ID>`).
