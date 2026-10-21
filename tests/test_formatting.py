@@ -1,4 +1,4 @@
-"""Formatação compartilhada do Markdown das tools: link, rótulo de agência e inteiros."""
+"""Formatação compartilhada do Markdown das tools: link, rótulo de agência, inteiro e dia."""
 
 import pytest
 

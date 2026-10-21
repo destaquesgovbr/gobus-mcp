@@ -1,6 +1,9 @@
-"""Formatação compartilhada do Markdown das tools: link, rótulo de agência e inteiros."""
+"""Formatação compartilhada do Markdown das tools: link, rótulo de agência, inteiros e dia."""
 
+from datetime import datetime
 from urllib.parse import urlsplit
+
+from gobus_mcp.calendario import BRT
 
 _SAFE_SCHEMES = frozenset({"http", "https"})
 
@@ -44,3 +47,17 @@ def agency_label(code: str | None, name: str | None) -> str:
 def fmt_int(n: int) -> str:
     """Inteiro com ponto de milhar (pt-BR): ``1234567`` → ``1.234.567``."""
     return f"{n:,}".replace(",", ".")
+
+
+def brt_day(published_at: str | None) -> str:
+    """Dia ``AAAA-MM-DD`` de uma data ISO da API, em Brasília (a busca filtra por dia de
+    Brasília). Sem fuso, o dia como veio; valor ilegível, os 10 primeiros caracteres."""
+    if not published_at:
+        return ""
+    try:
+        moment = datetime.fromisoformat(published_at)
+    except ValueError:
+        return published_at[:10]
+    if moment.tzinfo is None:
+        return moment.date().isoformat()
+    return moment.astimezone(BRT).date().isoformat()

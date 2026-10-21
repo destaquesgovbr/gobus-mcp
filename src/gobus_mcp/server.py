@@ -125,14 +125,17 @@ async def gobus_search_news(
     """Busca notícias no portal Gov.BR por texto livre e/ou agência.
 
     Parâmetros:
-    - query: Texto livre de busca (ex: "vacinação infantil")
+    - query: Texto livre de busca (ex: "vacinação infantil"); "*" lista todas as
+      publicações (use com agency_key e/ou datas)
     - agency_key: Chave da agência para filtrar (ex: "saude", "mec") — ver gobus://agencies
-    - date_from: Data de início ISO (ex: "2024-01-01") — opcional
-    - date_to: Data de fim ISO (ex: "2024-12-31") — opcional
+    - date_from: Data de início AAAA-MM-DD, inclusiva (dia inteiro em Brasília) — opcional
+    - date_to: Data de fim AAAA-MM-DD, inclusiva (dia inteiro em Brasília) — opcional;
+      date_from == date_to = um único dia
     - page: Página de resultados (default 1)
     - limit: Artigos por página (default 10, máx 50)
 
-    Retorna: Lista de artigos com título, agência, data e trecho do conteúdo.
+    Retorna: Lista de artigos com o título como link Markdown [título](url), agência,
+    data (dia de Brasília), resumo e o unique_id (para gobus_get_article).
 
     Dica: Execute em paralelo com gobus_get_agency_analytics para a mesma agência.
     """

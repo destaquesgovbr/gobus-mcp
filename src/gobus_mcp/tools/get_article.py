@@ -1,6 +1,6 @@
 from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.client import GobusGraphQLClient
-from gobus_mcp.formatting import agency_label, fmt_int, md_link
+from gobus_mcp.formatting import agency_label, brt_day, fmt_int, md_link
 from gobus_mcp.readability import describe_flesch
 
 _ARTICLE_QUERY = """
@@ -55,7 +55,7 @@ async def get_article(
     if not art:
         return f"Artigo não encontrado: `{unique_id}`"
 
-    pub_at = (art.get("publishedAt") or "")[:10]
+    pub_at = brt_day(art.get("publishedAt"))
     tags = ", ".join(art.get("tags") or [])
     agency_code = art.get("agency") or ""
     agency_name = await catalog.display_name(agency_code, art.get("agencyName"))
