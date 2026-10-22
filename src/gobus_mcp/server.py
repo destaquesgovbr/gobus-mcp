@@ -461,8 +461,8 @@ async def gobus_detect_anomalies(
     faixa (normal/atenção/alerta) e confiança.
 
     MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o radar
-    ui://anomaly-radar (8 gauges por domínio; no fullscreen, a lista de sinais com
-    sensibilidade e domínio); o texto devolvido é o Markdown completo.
+    ui://anomaly-radar (8 gauges por domínio e a sensibilidade no próprio card; no
+    fullscreen, a lista de sinais e o domínio); o texto devolvido é o Markdown completo.
     """
     invalid = invalid_params(sensitivity, domain_filter)
     if invalid is not None:
@@ -500,8 +500,8 @@ async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> ToolR
     de cobertura de classificação e de calendário.
 
     MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o radar
-    ui://forecast-radar (ritmo semanal em escala log2 com o anel 1× e o top-3 com
-    momentum; no fullscreen, o horizonte 7/14/21/28); o texto devolvido é o Markdown
+    ui://forecast-radar (ritmo semanal em escala log2 com o anel 1×, o top-3 com
+    momentum e o horizonte 7/14/21/28 no próprio card); o texto devolvido é o Markdown
     completo.
     """
     deps = get_deps()

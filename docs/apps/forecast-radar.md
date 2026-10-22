@@ -9,17 +9,18 @@
 
 - **Radar** com um eixo por tema (até 8 no card, todos no fullscreen), em **escala log2**: o anel tracejado é **1×** (o baseline); fora dele o tema ganha espaço, dentro perde. Os anéis vizinhos são ½×, 2×, 4×… conforme o maior desvio. Dois polígonos: o **ritmo semanal** (`weeklyMultiplier`, cheio, pontos coloridos pelo momentum) e a **fatia no fim do horizonte ÷ fatia de hoje** (`projection.shareAtHorizon / shareNow`, tracejado). Em tela estreita os eixos levam só o número, com a lista dos temas embaixo.
 - **Top-3** com o **momentum** (↑ acelerando, → estável, ↓ desacelerando, ? indeterminado; ícone e texto), o ritmo em ×/semana, a confiança, os artigos esperados no horizonte com o intervalo de 95% e a sparkline da projeção diária (fim de semana e feriados mais baixos).
-- **Chips:** defeso (dias restantes) ou recuperação, janelas degradadas ou indisponíveis com a cobertura de classificação, e o horizonte (com o pedido, se foi ajustado).
+- **Horizonte compacto** (7/14/21/28, os números das opções do payload `horizonOptions` com "Horizonte (dias)" na frente), logo abaixo do cabeçalho, sempre que o host oferece `serverTools`: o clique faz o `tools/call` da mesma tool com `horizon_days` e o `limit` atual, sem sair do card (no teste 5.5 do roteiro, o controle escondido atrás de "Expandir" não foi achado). Sem radar (`unavailable` ou sem temas), o controle fica só no fullscreen: trocar o horizonte não muda nada.
+- **Chips:** defeso (dias restantes) ou recuperação, janelas degradadas ou indisponíveis com a cobertura de classificação, e o horizonte (com o pedido, se foi ajustado). Em host sem `serverTools`, o chip do horizonte diz "peça no chat para trocar".
 - Banner quando o horizonte cruza o fim do defeso (o nível de volume por dia útil muda a partir de 26/10) ou na recuperação.
 - Avisos em `<details>`; tabela dos temas (ritmo, momentum, confiança, esperados e a razão de cada janela) em `<details>`.
 - Ações: **Expandir** e **Explicar no chat** (`ui/message` com o top-3, os avisos de janela e a pergunta sobre a pauta).
 
 ## Fullscreen e interações
 
-- **Horizonte** 7/14/21/28 dias (opções do payload `horizonOptions`) → `tools/call` da mesma tool com `horizon_days` e o `limit` atual.
+- **Horizonte** 7/14/21/28 dias, com os rótulos completos (opções do payload `horizonOptions`) → `tools/call` da mesma tool com `horizon_days` e o `limit` atual.
 - Tabela **Janelas e pesos**: baseline, peso nominal e efetivo (renormalizado nas janelas utilizáveis), cobertura de classificação, status e dias úteis equivalentes.
 - Clique num tema do top-3 → `ui/update-model-context`.
-- Em host sem fullscreen, o controle de horizonte e a tabela de janelas aparecem no card.
+- Em host sem fullscreen, o horizonte completo e a tabela de janelas aparecem no card.
 
 ## Estados
 
