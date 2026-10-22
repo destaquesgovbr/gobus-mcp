@@ -1,6 +1,7 @@
 """Resumo executivo de uma agência: volume, legibilidade, sentimento e temas em alta.
 
-Métricas nulas aparecem como "indisponível" (nunca 0). Os temas vêm do ``trendingThemes``
+Métricas nulas aparecem como "indisponível" (nunca 0). Legibilidade: Flesch pt-BR (média
+dos artigos que o têm); sem ele, o inglês (legado), com aviso. Os temas vêm do ``trendingThemes``
 com o limiar convertido para o baseline sobreposto da API (``analytics.ratios``); sem
 temas, a cobertura de classificação diz se é estabilidade ou falta de dado.
 """
@@ -14,28 +15,47 @@ from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.analytics.ratios import overlap_growth_threshold, ratio_from_trending_row
 from gobus_mcp.calendario import agency_analytics_bounds, closed_window, reference_date
 from gobus_mcp.client import GobusGraphQLClient
-from gobus_mcp.data_status import metric_coverage_status, theme_coverage
-from gobus_mcp.readability import FleschValue, describe_flesch, weighted_metric
+from gobus_mcp.data_status import theme_coverage
+from gobus_mcp.formatting import FollowUp, article_ref, tool_call, with_follow_ups
+from gobus_mcp.readability import (
+    LEGACY_SCALE_MESSAGE,
+    FleschScale,
+    FleschValue,
+    choose_scale,
+    describe_flesch,
+    readability_status,
+    scale_metric,
+    weighted_metric,
+)
+from gobus_mcp.schema_compat import ARTICLE_SUMMARY_URL, FLESCH_PTBR, execute_compatible
 
 TREND_WINDOW_DAYS = 7
 TREND_BASELINE_DAYS = 28
 TREND_MIN_RATIO = 1.5  # mesmo default do gobus_detect_trends (razão sem sobreposição)
 TREND_LIMIT = 5
 
-_ANALYTICS_QUERY = """
-query AgencySummaryAnalytics(
+_ANALYTICS_TEMPLATE = """
+query AgencySummaryAnalytics__SUFFIX__(
     $agencies: [String!]!, $dateFrom: String!, $dateTo: String!, $granularity: Granularity!
 ) {
     agencyAnalytics(
         agencies: $agencies dateFrom: $dateFrom dateTo: $dateTo granularity: $granularity
     ) {
-        period agencyKey agencyName articleCount avgSentimentScore pctPositive avgReadabilityFlesch
+        period agencyKey agencyName articleCount avgSentimentScore pctPositive avgReadabilityFlesch__PTBR__
     }
 }
 """
 
-_TRENDS_QUERY = """
-query AgencySummaryTrends(
+# Flesch pt-BR (GQL-1); sem ele na API, a antiga responde (schema_compat).
+_ANALYTICS_QUERY = _ANALYTICS_TEMPLATE.replace("__SUFFIX__", "").replace(
+    "__PTBR__", "\n        avgReadabilityFleschPtbr readabilityFleschPtbrCount"
+)
+_ANALYTICS_LEGACY_QUERY = _ANALYTICS_TEMPLATE.replace("__SUFFIX__", "Legacy").replace(
+    "__PTBR__", ""
+)
+
+_TRENDS_TEMPLATE = """
+query AgencySummaryTrends__SUFFIX__(
     $windowDays: Int!, $baselineDays: Int!, $growthThreshold: Float, $agencyKey: String, $limit: Int
 ) {
     trendingThemes(
@@ -43,21 +63,25 @@ query AgencySummaryTrends(
         growthThreshold: $growthThreshold agencyKey: $agencyKey limit: $limit
     ) {
         themeLabel growthScore windowCount baselineDailyAvg
-        topArticles { uniqueId title publishedAt }
+        topArticles { uniqueId title publishedAt__URL__ }
     }
 }
 """
 
+# ``ArticleSummary.url`` veio com o GQL-1; sem ele, a antiga responde (schema_compat).
+_TRENDS_QUERY = _TRENDS_TEMPLATE.replace("__SUFFIX__", "").replace("__URL__", " url")
+_TRENDS_LEGACY_QUERY = _TRENDS_TEMPLATE.replace("__SUFFIX__", "Legacy").replace("__URL__", "")
 
-def _readability_line(rows: list[dict]) -> str:
-    clamped = weighted_metric(rows, "avgReadabilityFlesch", clamp=True)
+
+def _readability_line(rows: list[dict], scale: FleschScale) -> str:
+    clamped = scale_metric(rows, scale, clamp=True)
     if clamped.value is None:
         return "**Legibilidade:** indisponível — nenhum artigo do período com Flesch"
-    raw = weighted_metric(rows, "avgReadabilityFlesch").value
+    raw = scale_metric(rows, scale).value
     fv = FleschValue(raw, clamped.value, clamped.clamped_rows > 0)
     return (
-        f"**Legibilidade:** {describe_flesch(fv)} — {clamped.covered_articles} de "
-        f"{clamped.total_articles} artigos com Flesch"
+        f"**Legibilidade ({scale.short}):** {describe_flesch(fv)} — "
+        f"{clamped.covered_articles} de {clamped.total_articles} artigos com Flesch"
     )
 
 
@@ -69,6 +93,31 @@ def _sentiment_line(rows: list[dict]) -> str:
     pct = weighted_metric(rows, "pctPositive")
     pct_txt = f" · {pct.value:.0%} positivos" if pct.value is not None else ""
     return f"**Sentimento:** {score.value:.2f} (média){pct_txt}"
+
+
+def _follow_ups(code: str, window, themes: list[dict]) -> list[FollowUp]:
+    """Ler o artigo do 1º tema em alta, o diagnóstico de legibilidade e a série semanal."""
+    items: list[FollowUp] = []
+    top = next((a for t in themes for a in (t.get("topArticles") or []) if a.get("uniqueId")), None)
+    if top is not None:
+        items.append(
+            (tool_call("gobus_get_article", unique_id=top["uniqueId"]), "artigo do tema em alta")
+        )
+    items.append(
+        (
+            tool_call("gobus_get_readability_recommendations", agency_key=code),
+            "diagnóstico de legibilidade",
+        )
+    )
+    weekly = tool_call(
+        "gobus_get_agency_analytics",
+        agencies=[code],
+        date_from=window.start.isoformat(),
+        date_to=window.end.isoformat(),
+        granularity="WEEK",
+    )
+    items.append((weekly, "série semanal"))
+    return items
 
 
 async def get_agency_summary(
@@ -90,9 +139,12 @@ async def get_agency_summary(
     date_from, date_to = agency_analytics_bounds(window, "MONTH")  # MONTH: dateTo exclusivo
     g0 = round(overlap_growth_threshold(TREND_MIN_RATIO, TREND_WINDOW_DAYS, TREND_BASELINE_DAYS), 4)
 
-    analytics_data, trends_data, coverage, name = await asyncio.gather(
-        client.execute(
+    (analytics_data, _), (trends_data, _), coverage, name = await asyncio.gather(
+        execute_compatible(
+            client,
+            FLESCH_PTBR,
             _ANALYTICS_QUERY,
+            _ANALYTICS_LEGACY_QUERY,
             {
                 "agencies": [code],
                 "dateFrom": date_from,
@@ -100,8 +152,11 @@ async def get_agency_summary(
                 "granularity": "MONTH",
             },
         ),
-        client.execute(
+        execute_compatible(
+            client,
+            ARTICLE_SUMMARY_URL,
             _TRENDS_QUERY,
+            _TRENDS_LEGACY_QUERY,
             {
                 "windowDays": TREND_WINDOW_DAYS,
                 "baselineDays": TREND_BASELINE_DAYS,
@@ -125,17 +180,20 @@ async def get_agency_summary(
         name = rows[0]["agencyName"]
 
     total_articles = sum(r.get("articleCount") or 0 for r in rows)
+    scale = choose_scale(rows)
     lines = [
         f"# Resumo: {name} (`{code}`)\n",
         f"**Período:** {window.start:%d/%m/%Y}–{window.end:%d/%m/%Y} ({window.days} dias)",
         f"**Volume:** {total_articles} artigos publicados",
-        _readability_line(rows),
+        _readability_line(rows, scale),
         _sentiment_line(rows),
     ]
-    readability = metric_coverage_status("readability", rows, "avgReadabilityFlesch")
+    readability = readability_status(rows, scale)
     for status in (readability, coverage):
         if status.status != "ok":
             lines.append(f"> {status.message}")
+    if scale.legacy and rows:
+        lines.append(f"> {LEGACY_SCALE_MESSAGE}")
 
     lines.append(
         f"\n## Temas em alta (últimos {TREND_WINDOW_DAYS} dias, razão ≥ "
@@ -151,11 +209,10 @@ async def get_agency_summary(
                 f"{t.get('windowCount') or 0} artigos"
             )
             for art in (t.get("topArticles") or [])[:2]:
-                title = (art.get("title") or "")[:70]
-                lines.append(f"  - {title}")
+                lines.append(f"  - {article_ref(art, 70)}")
     elif coverage.status == "unavailable":
         lines.append("Temas indisponíveis: a classificação de temas não cobre a janela.")
     else:
         lines.append("Nenhum tema da agência em crescimento.")
 
-    return "\n".join(lines)
+    return with_follow_ups("\n".join(lines), _follow_ups(code, window, themes))

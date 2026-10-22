@@ -10,7 +10,7 @@ O prompt guia o LLM por 5 passos sequenciais:
 
 1. **Identificação da entidade** — [`gobus_resolve_entity`](../tools/resolve-entity.md) com `query` (e `entity_type`, se informado) — encontra o ID canônico da entidade.
 2. **Perfil e cobertura temporal** — [`gobus_get_entity_profile`](../tools/get-entity-profile.md) com o intervalo de datas — obtém a série temporal de menções.
-3. **Rede de relacionamentos** — [`gobus_get_entity_network`](../tools/get-entity-network.md) com o `entityId` canônico, `depth=1` e `max_nodes=15` — mapeia as entidades conectadas (a rede de 2 níveis passa de centenas de nós).
+3. **Rede de relacionamentos** — [`gobus_get_entity_network`](../tools/get-entity-network.md) com o `entityId` canônico, `depth=1` e `max_nodes=15` — mapeia as entidades conectadas. A rede é centrada na entidade e ranqueada por associação (artigos em co-menção × lift); para conexões indiretas, o prompt manda seguir o segundo grau sugerido no rodapé "Para explorar" da própria rede.
 4. **Artigos âncoras** — [`gobus_search_news`](../tools/search-news.md) com o nome da entidade (e o período, se informado) + [`gobus_get_article`](../tools/get-article.md) nos 3 mais relevantes — extrai detalhes das publicações-chave.
 5. **Linha do tempo narrativa** — síntese — o LLM monta um relatório com contexto inicial, momentos-chave, rede institucional, estado atual e conclusão sobre a relevância da entidade.
 

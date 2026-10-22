@@ -30,11 +30,11 @@
   --gb-radius: var(--border-radius-md, 8px);
   --gb-radius-sm: var(--border-radius-sm, 6px);
   --gb-pill: var(--border-radius-full, 999px);
-  /* faixas de Flesch (very_hard → easy) e semáforo */
+  /* faixas de Flesch de Martins (very_hard → very_easy) e semáforo */
   --gb-band-very_hard: var(--gb-danger);
   --gb-band-hard: var(--gb-warning);
-  --gb-band-medium: var(--gb-info);
-  --gb-band-easy: var(--gb-success);
+  --gb-band-easy: var(--gb-info);
+  --gb-band-very_easy: var(--gb-success);
   --gb-track: var(--gb-bg-3);
   --gb-target: var(--gb-text-2);
 }
@@ -109,16 +109,16 @@ body {
 .gb-chart .gb-bar { fill: var(--gb-text-3); }
 .gb-chart .gb-bar[data-band="very_hard"] { fill: var(--gb-band-very_hard); }
 .gb-chart .gb-bar[data-band="hard"] { fill: var(--gb-band-hard); }
-.gb-chart .gb-bar[data-band="medium"] { fill: var(--gb-band-medium); }
 .gb-chart .gb-bar[data-band="easy"] { fill: var(--gb-band-easy); }
+.gb-chart .gb-bar[data-band="very_easy"] { fill: var(--gb-band-very_easy); }
 .gb-chart .gb-bar-row { cursor: pointer; }
 .gb-chart .gb-bar-row:hover .gb-track { fill: var(--gb-bg-2); }
 .gb-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; color: var(--gb-text-3); font-size: var(--gb-size-xs); }
 .gb-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; background: var(--gb-text-3); }
 .gb-swatch[data-band="very_hard"] { background: var(--gb-band-very_hard); }
 .gb-swatch[data-band="hard"] { background: var(--gb-band-hard); }
-.gb-swatch[data-band="medium"] { background: var(--gb-band-medium); }
 .gb-swatch[data-band="easy"] { background: var(--gb-band-easy); }
+.gb-swatch[data-band="very_easy"] { background: var(--gb-band-very_easy); }
 
 details.gb-details { margin-top: 12px; border-top: 1px solid var(--gb-border); padding-top: 8px; }
 details.gb-details > summary { cursor: pointer; color: var(--gb-text-2); font-size: var(--gb-size-xs); font-weight: var(--gb-weight); }

@@ -1,9 +1,25 @@
+import asyncio
 import re
+from collections import Counter
 from datetime import UTC, date, datetime
 
+from gobus_mcp.agency_catalog import AgencyCatalog, catalog_display_names
 from gobus_mcp.calendario import BRT, brt_day_end, brt_day_start
 from gobus_mcp.client import GobusGraphQLClient
-from gobus_mcp.formatting import agency_label, brt_day, fmt_int, md_link
+from gobus_mcp.formatting import (
+    FollowUp,
+    agency_label,
+    article_agency,
+    brt_day,
+    fmt_int,
+    md_link,
+    tool_call,
+    with_follow_ups,
+)
+
+PAGE_SIZE = 20  # o search() da graphql-api devolve 20 por página (fixo, sem limit)
+DEFAULT_LIMIT = 10
+MAX_LIMIT = 50
 
 _SEARCH_QUERY = """
 query SearchNews($query: String!, $filter: ArticleFilter, $page: Int) {
@@ -58,6 +74,78 @@ def _invalid_date(field: str, value: str) -> str:
     )
 
 
+def api_pages(page: int, limit: int) -> tuple[range, int]:
+    """Páginas da API (de ``PAGE_SIZE``) que cobrem a página ``page`` da tool (de ``limit``
+    artigos) e quantos artigos pular no começo da primeira delas.
+
+    A página ``p`` da tool traz os resultados ``(p−1)·limit + 1 … p·limit``: com o limit
+    padrão (10), a página 2 vem da 2ª metade da página 1 da API, e não da página 2 da API
+    (que começa no 21º resultado)."""
+    offset = (page - 1) * limit
+    first = offset // PAGE_SIZE + 1
+    last = (offset + limit - 1) // PAGE_SIZE + 1
+    return range(first, last + 1), offset - (first - 1) * PAGE_SIZE
+
+
+async def _fetch(client: GobusGraphQLClient, variables: dict, page: int, limit: int):
+    """``(artigos da página da tool, found)``: a 1ª página da API dá o ``found``; as
+    seguintes, só as que existem, vêm em paralelo."""
+    pages, skip = api_pages(page, limit)
+    data = await client.execute(_SEARCH_QUERY, {**variables, "page": pages[0]})
+    result = data.get("search") or {}
+    found = result.get("found") or 0
+    articles = list(result.get("articles") or [])
+    more = [p for p in pages[1:] if (p - 1) * PAGE_SIZE < found]
+    if more:
+        extra = await asyncio.gather(
+            *(client.execute(_SEARCH_QUERY, {**variables, "page": p}) for p in more)
+        )
+        for data in extra:
+            articles.extend((data.get("search") or {}).get("articles") or [])
+    return articles[skip : skip + limit], found
+
+
+def _follow_ups(
+    articles: list[dict],
+    *,
+    query: str,
+    agency_key: str | None,
+    date_from: str,
+    date_to: str,
+    page: int,
+    limit: int,
+    found: int,
+) -> list[FollowUp]:
+    """Ler o 1º resultado, resumir o órgão que mais aparece e a próxima página com o mesmo
+    ``limit`` (ou, na última, resolver a entidade buscada)."""
+    items: list[FollowUp] = []
+    first = articles[0].get("uniqueId")
+    if first:
+        items.append((tool_call("gobus_get_article", unique_id=first), "texto do 1º resultado"))
+    agencies = Counter(a.get("agency") for a in articles if a.get("agency"))
+    if agencies and not agency_key:
+        top = agencies.most_common(1)[0][0]
+        items.append(
+            (tool_call("gobus_get_agency_summary", agency_key=top), "resumo do órgão mais citado")
+        )
+    if found > page * limit:
+        next_page = tool_call(
+            "gobus_search_news",
+            query=query,
+            agency_key=agency_key,
+            date_from=date_from,
+            date_to=date_to,
+            page=page + 1,
+            limit=None if limit == DEFAULT_LIMIT else limit,
+        )
+        items.append((next_page, "próxima página"))
+    elif query != "*":
+        items.append(
+            (tool_call("gobus_resolve_entity", query=query), "entidade para perfil e rede")
+        )
+    return items
+
+
 async def search_news(
     query: str,
     client: GobusGraphQLClient,
@@ -66,19 +154,25 @@ async def search_news(
     limit: int = 10,
     date_from: str | None = None,
     date_to: str | None = None,
+    *,
+    catalog: AgencyCatalog | None = None,
 ) -> str:
     """Busca artigos por texto livre (``"*"`` = todos), agência e período.
 
     ``date_from``/``date_to`` só com a data (``AAAA-MM-DD`` ou ``AAAAMMDD``) são dias
     inteiros em Brasília (ambos inclusivos); com hora, passam como vieram. Início depois
-    do fim (com ou sem hora) devolve "Período inválido" sem consultar.
+    do fim (com ou sem hora) devolve "Período inválido" sem consultar. A página ``page``
+    tem ``limit`` artigos (até 50), montada das páginas de 20 da API (``api_pages``).
+    O nome do órgão vem do ``catalog`` (o ``search()`` devolve ``agencyName`` nulo,
+    graphql-api#34), resolvido uma vez por página; sem catálogo, só o código.
     """
     query = query.strip() or "*"  # search() rejeita query vazia; "*" lista tudo
     label = "todas as publicações" if query == "*" else query
     date_from = (date_from or "").strip()
     date_to = (date_to or "").strip()
-    effective_limit = min(limit, 50)
-    variables: dict = {"query": query, "page": page}
+    page = max(page, 1)
+    effective_limit = max(1, min(limit, MAX_LIMIT))
+    variables: dict = {"query": query}
 
     filter_dict: dict = {}
     if agency_key:
@@ -103,10 +197,10 @@ async def search_news(
     if filter_dict:
         variables["filter"] = filter_dict
 
-    data = await client.execute(_SEARCH_QUERY, variables)
-    result = data.get("search") or {}
-    articles = (result.get("articles") or [])[:effective_limit]
-    found = result.get("found") or 0
+    (articles, found), names = await asyncio.gather(
+        _fetch(client, variables, page, effective_limit),
+        catalog_display_names(catalog),  # cache de 24 h; fora do ar = {}
+    )
 
     if not articles:
         msg = f"Nenhum resultado encontrado para: **{label}**"
@@ -117,7 +211,7 @@ async def search_news(
     lines = [f"# Resultados: {label}\n\n**{fmt_int(found)} artigos encontrados** (página {page})\n"]
     for art in articles:
         pub_at = brt_day(art.get("publishedAt"))
-        agency_str = agency_label(art.get("agency"), art.get("agencyName"))
+        agency_str = agency_label(*article_agency(art, names))
         features = art.get("features") or {}
         trending = features.get("trendingScore")
         trending_str = f" 🔥 trending={trending:.1f}" if trending and trending > 1.0 else ""
@@ -128,4 +222,14 @@ async def search_news(
             f"ID: `{art.get('uniqueId', '')}`\n"
         )
 
-    return "\n".join(lines)
+    follow = _follow_ups(
+        articles,
+        query=query,
+        agency_key=agency_key,
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        limit=effective_limit,
+        found=found,
+    )
+    return with_follow_ups("\n".join(lines), follow)

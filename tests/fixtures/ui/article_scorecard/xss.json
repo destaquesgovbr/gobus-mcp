@@ -10,11 +10,11 @@
     "content": [
       {
         "type": "text",
-        "text": "# Score Editorial: </script><script>alert(2)</script> Título <img src=x onerror=alert(1)>\n**<img src=x onerror=alert(1)>** (`xss-img`) · 10/06/2026 · `xss-artigo`\n\n## Nota Geral: 6.7/10\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 7.0/10 — Flesch 35.0 (difícil)\n- **Concisão (peso 30%):** 8.0/10 — 500 palavras (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** 4.0/10 — 3 entidades (0.6 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | <img src=x onerror=alert(1)> | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `xss-img-amostra-38` — Notícia 39 da amostra de xss-img (maior Flesch da amostra de <img src=x onerror=alert(1)> nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)"
+        "text": "# Score Editorial: </script><script>alert(2)</script> Título <img src=x onerror=alert(1)>\n**<img src=x onerror=alert(1)>** (`xss-img`) · 10/06/2026 · `xss-artigo`\n\n## Nota Geral: 6.7/10\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 7.0/10 — Flesch pt-BR 35.0 (difícil)\n- **Concisão (peso 30%):** 8.0/10 — 500 palavras (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** 4.0/10 — 3 entidades (0.6 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | <img src=x onerror=alert(1)> | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 23.5 (muito difícil) | 30.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `xss-img-amostra-38` — Notícia 39 da amostra de xss-img (maior Flesch da amostra de <img src=x onerror=alert(1)> nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)"
       }
     ],
     "structuredContent": {
-      "summary": "# Score Editorial: </script><script>alert(2)</script> Título <img src=x onerror=alert(1)>\n**<img src=x onerror=alert(1)>** (`xss-img`) · 10/06/2026 · `xss-artigo`\n\n## Nota Geral: 6.7/10\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 7.0/10 — Flesch 35.0 (difícil)\n- **Concisão (peso 30%):** 8.0/10 — 500 palavras (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** 4.0/10 — 3 entidades (0.6 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | <img src=x onerror=alert(1)> | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `xss-img-amostra-38` — Notícia 39 da amostra de xss-img (maior Flesch da amostra de <img src=x onerror=alert(1)> nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)",
+      "summary": "# Score Editorial: </script><script>alert(2)</script> Título <img src=x onerror=alert(1)>\n**<img src=x onerror=alert(1)>** (`xss-img`) · 10/06/2026 · `xss-artigo`\n\n## Nota Geral: 6.7/10\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 7.0/10 — Flesch pt-BR 35.0 (difícil)\n- **Concisão (peso 30%):** 8.0/10 — 500 palavras (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** 4.0/10 — 3 entidades (0.6 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | <img src=x onerror=alert(1)> | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 23.5 (muito difícil) | 30.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `xss-img-amostra-38` — Notícia 39 da amostra de xss-img (maior Flesch da amostra de <img src=x onerror=alert(1)> nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)",
       "schemaVersion": 1,
       "kind": "gobus.scorecard",
       "tool": "gobus_score_article",
@@ -63,7 +63,9 @@
       "scoreStatus": "scored",
       "overall": 6.7,
       "refusalReason": null,
-      "scale": "flesch_en_textstat",
+      "scale": "flesch_ptbr_martins1996",
+      "scaleLabel": "Flesch pt-BR (Martins et al., 1996), limitado a 0–100",
+      "scaleFallback": false,
       "bands": [
         {
           "key": "very_hard",
@@ -78,14 +80,14 @@
           "upper": 50.0
         },
         {
-          "key": "medium",
-          "label": "médio",
+          "key": "easy",
+          "label": "fácil",
           "lower": 50.0,
           "upper": 75.0
         },
         {
-          "key": "easy",
-          "label": "fácil",
+          "key": "very_easy",
+          "label": "muito fácil",
           "lower": 75.0,
           "upper": 100.0
         }
@@ -113,7 +115,7 @@
           "score": 7.0,
           "value": 35.0,
           "reference": null,
-          "detail": "Flesch 35.0 (difícil)",
+          "detail": "Flesch pt-BR 35.0 (difícil)",
           "light": "green"
         },
         {
@@ -146,7 +148,7 @@
         "sampleSize": 40,
         "fleschSampleSize": 40,
         "medianWordCount": 546.0,
-        "medianFlesch": 33.5,
+        "medianFlesch": 23.5,
         "window": {
           "start": "2026-05-01",
           "end": "2026-05-28",
@@ -160,7 +162,7 @@
         "sampleSize": 60,
         "fleschSampleSize": 60,
         "medianWordCount": 472.0,
-        "medianFlesch": 39.9,
+        "medianFlesch": 30.9,
         "window": {
           "start": "2026-05-01",
           "end": "2026-05-28",
@@ -175,7 +177,7 @@
           "title": "Notícia 39 da amostra de xss-img",
           "agencyKey": "xss-img",
           "agencyName": "<img src=x onerror=alert(1)>",
-          "flesch": 52.4,
+          "flesch": 42.4,
           "wordCount": 606,
           "reason": "maior Flesch da amostra de <img src=x onerror=alert(1)> nos 90 dias antes"
         },
@@ -184,7 +186,7 @@
           "title": "Notícia 50 da amostra de agencia_brasil",
           "agencyKey": "agencia_brasil",
           "agencyName": "Agência Brasil",
-          "flesch": 58.7,
+          "flesch": 49.7,
           "wordCount": 343,
           "reason": "maior Flesch de Agência Brasil (referência) na mesma janela"
         }

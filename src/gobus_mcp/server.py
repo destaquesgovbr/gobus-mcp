@@ -149,6 +149,7 @@ async def gobus_search_news(
         limit,
         date_from or None,
         date_to or None,
+        catalog=get_deps().catalog,
     )
 
 
@@ -240,10 +241,10 @@ async def gobus_get_entity_network(
 
     Parâmetros:
     - entity_id: ID canônico (QID "Q4294522" ou "dgb_…") — obter via gobus_resolve_entity
-    - depth: 1 (vizinhos diretos) ou 2 (+ segundo grau a partir dos 5 vizinhos mais fortes,
+    - depth: 1 (vizinhos diretos) ou 2 (+ segundo grau a partir dos 5 primeiros da lista,
       até 5 entidades novas por vizinho, e as "pontes" alcançadas por 2+ vizinhos)
-    - limit: vizinhos considerados (default 50, máx 200) — os de maior peso; "N+" no
-      cabeçalho quando o limite é atingido
+    - limit: vizinhos considerados (default 50, máx 200) — os de maior peso mais os de maior
+      lift; "N+" no cabeçalho quando o limite é atingido
     - max_nodes: itens da lista ranqueada (default 20)
     - node_types: tipos separados por vírgula (ex: "PER,ORG"); com LOC, os lugares entram
       na lista em vez da linha "Lugares" (máx 5)
@@ -251,9 +252,11 @@ async def gobus_get_entity_network(
       Governo Federal, Portal Gov.br e Diário Oficial da União); ministérios e secretarias
       sempre aparecem
 
-    Retorna: Markdown com os vizinhos ranqueados por peso (artigos em co-menção com o foco em
-    todo o acervo, inclui republicações), cabeçalho "Mostrando X de Y vizinhos diretos", a
-    linha de lugares e a das genéricas ocultas.
+    Retorna: Markdown com os vizinhos ranqueados por associação (artigos em co-menção com o
+    foco em todo o acervo × log2 do lift, com ≥ 3 artigos; cada linha mostra "650 artigos ·
+    4,1× o esperado"; sem lift na API, peso bruto, e o cabeçalho diz qual ranking valeu),
+    cabeçalho "Mostrando X de Y vizinhos diretos", a linha de lugares e a das genéricas
+    ocultas.
     """
     deps = get_deps()
     return await get_entity_network(
@@ -284,8 +287,9 @@ async def gobus_get_agency_analytics(
     - granularity: Agrupamento temporal — "DAY", "WEEK" ou "MONTH" (default "MONTH")
 
     Retorna: Markdown com métricas por período: artigos publicados, sentimento médio,
-    % positivo e índice de legibilidade Flesch (faixa única 0/25/50/75, limitado a 0–100).
-    Métrica sem dado aparece como "indisponível" (nunca 0), com aviso no topo.
+    % positivo e legibilidade pelo Flesch pt-BR (Martins: 0–25 muito difícil, 25–50 difícil,
+    50–75 fácil, 75–100 muito fácil; limitado a 0–100; sem o pt-BR, a fórmula inglesa com
+    aviso). Métrica sem dado aparece como "indisponível" (nunca 0), com aviso no topo.
 
     Dica de paralelismo: Execute em paralelo com gobus_search_news para a mesma agência.
     Para overview rápido sem granularidade, prefira gobus_get_agency_summary.
@@ -384,8 +388,11 @@ async def gobus_get_readability_recommendations(
 
     Dados: agência sem Flesch aparece como "sem dado" (nunca 0.0). Se o cálculo do Flesch
     parou antes do fim da janela, a análise usa a janela efetiva (mesmo tamanho, até o
-    último mês com dado) e avisa "dados até MM/AAAA". Escala: fórmula inglesa do textstat,
-    limitada a 0–100.
+    último mês com dado) e avisa "dados até MM/AAAA". Escala: Flesch pt-BR (Martins et
+    al., 1996), limitado a 0–100, com as faixas de Martins (0–25 muito difícil, 25–50
+    difícil, 50–75 fácil, 75–100 muito fácil); notícia de governo fica perto de 25, na
+    divisa entre difícil e muito difícil (mediana do acervo 25,2). Sem o pt-BR, a fórmula
+    inglesa do textstat (legado), com aviso.
 
     MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o painel
     ui://readability-dashboard; o texto devolvido é o mesmo resumo em Markdown.
@@ -522,8 +529,9 @@ async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> ToolR
 async def gobus_score_article(unique_id: str, compare_with: str = "") -> ToolResult:
     """Atribui uma nota editorial (0-10) a um artigo comparando-o ao benchmark da agência.
 
-    Combina legibilidade (Flesch limitado a 0–100), concisão (palavras contra a mediana
-    da agência) e densidade de entidades (por 100 palavras) numa nota ponderada 50/30/20.
+    Combina legibilidade (Flesch pt-BR limitado a 0–100; nota 10 na meta de serviço 50;
+    sem o pt-BR, a fórmula inglesa com aviso), concisão (palavras contra a mediana da
+    agência) e densidade de entidades (por 100 palavras) numa nota ponderada 50/30/20.
 
     O benchmark é calculado a cada chamada: amostra de artigos da agência e da Agência
     Brasil nos 90 dias antes da publicação do artigo, com medianas (null com menos de 10

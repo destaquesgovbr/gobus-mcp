@@ -78,6 +78,9 @@ PORT=8000 GOBUS_DEV_PREVIEW=1 GOBUS_CORS_ORIGINS=http://localhost:8080 GOBUS_GRA
 
 # Snapshot do SDL da graphql-api (introspecção, só leitura; o teste de contrato usa)
 python tests/fixtures/refresh_schema.py
+# Snapshot à frente da produção (PR da graphql-api ainda sem deploy): introspecção local do schema
+# Strawberry do branch (graphql_sync + build_client_schema + print_schema) e o tipo novo em
+# PENDING_UPSTREAM (tests/test_graphql_contract.py), que pula o teste live do snapshot até o deploy
 
 # Rodar localmente (stdio)
 GOBUS_GRAPHQL_URL=https://destaquesgovbr-graphql-api-klvx64dufq-rj.a.run.app/graphql python -m gobus_mcp
@@ -115,15 +118,20 @@ cache.py             # TTLCache assíncrono, single-flight, relógio injetável
 agency_catalog.py    # AgencyCatalog: nomes, republicadoras, validate (aliases curados + difflib), active();
                      #   catalog_info() → CatalogInfo (republicadoras + códigos, nunca levanta)
 agency_activity.py   # snapshot agencyAnalytics DAY de todas as agências (cache 6 h): silenciadas, retomadas, platform_daily
-entity_lookup.py     # looks_like_id, entity(id), relatedEntities ordenado (cache 30 min)
+entity_lookup.py     # looks_like_id, entity(id), fetch_neighbors: relatedEntities por associação (w·log2 lift,
+                     #   w ≥ 3; pools WEIGHT ∪ LIFT), peso bruto de reserva (cache 30 min)
+schema_compat.py     # execute_compatible: query nova → em "Cannot query field" etc., *_LEGACY_QUERY por 1 h
+                     #   (features article_summary_url, related_lift, flesch_ptbr; COMPAT do processo)
 domains.py           # 7 domínios de policies.domain + OTHER, aliases PT, mapas curados de tema e agência
 calendario.py        # BRT, defeso 2026 (04/07–25/10), recuperação até 29/11, feriados, janelas fechadas,
                      #   limites do dia em BRT (brt_day_start/brt_day_end), janelas alternativas
                      #   sem o defeso (blackout_alternatives)
 instructions.py      # SERVER_INSTRUCTIONS (≤ 1,5 KB, pt-BR) → FastMCP(instructions=…) no initialize
-formatting.py        # Markdown compartilhado: md_link (só http(s)), agency_label, fmt_int (pt-BR), brt_day,
-                     #   plural, fmt_date (DD/MM/AAAA), error_text (notas de falha)
-readability.py       # Flesch: escala (textstat-en), clamp 0–100, faixas 0/25/50/75, médias null-aware, janela efetiva
+formatting.py        # Markdown compartilhado: md_link (só http(s)), article_ref, agency_label, fmt_int/fmt_decimal
+                     #   (pt-BR), brt_day, plural, fmt_date (DD/MM/AAAA), error_text (notas de falha) e o
+                     #   rodapé "Para explorar" (tool_call, follow_ups ≤ 3 chamadas/400 B, with_follow_ups)
+readability.py       # Flesch: PTBR_SCALE (Martins, padrão) e EN_SCALE (textstat, reserva), choose_scale, clamp 0–100,
+                     #   faixas de Martins 0/25/50/75, médias null-aware pela contagem, janela efetiva
 readability_data.py  # legibilidade por agência via agencyAnalytics (janela pedida/efetiva, agregação)
 theme_data.py        # ThemeRangeCounts (topThemes + analyticsKpis por range móvel), cache 5 min
 data_status.py       # saúde das fontes (ok|degraded|unavailable), detecção dinâmica → Notice;
@@ -172,12 +180,14 @@ prompts/             # 4 prompts: monitor_agency, trace_entity, weekly_digest, d
 
 ## Queries GraphQL
 
-As queries ficam embutidas como constantes `*_QUERY` nos módulos. Toda query é **nomeada e só de leitura**; `tests/test_graphql_contract.py` valida todas contra o snapshot do SDL (`tests/fixtures/schema.graphql`). **Nunca enviar mutation** (nem como sonda). A única query gerada em runtime é a de aliases de contagem da coerência (`counts_query(n)` → `CoherenceCounts`); a forma dela entra no teste de contrato por `_COUNTS_SAMPLE_QUERY`.
+As queries ficam embutidas como constantes `*_QUERY` nos módulos. Campo novo da graphql-api entra com a query nova **e** a antiga (`*_LEGACY_QUERY`, operação com sufixo `Legacy`) via `schema_compat.execute_compatible`, que cai na antiga por 1 h em erro de schema; nos testes, rotear `<Op>Legacy` simula a API antiga. Toda query é **nomeada e só de leitura**; `tests/test_graphql_contract.py` valida todas contra o snapshot do SDL (`tests/fixtures/schema.graphql`). **Nunca enviar mutation** (nem como sonda). A única query gerada em runtime é a de aliases de contagem da coerência (`counts_query(n)` → `CoherenceCounts`); a forma dela entra no teste de contrato por `_COUNTS_SAMPLE_QUERY`.
 
 Gotchas conhecidos do schema atual:
 - Enum de tipo de entidade: `EntityKind` (não `EntityType`)
 - `relatedEntities` e `entityNetwork` usam argumento `id:` (não `entityId:`)
-- `relatedEntities(id, limit)` é **centrado no foco**: só as arestas que tocam `id`, por `weight` desc; `weight` = artigos em co-menção em **todo o acervo**, sem deduplicar republicações. A rede e o perfil usam só ele (`entity_lookup.fetch_related`)
+- `relatedEntities(id, limit)` é **centrado no foco**: só as arestas que tocam `id`; `weight` = artigos em co-menção em **todo o acervo**, sem deduplicar republicações. A rede e o perfil usam só ele (`entity_lookup.fetch_neighbors`). Com o GQL-1: `orderBy: WEIGHT | UNIQUE_CONTENT | LIFT`, `minWeight` (padrão 1) e `articleCount`/`uniqueContentCount`/`uniqueContentWeight`/`lift` (nulos sem `entity_stats`). **Não use só `orderBy: LIFT`**: ele perde os vizinhos fortes (o MEC é o 65º vizinho do Pé-de-Meia por lift); o gobus une os pools `WEIGHT`/`minWeight: 2` e `LIFT`/`minWeight: 3`
+- `ArticleSummary` (`trendingThemes.topArticles`): `url` e `agencyKey` vieram com o GQL-1; `agencyName` traz a key, não o nome
+- Flesch: `ArticleFeatures.readabilityFleschPtbr`, `AgencyPeriodMetrics.avgReadabilityFleschPtbr` + `readabilityFleschPtbrCount` (GQL-1; nulo até o artigo ser recalculado — backfill na migração 033); `readabilityFlesch`/`avgReadabilityFlesch` = fórmula inglesa (legado)
 - `entityNetwork` **não é usado**: devolve todos os nós alcançáveis sem ordem (sem LIMIT) e o `limit` corta as arestas entre **quaisquer** pares por peso, então pares de hubs (Brasil ↔ Brasília) expulsam as arestas do foco
 - `entityCoverage`: `dateTo` exclusivo na prática (`published_at <= dateTo::timestamptz`, data vira 00:00 UTC): mande o último dia + 1 (`calendario.utc_day_bounds`)
 - `RelatedEntity` retorna `canonicalId` (não `entityId`)
@@ -188,7 +198,7 @@ Gotchas conhecidos do schema atual:
 - `trendingThemes`: `TrendingThemeResult { themeLabel themeCode windowCount baselineDailyAvg growthScore topArticles }` — **`baselineDailyAvg`** (não `baseDailyAvg`, nem `baselineCount`); `themeCode` sempre `null`; o baseline **inclui a janela**: converta o limiar do usuário com `analytics.ratios.overlap_growth_threshold` e nunca envie `growthThreshold: 0` (dispara N+1 de `topArticles`)
 - `trendingEntities`: `{ entityId canonicalName type trendingScore volumeRatio windowCount windowAgencies computedAt baselineCount baselineAgencies isNew }` (os três últimos vieram com o GA-1 e são nulos em linha gravada antes da migração 029); o resolver limita a 50 e, desde o GA-1, devolve só a última execução, que ainda pode trazer linhas no piso antigo (ver `data_status.entity_ranking_status`)
 - `features { trendingScore viewCount }` estão nulos em quase todo o acervo; não use como sinal
-- `Article.agencyName` vem `null`: nome de agência só pelo `AgencyCatalog`
+- `Article.agencyName` vem `null` (graphql-api#34) e `ArticleSummary.agencyName` carrega a **key** (use `ArticleSummary.agencyKey`, do GQL-1): nome de agência só pelo `AgencyCatalog`. Para muitas linhas, resolva `catalog_display_names(catalog)` uma vez e monte o rótulo com `formatting.article_agency(art, names)` + `agency_label` (`search_news`, `detect_trends`; gobus-mcp#17)
 - `articles.filter.entityCanonical` (Typesense) não tem a marcação antes de ~20/05/2026 (histórico não reindexado; o Postgres/`entityCoverage` tem). Confira contra o `entityCoverage` antes de afirmar "nenhum artigo"
 - `articles.filter.themes` com as 25 labels L1 estoura o limite de 4000 caracteres da query do Typesense; para contar artigos classificados, some aliases `articles(limit:1, filter:{themeLabel})`
 
@@ -197,7 +207,8 @@ Gotchas conhecidos do schema atual:
 - **Entidades genéricas** (`analytics/generic_entities.py`): só Brasil (`Q155`), Brasília (`Q2844`), Governo Federal (`Q5440531`), Portal Gov.br (`dgb_portal-gov-br`, em revisão) e Diário Oficial da União (`Q3712237`, lift < 1 com Bolsa Família, INSS e MEC em 21/10/2026) ficam ocultas por padrão na rede (`include_generic=true` traz de volta) e nas relacionadas do perfil, sempre listadas numa linha "Ocultas como genéricas". As entidades das agências (`dgb_{code}`: Secretaria-Geral, Fazenda, Casa Civil…) são vizinhos com sentido e ficam visíveis; a exclusão delas é só da coerência (`coherence.excluded_entities`). UFs (inclusive `Q119158`), capitais, QIDs de ministérios e pessoas também continuam. Detalhes em `docs/tools/get-entity-network.md`.
 - **Cópias idênticas:** só o Typesense deduplica (`articles.filter.dedup` agrupa por `content_hash`); o perfil compara `found` com e sem `dedup` desde `data_status.ENTITY_CANONICAL_INDEX_SINCE` (20/05/2026) e só mostra uma linha quando há cópia (conteúdo idêntico é raro: Pé-de-Meia 189 → 189, INSS 371 → 370 em 21/10/2026).
 - **Null ≠ 0:** métrica sem dado vira "indisponível"/`null`, nunca 0.0 nem nota neutra. Médias ignoram nulos (`readability.weighted_metric`).
-- **Flesch:** fórmula inglesa do `textstat` (`FLESCH_SCALE_ID = "flesch_en_textstat"`), limitado a 0–100 com o bruto exibido quando houve clamp; faixas únicas 0/25/50/75.
+- **Flesch:** pt-BR de Martins et al. (1996) (`FLESCH_SCALE_ID = "flesch_ptbr_martins1996"`), limitado a 0–100 com o bruto exibido quando houve clamp; faixas de Martins 0–25 muito difícil · 25–50 difícil · 50–75 fácil · 75–100 muito fácil (chaves `very_hard`/`hard`/`easy`/`very_easy`); meta de serviço 50; mediana real do acervo 25,2 (`PTBR_CORPUS_MEDIAN`, 033 de 22/10/2026), cerca de +5 sobre o inglês (não os +42 da constante de Martins), 2,5% negativos (mín −339) e 3 acima de 100 — por isso clamp na exibição e nas médias exibidas; o rodapé do diagnóstico cita "mediana do acervo ≈ 25". O bruto só aparece quando difere do exibido em uma casa. Médias pela `readabilityFleschPtbrCount`. Sem o pt-BR (API sem o campo, ou pt-BR em < 10% dos artigos com o inglês presente), `choose_scale` usa a fórmula inglesa do `textstat` com o aviso `READABILITY_LEGACY_SCALE`; as escalas nunca se misturam numa média.
+- **Ranking de vizinhos:** `w · max(0, log2 lift)` com `w ≥ 3` (rede e relacionadas do perfil), cabeçalho "**Ranking:**"/"**Ordem:**" dizendo qual valeu; peso bruto quando não há lift. A lista curada de genéricas continua.
 - **Detecção dinâmica:** o estado das fontes é medido na resposta (`data_status`); datas de incidente (`SINCE_HINTS`) só redigem "desde dd/mm".
 - **Janelas:** "últimos N dias" = dias fechados em BRT `[D−N, D−1]` (`calendario.closed_window`); `today`/`now` sempre injetáveis.
 - **Anomalias e forecast (G2):** temas por share-of-voice de `topThemes` + `analyticsKpis` em janelas **móveis** (UTC), com gate de cobertura de classificação na janela e no baseline; entidades por `entityCoverage(DAY)` em janela **fechada** `[D−7, D−1]` (contagens em dias UTC), sem republicadoras, com precedência burst → new_entity → calendar_explained → coordinated_silence → concentrated_coverage → normal. O `volumeRatio` do upstream nunca aparece no Markdown; linhas do piso antigo (`vr/wc ≥ 100`) e de execuções antigas não viram candidatas. Concentrada e silêncio exigem o `min_count` da sensibilidade; abaixo dele a severidade é proporcional ao volume; `calendar_explained` e entidade sem menções próprias têm severidade 0; `burst`, `new_entity` e concentrada/normal com baseline < `min_count` (flag `thin_baseline`) ficam no máximo em `watch` (`SEVERITY_WATCH_MAX`). Linhas do `entityCoverage` da mesma (dia, agência) somam (o resolver agrupa também por nome); o dedup `(period, agencyKey)` é só do `agencyAnalytics` DAY. Na recuperação, só `resumed_after_blackout` (calada no último dia do defeso e de volta depois) explica sinal e conta em `resumed_agencies`; o `resumed` genérico é só informativo no health. No forecast, a razão de uma janela só conta com ≥ 5 artigos do tema (`w + b_prev`). Detalhes em `docs/tools/detect-anomalies.md` e `forecast-trends.md`.
@@ -209,7 +220,7 @@ Gotchas conhecidos do schema atual:
 
 `pytest-asyncio` com `asyncio_mode = "auto"` — não precisa de `@pytest.mark.asyncio` explícito.
 
-`FakeGraphQLClient` (`tests/conftest.py`): em teste novo, use `route(nome_da_operacao, resposta)` — a resposta pode ser dict, exceção ou callable (sync/async) de `variables` — e `calls(nome)` para conferir as variáveis. `route_catalog(client)` registra as 3 operações do catálogo de agências. `set_response`/`set_responses` continuam para testes antigos.
+`FakeGraphQLClient` (`tests/conftest.py`): em teste novo, use `route(nome_da_operacao, resposta)` — a resposta pode ser dict, exceção ou callable (sync/async) de `variables` — e `calls(nome)` para conferir as variáveis. `route_catalog(client)` registra as 3 operações do catálogo de agências. `set_response`/`set_responses` continuam para testes antigos. O `schema_compat.COMPAT` é limpo a cada teste (fixture autouse): para simular a API antiga, roteie a operação nova para um `GobusGraphQLError("Cannot query field …")` e a `<Op>Legacy` para a resposta.
 
 ```python
 async def test_exemplo(fake_client):
@@ -226,6 +237,6 @@ async def test_exemplo(fake_client):
 - **Idioma:** português em docstrings, comentários e mensagens; inglês em identificadores Python e nos enums dos payloads (rótulos PT só em texto).
 - **Commits:** português, prefixos `fix:` / `feature:` / `refactor:` / `chore:` / `test:` / `docs:`; TDD com `test: … (red)` antes de `fix:`/`feature: … (green)`.
 - **Sem Co-Authored-By** nos commits deste repo.
-- Tools retornam Markdown formatado (não JSON) — são consumidas diretamente por LLMs. Artigo citado = título como link `formatting.md_link(título, url)` (`[título](url)`) e o `unique_id` na linha seguinte. **Exceção — tools de app = summary + payload:** as 4 tools de MCP App devolvem o Markdown completo no `content` e, no `structuredContent`, o payload estruturado com o mesmo Markdown em `summary` (primeiro campo, até 6 KB). No Claude Code, que mostra o `structuredContent`, isso custa até ~20 KB (~7k tokens) por chamada; por isso o `summary` vem primeiro e o payload leva só o que o app desenha. As `gobus_dev_preview_*` (só dev) ficam fora da regra e da contagem de tools: devolvem fixtures marcadas "DEV — dados fictícios".
+- Tools retornam Markdown formatado (não JSON) — são consumidas diretamente por LLMs. Artigo citado = título como link `formatting.md_link(título, url)` (`[título](url)`) e o `unique_id` na linha seguinte (em listas compactas, `formatting.article_ref`: `` [título](url) · `id` ``). As tools de texto terminam com o rodapé "Para explorar" (`formatting.with_follow_ups`: ≤ 3 chamadas concretas tiradas do resultado, ≤ 400 B; na coerência, depois do `fit_summary`); **nunca** nas 4 tools de MCP App. **Exceção — tools de app = summary + payload:** as 4 tools de MCP App devolvem o Markdown completo no `content` e, no `structuredContent`, o payload estruturado com o mesmo Markdown em `summary` (primeiro campo, até 6 KB). No Claude Code, que mostra o `structuredContent`, isso custa até ~20 KB (~7k tokens) por chamada; por isso o `summary` vem primeiro e o payload leva só o que o app desenha. As `gobus_dev_preview_*` (só dev) ficam fora da regra e da contagem de tools: devolvem fixtures marcadas "DEV — dados fictícios".
 - **JS dos apps:** só `createElement`/`textContent` (o `render_app` recusa `innerHTML`, `eval`, storage do navegador, URL externa e template literal); limiares e cores vêm do payload, nunca codificados no JS.
 - O repositório é público: nunca versionar IPs, ids de conta ou segredos (redigir como `<IP-CLOUD-SQL>`, `<AWS-ACCOUNT-ID>`).

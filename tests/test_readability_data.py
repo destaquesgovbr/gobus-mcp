@@ -16,12 +16,15 @@ EFFECTIVE_FROM, EFFECTIVE_TO = "2026-04-02", "2026-07-01"
 
 
 def _row(period, key, count, flesch, wc=450.0, name=None):
+    """Linha do ``agencyAnalytics`` com o Flesch pt-BR (GQL-1); o inglês, legado, nulo."""
     return {
         "period": f"{period}-01 00:00:00+00",
         "agencyKey": key,
         "agencyName": name or key,
         "articleCount": count,
-        "avgReadabilityFlesch": flesch,
+        "avgReadabilityFlesch": None,
+        "avgReadabilityFleschPtbr": flesch,
+        "readabilityFleschPtbrCount": count if flesch is not None else 0,
         "avgWordCount": wc if flesch is not None else None,
     }
 

@@ -44,3 +44,9 @@ async def test_instrucoes_citam_so_tools_registradas():
 
     cited = set(re.findall(r"\bgobus_\w+", SERVER_INSTRUCTIONS))
     assert cited <= tools, cited - tools
+
+
+def test_aponta_o_rodape_para_explorar():
+    from gobus_mcp.formatting import FOLLOW_UPS_TITLE
+
+    assert FOLLOW_UPS_TITLE.strip("*:") in SERVER_INSTRUCTIONS

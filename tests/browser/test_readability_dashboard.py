@@ -30,7 +30,9 @@ async def _app_text(run) -> str:
 
 
 async def test_ha_fixtures_dos_estados_principais():
-    assert {"ok", "agency_detail", "shifted", "unavailable", "error", "xss"} <= set(STATES)
+    assert {"ok", "agency_detail", "shifted", "unavailable", "legacy", "error", "xss"} <= set(
+        STATES
+    )
 
 
 @pytest.mark.parametrize("width", [320, 760])
@@ -124,6 +126,23 @@ async def test_indisponivel_mostra_traco_e_aviso_nunca_zero(open_host):
     assert "indisponível" in text.lower()
     assert "0,0" not in text
     assert await run.app.get_by_test_id("notices").count() == 1
+    assert run.problems == []
+
+
+async def test_legenda_diz_a_escala_ptbr(open_host):
+    run, _ = await _open(open_host, "ok")
+
+    scale = await run.app.get_by_test_id("scale").text_content()
+    assert scale.startswith("Flesch pt-BR (Martins")
+    assert "muito fácil" in await run.app.get_by_test_id("legend").text_content()
+    assert run.problems == []
+
+
+async def test_reserva_inglesa_avisa_na_legenda_e_nos_avisos(open_host):
+    run, _ = await _open(open_host, "legacy")
+
+    assert "fórmula inglesa" in await run.app.get_by_test_id("scale").text_content()
+    assert "Flesch pt-BR indisponível" in await run.app.get_by_test_id("notices").text_content()
     assert run.problems == []
 
 

@@ -7,7 +7,7 @@
 
 ## Card inline
 
-- Barras do Flesch (limitado a 0–100) do **top-8** do ranking, coloridas pelas faixas do payload (`bands`), com as metas 30 (institucional) e 50 (serviço) e a faixa-alvo ≥ 50.
+- Barras do Flesch pt-BR (limitado a 0–100) do **top-8** do ranking, coloridas pelas faixas de Martins do payload (`bands`: muito difícil, difícil, fácil, muito fácil), com as metas 30 (institucional) e 50 (serviço) e a faixa-alvo ≥ 50. A legenda mostra a escala (`scaleLabel`); na reserva inglesa (`scaleFallback`), o aviso "Flesch pt-BR indisponível" aparece em `notices`.
 - Chips de cobertura ("Flesch em N de M meses") e de **janela efetiva** ("dados até 06/2026") quando o Flesch parou antes do fim da janela pedida.
 - Agências sem dado aparecem com "—" ("sem dado"), nunca com 0. O valor bruto aparece quando houve clamp: "0,0 (bruto −22,9)".
 - Ações: **Expandir** (fullscreen, se o host oferece) e **Ver último período com dados** (a mesma tool com `date_to` no fim da janela efetiva).
@@ -25,6 +25,8 @@
 | `ok` | janela com Flesch | barras e tabela |
 | `partial` | janela efetiva deslocada ou cobertura parcial | barras da janela efetiva, chip e aviso |
 | `unavailable` | nenhum Flesch no histórico consultado, ou parâmetro inválido | "Legibilidade indisponível" com o motivo, ou a mensagem do parâmetro (ex.: agência fora do catálogo) |
+
+A fixture `legacy` cobre a reserva inglesa (API sem o Flesch pt-BR): legenda "Flesch pela fórmula inglesa do textstat (legado)" e o aviso.
 
 Erro da tool (`isError`), resultado sem `structuredContent`, consulta cancelada e payload de versão desconhecida têm estados próprios.
 

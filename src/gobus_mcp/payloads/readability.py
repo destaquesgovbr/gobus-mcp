@@ -14,6 +14,7 @@ from gobus_mcp.payloads.common import MAX_PAYLOAD_BYTES, Payload, ReportBase, pa
 from gobus_mcp.readability import (
     FLESCH_BANDS,
     FLESCH_SCALE_ID,
+    PTBR_SCALE,
     TARGET_INSTITUTIONAL,
     TARGET_SERVICE,
     FleschBand,
@@ -68,7 +69,7 @@ class AgencyReadabilityRow(Payload):
     article_count: int
     articles_with_data: int
     flesch: float | None  # média dos valores limitados a [0, 100]
-    flesch_raw: float | None  # média bruta (escala inglesa, pode ser negativa)
+    flesch_raw: float | None  # média bruta (pode sair de 0–100)
     band: str | None
     band_label: str | None
     gap_to_target: float | None  # flesch − meta de serviço (50)
@@ -96,7 +97,9 @@ class ReadabilityReport(ReportBase):
     tool: Literal["gobus_get_readability_recommendations"] = "gobus_get_readability_recommendations"
     mode: Literal["ranking", "agency"]
     error: str | None = None  # parâmetro inválido (agência fora do catálogo, data)
-    scale: str = FLESCH_SCALE_ID
+    scale: str = FLESCH_SCALE_ID  # flesch_ptbr_martins1996 | flesch_en_textstat (reserva)
+    scale_label: str = PTBR_SCALE.label
+    scale_fallback: bool = False  # True = sem Flesch pt-BR, valores pela fórmula inglesa
     bands: list[FleschBandInfo]
     target_service: float = TARGET_SERVICE
     target_institutional: float = TARGET_INSTITUTIONAL

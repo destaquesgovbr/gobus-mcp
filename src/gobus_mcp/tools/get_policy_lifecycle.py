@@ -13,10 +13,11 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 
 from gobus_mcp.calendario import reference_date
 from gobus_mcp.client import GobusGraphQLClient
+from gobus_mcp.formatting import FollowUp, md_link, tool_call, with_follow_ups
 from gobus_mcp.readability import period_start
 
 _ENTITY_SEARCH_QUERY = """
@@ -221,6 +222,41 @@ async def _peak_articles(
     return ((data or {}).get("search") or {}).get("articles") or []
 
 
+def _follow_ups(
+    entity_id: str, peak: MonthPoint, articles: list[dict], *, today: date
+) -> list[FollowUp]:
+    """Perfil completo, coerência entre as agências no mês de pico e o artigo do pico.
+
+    A janela da coerência vai do 1º dia do pico até o último dia dele, limitada a D−1: com
+    o pico no mês corrente (parcial), o fim do mês está no futuro e a coerência recusaria
+    a chamada. No dia 1 desse mês não há dia fechado, e a coerência fica de fora."""
+    peak_end = min(_next_month(peak.month) - timedelta(days=1), today - timedelta(days=1))
+    items: list[FollowUp] = [
+        (
+            tool_call("gobus_get_entity_profile", entity_name=entity_id),
+            "série, órgãos e relacionadas",
+        ),
+    ]
+    if peak_end >= peak.month:
+        items.append(
+            (
+                tool_call(
+                    "gobus_get_message_coherence",
+                    entity_id=entity_id,
+                    date_from=peak.month.isoformat(),
+                    date_to=peak_end.isoformat(),
+                ),
+                "sintonia no pico",
+            )
+        )
+    first = next((a for a in articles if a.get("uniqueId")), None)
+    if first is not None:
+        items.append(
+            (tool_call("gobus_get_article", unique_id=first["uniqueId"]), "artigo do pico")
+        )
+    return items
+
+
 async def get_policy_lifecycle(
     policy_name: str,
     client: GobusGraphQLClient,
@@ -349,7 +385,6 @@ async def get_policy_lifecycle(
             title = art.get("title") or "Sem título"
             when = (art.get("publishedAt") or "")[:10]
             agency = art.get("agencyName") or art.get("agency") or ""
-            url = art.get("url") or ""
-            lines.append(f"- [{title}]({url}) — {agency} · {when}")
+            lines.append(f"- {md_link(title, art.get('url'))} — {agency} · {when}")
 
-    return "\n".join(lines)
+    return with_follow_ups("\n".join(lines), _follow_ups(entity_id, peak, articles, today=today))

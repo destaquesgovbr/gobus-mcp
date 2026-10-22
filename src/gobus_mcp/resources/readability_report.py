@@ -1,9 +1,13 @@
 """gobus://readability-report — legibilidade (Flesch) por agência, em JSON.
 
 Agências: as 20 mais ativas dos últimos 90 dias (catálogo, nada de lista fixa).
-Null-aware: agência sem Flesch tem ``avgReadabilityFlesch`` e ``gapToTarget`` nulos (nunca
-0.0). Se o cálculo do Flesch parou antes do fim da janela, os valores vêm da **janela
-efetiva** (mesmo tamanho, até o último mês com dado), com ``windowShifted`` e ``note``.
+Escala (``scale``/``scaleLabel``): Flesch pt-BR (Martins et al., 1996) com as faixas de
+Martins; sem ele, a fórmula inglesa (legado), com ``scaleFallback: true`` e o aviso em
+``notices``. ``schemaVersion`` 3: ``flesch``/``fleschRaw`` (antes ``avgReadabilityFlesch``/
+``avgReadabilityFleschRaw``, nomes da escala inglesa) e ``band`` com as chaves de Martins.
+Null-aware: agência sem Flesch tem ``flesch`` e ``gapToTarget`` nulos (nunca 0.0). Se o
+cálculo do Flesch parou antes do fim da janela, os valores vêm da **janela efetiva**
+(mesmo tamanho, até o último mês com dado), com ``windowShifted`` e ``note``.
 """
 
 from __future__ import annotations
@@ -15,10 +19,10 @@ from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.calendario import closed_window, reference_date
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.payloads.readability import DayRange, flesch_bands
-from gobus_mcp.readability import FLESCH_SCALE_ID, TARGET_SERVICE, flesch_band
+from gobus_mcp.readability import TARGET_SERVICE, flesch_band, legacy_scale_notice
 from gobus_mcp.readability_data import AgencyReadability, load_agency_readability, rank_agencies
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 WINDOW_DAYS = 90
 AGENCY_LIMIT = 20
 
@@ -32,8 +36,8 @@ def _agency(item: AgencyReadability) -> dict:
         "isRepublisher": item.is_republisher,
         "articleCount": item.article_count,
         "articlesWithData": item.articles_with_data,
-        "avgReadabilityFlesch": None if value is None else round(value, 2),
-        "avgReadabilityFleschRaw": None if raw is None else round(raw, 2),
+        "flesch": None if value is None else round(value, 2),
+        "fleschRaw": None if raw is None else round(raw, 2),
         "band": band.key if band else None,
         "gapToTarget": None if value is None else round(value - TARGET_SERVICE, 2),
         "avgWordCount": None if item.avg_word_count is None else round(item.avg_word_count, 1),
@@ -46,7 +50,7 @@ async def fetch_readability_report(
     catalog: AgencyCatalog | None = None,
     today: date | None = None,
 ) -> str:
-    """JSON (``schemaVersion`` 2) com a legibilidade por agência e a janela efetiva."""
+    """JSON (``schemaVersion`` 3) com a legibilidade por agência e a janela efetiva."""
     catalog = catalog or AgencyCatalog(client)
     today = today or reference_date()
     requested = closed_window(WINDOW_DAYS, today)
@@ -55,12 +59,15 @@ async def fetch_readability_report(
     with_data, without = rank_agencies(items)
     effective = window.effective.effective
     coverage = window.coverage
+    legacy = legacy_scale_notice(window.scale)
 
     result = {
         "schemaVersion": SCHEMA_VERSION,
         "generatedAt": datetime.now(UTC).isoformat(),
         "referenceDate": today.isoformat(),
-        "scale": FLESCH_SCALE_ID,
+        "scale": window.scale.id,
+        "scaleLabel": window.scale.label,
+        "scaleFallback": window.scale.legacy,
         "targetFlesch": int(TARGET_SERVICE),
         "bands": [b.model_dump(mode="json") for b in flesch_bands()],
         "requestedWindow": DayRange.of(requested).model_dump(mode="json"),
@@ -75,6 +82,7 @@ async def fetch_readability_report(
             "lastPeriodWithData": coverage.last_period_with_data,
         },
         "dataStatus": [window.data_status.model_dump(mode="json")],
+        "notices": [legacy.model_dump(mode="json")] if legacy else [],
         "agencies": [_agency(a) for a in [*with_data, *without]],
     }
     return json.dumps(result, ensure_ascii=False, indent=2)

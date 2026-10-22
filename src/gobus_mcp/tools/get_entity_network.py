@@ -5,13 +5,14 @@ Não usa o ``entityNetwork``: ele devolve todos os nós alcançáveis, sem ordem
 Brasília) expulsam as arestas do foco. O ``relatedEntities`` traz só as arestas que tocam o
 foco, por peso decrescente.
 
-- **depth=1:** vizinhos diretos por peso (artigos em co-menção em todo o acervo, sem
-  deduplicar republicações), sem as entidades genéricas da lista curada
+- **depth=1:** vizinhos diretos por associação (``entity_lookup.fetch_neighbors``: artigos
+  em co-menção em todo o acervo × log2 do lift, com o peso bruto de reserva quando a API
+  não traz o lift), sem as entidades genéricas da lista curada
   (``include_generic`` as traz de volta; as entidades das agências, ``dgb_{code}``, ficam
   visíveis) e filtrados por ``node_types``; os lugares (LOC) vão para uma linha à parte, com
   teto de 5, salvo quando ``node_types`` pede LOC.
-- **depth=2:** além disso, expande em paralelo os 5 vizinhos mais fortes da lista (top 25
-  de cada) e mostra, por vizinho, até 5 entidades novas (sem o foco, as genéricas e os
+- **depth=2:** além disso, expande em paralelo os 5 primeiros da lista (os 25 de maior
+  peso de cada, reordenados pela associação) e mostra, por vizinho, até 5 entidades novas (sem o foco, as genéricas e os
   vizinhos diretos), mais as "pontes": entidades alcançadas por 2+ vizinhos. Um vizinho
   que falha vira nota; os demais seguem.
 """
@@ -19,13 +20,27 @@ foco, por peso decrescente.
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Sequence
 
 from gobus_mcp.analytics.generic_entities import generic_ids, split_generic
 from gobus_mcp.cache import TTLCache
 from gobus_mcp.client import GobusGraphQLClient
-from gobus_mcp.entity_lookup import display_name, fetch_entity, fetch_related
-from gobus_mcp.formatting import error_text, fmt_int
+from gobus_mcp.entity_lookup import (
+    association_text,
+    display_name,
+    fetch_entity,
+    fetch_neighbors,
+    ranking_label,
+)
+from gobus_mcp.formatting import (
+    FollowUp,
+    error_text,
+    fmt_decimal,
+    fmt_int,
+    tool_call,
+    with_follow_ups,
+)
 
 MAX_LIMIT = 200
 MAX_PLACES = 5
@@ -53,7 +68,9 @@ def _parse_types(node_types: str) -> frozenset[str] | None:
 
 
 def _item(row: dict) -> str:
-    return f"{display_name(row)} ({fmt_int(_weight(row))}, `{row['canonicalId']}`)"
+    lift = row.get("lift")
+    extra = f" · {fmt_decimal(lift)}×" if lift is not None else ""
+    return f"{display_name(row)} ({fmt_int(_weight(row))}{extra}, `{row['canonicalId']}`)"
 
 
 def _hidden_line(hidden: Sequence[dict]) -> str:
@@ -76,14 +93,19 @@ async def _second_hop(
     cache: TTLCache | None,
 ) -> list[str]:
     results = await asyncio.gather(
-        *(fetch_related(client, s["canonicalId"], SECOND_HOP_LIMIT, cache=cache) for s in seeds),
+        *(
+            fetch_neighbors(
+                client, s["canonicalId"], SECOND_HOP_LIMIT, lift_pool=False, cache=cache
+            )
+            for s in seeds
+        ),
         return_exceptions=True,
     )
     lines = [
-        f"\n## Segundo grau (via os {len(seeds)} vizinhos mais fortes)",
+        f"\n## Segundo grau (via os {len(seeds)} primeiros vizinhos)",
         f"Até {SECOND_HOP_SHOWN} entidades novas por vizinho, entre os {SECOND_HOP_LIMIT} "
-        "vizinhos mais fortes dele (sem o foco, as genéricas e os vizinhos diretos); peso = "
-        "artigos em co-menção com o vizinho.\n",
+        "vizinhos de maior peso dele, na mesma ordem da lista (sem o foco, as genéricas e os "
+        "vizinhos diretos); peso = artigos em co-menção com o vizinho (· lift).\n",
     ]
     notes: list[str] = []
     reached: dict[str, tuple[dict, list[str], int]] = {}  # id → (linha, via, Σ pesos)
@@ -94,7 +116,7 @@ async def _second_hop(
             continue
         fresh = [
             r
-            for r in result
+            for r in result.rows
             if r["canonicalId"] not in exclude and (allowed is None or _type(r) in allowed)
         ]
         for row in fresh:
@@ -125,6 +147,35 @@ async def _second_hop(
     return lines
 
 
+def _plain_name(name: str) -> str:
+    """Nome sem o parêntese final (``"Ministério da Educação (MEC)"`` → sem a sigla), para
+    a busca por palavras."""
+    return re.sub(r"\s*\([^)]*\)\s*$", "", name).strip() or name
+
+
+def _follow_ups(entity_id: str, title: str, depth: int, ranked: Sequence[dict]) -> list[FollowUp]:
+    """Perfil do foco, rede do 1º vizinho e, em depth=1, o segundo grau; em depth=2, os
+    artigos que citam o foco e o 1º vizinho."""
+    items: list[FollowUp] = [
+        (tool_call("gobus_get_entity_profile", entity_name=entity_id), "série e órgãos do foco")
+    ]
+    first = ranked[0] if ranked else None
+    if first is not None:
+        call = tool_call("gobus_get_entity_network", entity_id=first["canonicalId"])
+        items.append((call, f"a rede de {display_name(first)}"))
+    if depth == 1:
+        items.append(
+            (
+                tool_call("gobus_get_entity_network", entity_id=entity_id, depth=2),
+                "segundo grau e pontes",
+            )
+        )
+    elif first is not None:
+        query = f"{_plain_name(title)} {_plain_name(display_name(first))}"
+        items.append((tool_call("gobus_search_news", query=query), "artigos que citam os dois"))
+    return items
+
+
 async def get_entity_network(
     entity_id: str,
     client: GobusGraphQLClient,
@@ -147,17 +198,18 @@ async def get_entity_network(
     max_nodes = max(1, max_nodes)
     allowed = _parse_types(node_types)
 
-    node_r, related_r = await asyncio.gather(
+    node_r, neighbors = await asyncio.gather(
         fetch_entity(client, entity_id, cache=cache),
-        fetch_related(client, entity_id, limit, cache=cache),
+        fetch_neighbors(client, entity_id, limit, cache=cache),
         return_exceptions=True,
     )
-    if isinstance(related_r, BaseException):
+    if isinstance(neighbors, BaseException):
         return (
             f"Rede de `{entity_id}` indisponível: falha ao buscar os vizinhos "
-            f"({error_text(related_r)})."
+            f"({error_text(neighbors)})."
         )
     node = None if isinstance(node_r, BaseException) else node_r
+    related_r = neighbors.rows
     if not related_r:
         return f"Nenhuma rede encontrada para: `{entity_id}`"
     hide = frozenset() if include_generic else generic_ids()
@@ -170,7 +222,7 @@ async def get_entity_network(
         ranked_all, places_all = visible, []
     ranked = ranked_all[:max_nodes]
     places = places_all[:MAX_PLACES]
-    truncated = len(related_r) >= limit
+    truncated = neighbors.truncated
 
     title = display_name(node) if node else entity_id
     kind = (node or {}).get("type")
@@ -180,6 +232,7 @@ async def get_entity_network(
         f"\n`{entity_id}` · Mostrando {len(ranked) + len(places)} de {total} vizinhos "
         f"diretos ({WEIGHT_NOTE})"
     )
+    lines.append(f"**Ranking:** {ranking_label(neighbors)}")
     if allowed is not None:
         lines.append(f"Tipos: {', '.join(sorted(allowed))}")
 
@@ -191,14 +244,14 @@ async def get_entity_network(
         hint = "" if limit == MAX_LIMIT else f" Aumente `limit` (máx {MAX_LIMIT})."
         notes.append(
             f"> O limite de {limit} vizinhos{cap} foi atingido: há mais vizinhos, todos com "
-            f"peso ≤ {fmt_int(_weight(related_r[-1]))}.{hint}"
+            f"peso ≤ {fmt_int(neighbors.floor_weight or 0)}.{hint}"
         )
 
     lines.append("\n## Vizinhos diretos")
     for position, row in enumerate(ranked, 1):
         lines.append(
             f"{position}. **{display_name(row)}** ({_type(row) or '?'}) · "
-            f"{fmt_int(_weight(row))} artigos em co-menção · `{row['canonicalId']}`"
+            f"{association_text(row)} · `{row['canonicalId']}`"
         )
     if len(ranked_all) > len(ranked):
         lines.append(f"… +{len(ranked_all) - len(ranked)} vizinhos (aumente `max_nodes`)")
@@ -221,4 +274,4 @@ async def get_entity_network(
     if depth == 2 and seeds:
         exclude = frozenset(r["canonicalId"] for r in related_r) | hide | {entity_id}
         lines.extend(await _second_hop(client, seeds, exclude, allowed, cache))
-    return "\n".join(lines)
+    return with_follow_ups("\n".join(lines), _follow_ups(entity_id, title, depth, ranked))

@@ -65,7 +65,7 @@ async def test_pe_de_meia_depth2_em_ate_3s(live):
     print(markdown)
 
     assert elapsed <= 3.0
-    assert "## Segundo grau (via os 5 vizinhos mais fortes)" in markdown
+    assert "## Segundo grau (via os 5 primeiros vizinhos)" in markdown
     assert "Não foi possível expandir" not in markdown
     assert len(markdown.encode()) <= 8_192
 
