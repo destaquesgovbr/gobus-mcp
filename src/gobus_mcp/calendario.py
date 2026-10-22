@@ -98,20 +98,24 @@ CLASSIFIER_CUTOFF: date | None = date(2026, 9, 25)
 # TAXONOMY_CHANGED.
 #
 # PROVISÓRIA: 23/10/2026 até a D0 real (prevista para 10/11/2026, go/no-go em 09/11).
-# Ajuste TAXONOMY_CHANGE_2026_DEFAULT antes do merge do PR-D, ou defina
-# GOBUS_TAXONOMY_CHANGE_DATE (AAAA-MM-DD; "off" desliga) sem mexer no código.
-TAXONOMY_CHANGE_2026_DEFAULT = date(2026, 10, 23)
+# Em produção a data vem SÓ desta constante: o Terraform (infra/terraform/gobus-mcp.tf) não
+# declara GOBUS_TAXONOMY_CHANGE_DATE, e env var no Cloud Run é gerida só pelo Terraform.
+# Ajustar a D0 = mudar a constante (PR → merge → deploy automático); desligar só o aviso =
+# TAXONOMY_CHANGE_2026_DEFAULT = None. A env var (AAAA-MM-DD; "off" desliga) serve para
+# simular a virada localmente; usá-la em produção exige antes um PR no infra.
+TAXONOMY_CHANGE_2026_DEFAULT: date | None = date(2026, 10, 23)
 _TAXONOMY_OFF = frozenset({"off", "none", "desligado", "0", "false"})
 
 
 def parse_taxonomy_change(
-    value: str | None, default: date = TAXONOMY_CHANGE_2026_DEFAULT
+    value: str | None, default: date | None = TAXONOMY_CHANGE_2026_DEFAULT
 ) -> date | None:
     """Data da virada a partir do texto da configuração; nunca levanta.
 
     Vazio → ``default``; ``off``/``none``/``desligado`` → ``None`` (aviso desligado);
     AAAA-MM-DD → a data; qualquer outra coisa → ``default`` com um warning no log (o
-    servidor não pode cair no import por uma variável mal escrita)."""
+    servidor não pode cair no import por uma variável mal escrita). ``default=None`` é o
+    aviso desligado pelo código."""
     text = (value or "").strip()
     if not text:
         return default
@@ -125,7 +129,7 @@ def parse_taxonomy_change(
     logger.warning(
         "GOBUS_TAXONOMY_CHANGE_DATE=%r inválida (use AAAA-MM-DD ou off); usando %s",
         text,
-        default.isoformat(),
+        default.isoformat() if default else "off",
     )
     return default
 
