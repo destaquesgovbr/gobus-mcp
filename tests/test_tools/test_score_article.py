@@ -405,3 +405,80 @@ async def test_api_sem_ptbr_usa_as_queries_antigas(fake_client):
     assert report.article.flesch == 40.0
     assert report.benchmark.median_flesch == 30.0
     assert fake_client.calls("ScoreArticleBenchmark") == []
+
+
+# ── compare_with: os dois artigos na mesma escala ──────────────────────────
+
+
+def _other(*, flesch, english, uid="b2"):
+    art = _article(flesch=flesch, english=english, agency="saude", agency_name="saude")["article"]
+    return {**art, "uniqueId": uid, "title": "Portaria regulamenta repasses"}
+
+
+def _readability(dims) -> float | None:
+    return next(d.score for d in dims if d.key == "readability")
+
+
+async def test_compare_com_os_dois_em_ptbr_fica_no_ptbr(fake_client):
+    main = _article(flesch=15.0, english=45.0)["article"]
+    _route_two(fake_client, {"a1": main, "b2": _other(flesch=20.0, english=50.0)})
+
+    report = await build_score_payload(fake_client, "a1", compare_with="b2", now=NOW)
+
+    assert report.scale == report.comparison.scale == "flesch_ptbr_martins1996"
+    assert report.scale_fallback is False and report.comparison.scale_fallback is False
+    assert (report.article.flesch, report.comparison.article.flesch) == (15.0, 20.0)
+    assert "READABILITY_LEGACY_SCALE" not in [n.code for n in report.notices]
+
+
+async def test_compare_com_um_so_no_ingles_poe_os_dois_no_ingles_com_aviso(fake_client):
+    # artigo novo (pt-BR 15 → nota 3) contra um antigo só com o inglês (45 → nota 9): lado a
+    # lado em escalas diferentes, o antigo pareceria 3× mais legível
+    main = _article(flesch=15.0, english=45.0)["article"]
+    _route_two(
+        fake_client,
+        {"a1": main, "b2": _other(flesch=None, english=45.0)},
+        ag=_sample(12, flesch=18.0, english=40.0),
+    )
+
+    report = await build_score_payload(fake_client, "a1", compare_with="b2", now=NOW)
+
+    assert report.scale == report.comparison.scale == "flesch_en_textstat"
+    assert report.scale_fallback is True and report.comparison.scale_fallback is True
+    assert (report.article.flesch, report.comparison.article.flesch) == (45.0, 45.0)
+    assert _readability(report.dimensions) == _readability(report.comparison.dimensions) == 9.0
+    assert report.benchmark.median_flesch == 40.0  # o benchmark acompanha a escala comum
+    legacy = [n for n in report.notices if n.code == "READABILITY_LEGACY_SCALE"]
+    assert len(legacy) == 1 and "comparado" in legacy[0].message
+    md = render_score_markdown(report)
+    assert "Flesch inglês, legado 45.0" in md
+    data = report.model_dump(mode="json")
+    assert data["comparison"]["scale"] == "flesch_en_textstat"
+    assert data["comparison"]["scaleFallback"] is True
+
+
+async def test_compare_sem_escala_comum_marca_cada_lado_e_avisa(fake_client):
+    # só pt-BR de um lado e só o inglês do outro: não há escala comum
+    main = _article(flesch=15.0, english=None)["article"]
+    _route_two(fake_client, {"a1": main, "b2": _other(flesch=None, english=45.0)})
+
+    report = await build_score_payload(fake_client, "a1", compare_with="b2", now=NOW)
+
+    assert report.scale == "flesch_ptbr_martins1996" and report.scale_fallback is False
+    assert report.comparison.scale == "flesch_en_textstat"
+    assert report.comparison.scale_fallback is True
+    legacy = [n for n in report.notices if n.code == "READABILITY_LEGACY_SCALE"]
+    assert len(legacy) == 1 and "não é comparável" in legacy[0].message
+    md = render_score_markdown(report)
+    assert "| Flesch | Flesch pt-BR 15.0 (muito difícil) | Flesch inglês, legado 45.0" in md
+
+
+async def test_compare_com_o_outro_sem_flesch_mantem_o_ptbr(fake_client):
+    main = _article(flesch=15.0, english=45.0)["article"]
+    _route_two(fake_client, {"a1": main, "b2": _other(flesch=None, english=None)})
+
+    report = await build_score_payload(fake_client, "a1", compare_with="b2", now=NOW)
+
+    assert report.scale == "flesch_ptbr_martins1996"
+    assert report.comparison.score_status == "refused"
+    assert "READABILITY_LEGACY_SCALE" not in [n.code for n in report.notices]
