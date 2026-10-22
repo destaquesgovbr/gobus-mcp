@@ -334,7 +334,7 @@ CODE_D0 = TAXONOMY_CHANGE_2026_DEFAULT
 def test_virada_da_taxonomia_provisoria_e_configuravel():
     # Pin da data do código, provisória até a D0 real: no dia, mudar a constante em
     # calendario.py e esta linha (o resto da suíte injeta a data ou lê a constante).
-    assert TAXONOMY_CHANGE_2026_DEFAULT == D(2026, 10, 23)
+    assert TAXONOMY_CHANGE_2026_DEFAULT == D(2026, 10, 22)
     # GOBUS_TAXONOMY_CHANGE_DATE sobrepõe a constante (sem a variável, vale a do código)
     assert TAXONOMY_CHANGE_2026 == parse_taxonomy_change(settings.taxonomy_change_date)
 

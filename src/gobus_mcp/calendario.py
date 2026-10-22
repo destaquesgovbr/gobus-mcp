@@ -97,15 +97,15 @@ CLASSIFIER_CUTOFF: date | None = date(2026, 9, 25)
 # desses temas mudam de patamar na D0: comparação cujo baseline cruza a data recebe o aviso
 # TAXONOMY_CHANGED.
 #
-# PROVISÓRIA: 23/10/2026 até a D0 real (o dia em que a 034 for aplicada). No dia, mudar
-# esta constante e o pin test_virada_da_taxonomia_provisoria_e_configuravel, em
-# tests/test_calendario.py (nada mais na suíte), antes do merge do PR-D.
+# D0 real: 22/10/2026 (UTC), o dia em que a migração 034 foi aplicada em produção. Mudar a
+# data exige mudar junto o pin test_virada_da_taxonomia_provisoria_e_configuravel, em
+# tests/test_calendario.py (nada mais na suíte).
 # Em produção a data vem SÓ desta constante: o Terraform (infra/terraform/gobus-mcp.tf) não
 # declara GOBUS_TAXONOMY_CHANGE_DATE, e env var no Cloud Run é gerida só pelo Terraform.
 # Ajustar a D0 = mudar a constante (PR → merge → deploy automático); desligar só o aviso =
 # TAXONOMY_CHANGE_2026_DEFAULT = None. A env var (AAAA-MM-DD; "off" desliga) serve para
 # simular a virada localmente; usá-la em produção exige antes um PR no infra.
-TAXONOMY_CHANGE_2026_DEFAULT: date | None = date(2026, 10, 23)
+TAXONOMY_CHANGE_2026_DEFAULT: date | None = date(2026, 10, 22)
 _TAXONOMY_OFF = frozenset({"off", "none", "desligado", "0", "false"})
 
 
