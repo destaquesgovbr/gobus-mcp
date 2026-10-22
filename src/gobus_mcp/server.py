@@ -209,7 +209,7 @@ async def gobus_get_entity_profile(
     anos anteriores somados), as agências que mais publicaram, uma linha com as
     cópias idênticas entre agências só quando houver (índice de busca, desde 20/05/2026) e
     as entidades relacionadas por co-menção em todo o acervo, sem as genéricas (Brasil,
-    Brasília, Governo Federal, Portal Gov.br).
+    Brasília, Governo Federal, Portal Gov.br, Diário Oficial da União).
 
     Dica: execute em paralelo com gobus_get_entity_network. Use summary_only=True para um
     overview rápido.
@@ -248,7 +248,8 @@ async def gobus_get_entity_network(
     - node_types: tipos separados por vírgula (ex: "PER,ORG"); com LOC, os lugares entram
       na lista em vez da linha "Lugares" (máx 5)
     - include_generic: mostra as entidades genéricas, ocultas por padrão (Brasil, Brasília,
-      Governo Federal e Portal Gov.br); ministérios e secretarias sempre aparecem
+      Governo Federal, Portal Gov.br e Diário Oficial da União); ministérios e secretarias
+      sempre aparecem
 
     Retorna: Markdown com os vizinhos ranqueados por peso (artigos em co-menção com o foco em
     todo o acervo, inclui republicações), cabeçalho "Mostrando X de Y vizinhos diretos", a

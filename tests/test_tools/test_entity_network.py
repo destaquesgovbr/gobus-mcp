@@ -193,8 +193,9 @@ async def test_depth2_dou_nao_vira_ponte(fake_client):
     _route(fake_client, related=related)
     text = await get_entity_network(FOCUS, fake_client, depth=2)
 
-    assert "Diário Oficial" not in _line(text, "**Pontes**")
-    assert "Diário Oficial" not in _line(text, "- via **Inep** (295):")
+    assert "Diário Oficial da União (DOU)" not in _line(text, "**Pontes**")
+    via = [line for line in text.splitlines() if line.startswith("- via **")]
+    assert via and not any("`Q3712237`" in line for line in via)
 
 
 async def test_include_generic_mostra_as_genericas(fake_client):

@@ -41,7 +41,7 @@ Quando há cópia, o perfil ganha **uma linha** logo abaixo do cabeçalho: "16 c
 
 ### Entidades relacionadas
 
-As 8 mais fortes por co-menção, **em todo o acervo** (os pesos não respeitam o período), sem as [entidades genéricas](get-entity-network.md#entidades-genericas) (Brasil, Brasília, Governo Federal e Portal Gov.br), que aparecem numa linha "Ocultas como genéricas" (para vê-las na lista, use [get_entity_network](get-entity-network.md) com `include_generic=true`). Ministérios e secretarias, inclusive as entidades das próprias agências (`dgb_{código}`), continuam na lista.
+As 8 mais fortes por co-menção, **em todo o acervo** (os pesos não respeitam o período), sem as [entidades genéricas](get-entity-network.md#entidades-genericas) (Brasil, Brasília, Governo Federal, Portal Gov.br e Diário Oficial da União), que aparecem numa linha "Ocultas como genéricas" (para vê-las na lista, use [get_entity_network](get-entity-network.md) com `include_generic=true`). Ministérios e secretarias, inclusive as entidades das próprias agências (`dgb_{código}`), continuam na lista.
 
 ## Retorno
 
