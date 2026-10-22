@@ -112,13 +112,16 @@ server.py            # entrypoint FastMCP — registra tools/resources/prompts; 
 config.py            # Settings (pydantic-settings, prefixo GOBUS_)
 client.py            # GobusGraphQLClient — wrapper httpx; lança GobusGraphQLError em errors[]
 cache.py             # TTLCache assíncrono, single-flight, relógio injetável
-agency_catalog.py    # AgencyCatalog: nomes, republicadoras, validate (aliases curados + difflib), active()
+agency_catalog.py    # AgencyCatalog: nomes, republicadoras, validate (aliases curados + difflib), active();
+                     #   catalog_info() → CatalogInfo (republicadoras + códigos, nunca levanta)
 agency_activity.py   # snapshot agencyAnalytics DAY de todas as agências (cache 6 h): silenciadas, retomadas, platform_daily
+entity_lookup.py     # looks_like_id, entity(id), relatedEntities ordenado (cache 30 min)
 domains.py           # 7 domínios de policies.domain + OTHER, aliases PT, mapas curados de tema e agência
 calendario.py        # BRT, defeso 2026 (04/07–25/10), recuperação até 29/11, feriados, janelas fechadas,
                      #   limites do dia em BRT (brt_day_start/brt_day_end)
 instructions.py      # SERVER_INSTRUCTIONS (≤ 1,5 KB, pt-BR) → FastMCP(instructions=…) no initialize
-formatting.py        # Markdown compartilhado: md_link (só http(s)), agency_label, fmt_int (pt-BR), brt_day
+formatting.py        # Markdown compartilhado: md_link (só http(s)), agency_label, fmt_int (pt-BR), brt_day,
+                     #   plural, fmt_date (DD/MM/AAAA), error_text (notas de falha)
 readability.py       # Flesch: escala (textstat-en), clamp 0–100, faixas 0/25/50/75, médias null-aware, janela efetiva
 readability_data.py  # legibilidade por agência via agencyAnalytics (janela pedida/efetiva, agregação)
 theme_data.py        # ThemeRangeCounts (topThemes + analyticsKpis por range móvel), cache 5 min
@@ -136,6 +139,8 @@ ui/                  # MCP Apps (SEP-1865): render_app (HTML único, estático, 
 analytics/           # funções puras: ratios (Laplace, share-of-voice, severidade/faixa), weekday
                      #   (perfil de dia útil, feriados, nível por fase), themes, entities, forecast,
                      #   coherence (E/T/F/S e índice 1–5), framing (léxico pt-BR de enquadramento),
+                     #   generic_entities (lista curada de genéricas), profile (série
+                     #   mensal do perfil: próprias × republicações, zeros, parcial, anos agregados),
                      #   render (Markdown a partir dos modelos; max_bytes=None = completo)
 tools/               # 14 tools (funções async puras, recebem client/catalog como arg);
                      #   detect_anomalies/forecast_trends: build_*_output → (payload compacto,
@@ -171,6 +176,9 @@ As queries ficam embutidas como constantes `*_QUERY` nos módulos. Toda query é
 Gotchas conhecidos do schema atual:
 - Enum de tipo de entidade: `EntityKind` (não `EntityType`)
 - `relatedEntities` e `entityNetwork` usam argumento `id:` (não `entityId:`)
+- `relatedEntities(id, limit)` é **centrado no foco**: só as arestas que tocam `id`, por `weight` desc; `weight` = artigos em co-menção em **todo o acervo**, sem deduplicar republicações. A rede e o perfil usam só ele (`entity_lookup.fetch_related`)
+- `entityNetwork` **não é usado**: devolve todos os nós alcançáveis sem ordem (sem LIMIT) e o `limit` corta as arestas entre **quaisquer** pares por peso, então pares de hubs (Brasil ↔ Brasília) expulsam as arestas do foco
+- `entityCoverage`: `dateTo` exclusivo na prática (`published_at <= dateTo::timestamptz`, data vira 00:00 UTC): mande o último dia + 1 (`calendario.utc_day_bounds`)
 - `RelatedEntity` retorna `canonicalId` (não `entityId`)
 - Agências: `agencies { code label isRepublisher }` — `label == code` (156/156); o nome humano vem de `agencyAnalytics.agencyName` (use o `AgencyCatalog`)
 - `agencyAnalytics`: datas devem ser `datetime.date` no lado da graphql-api (strings ISO são rejeitadas pelo asyncpg); `metrics:` é ignorado pelo resolver. **`dateTo` depende da granularidade:** `DAY` é inclusivo (`published_at::date BETWEEN`); `MONTH`/`WEEK` é exclusivo na prática (`published_at BETWEEN …::timestamptz`, e o asyncpg converte a data em 00:00). Monte as datas com `calendario.agency_analytics_bounds(r, granularity)`
@@ -185,6 +193,8 @@ Gotchas conhecidos do schema atual:
 
 ## Dados (estado e convenções)
 
+- **Entidades genéricas** (`analytics/generic_entities.py`): só Brasil (`Q155`), Brasília (`Q2844`), Governo Federal (`Q5440531`) e Portal Gov.br (`dgb_portal-gov-br`, em revisão) ficam ocultas por padrão na rede (`include_generic=true` traz de volta) e nas relacionadas do perfil, sempre listadas numa linha "Ocultas como genéricas". As entidades das agências (`dgb_{code}`: Secretaria-Geral, Fazenda, Casa Civil…) são vizinhos com sentido e ficam visíveis; a exclusão delas é só da coerência (`coherence.excluded_entities`). UFs (inclusive `Q119158`), capitais, QIDs de ministérios e pessoas também continuam. Detalhes em `docs/tools/get-entity-network.md`.
+- **Cópias idênticas:** só o Typesense deduplica (`articles.filter.dedup` agrupa por `content_hash`); o perfil compara `found` com e sem `dedup` desde `data_status.ENTITY_CANONICAL_INDEX_SINCE` (20/05/2026) e só mostra uma linha quando há cópia (conteúdo idêntico é raro: Pé-de-Meia 189 → 189, INSS 371 → 370 em 21/10/2026).
 - **Null ≠ 0:** métrica sem dado vira "indisponível"/`null`, nunca 0.0 nem nota neutra. Médias ignoram nulos (`readability.weighted_metric`).
 - **Flesch:** fórmula inglesa do `textstat` (`FLESCH_SCALE_ID = "flesch_en_textstat"`), limitado a 0–100 com o bruto exibido quando houve clamp; faixas únicas 0/25/50/75.
 - **Detecção dinâmica:** o estado das fontes é medido na resposta (`data_status`); datas de incidente (`SINCE_HINTS`) só redigem "desde dd/mm".

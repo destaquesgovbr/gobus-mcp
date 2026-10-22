@@ -179,6 +179,79 @@ async def test_message_coherence_usa_o_catalogo_do_conteiner(deps):
     assert not deps.client.calls("CoherenceArticles")
 
 
+async def test_entity_network_documenta_rede_centrada_e_genericas():
+    async with Client(server.mcp) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+
+    tool = tools["gobus_get_entity_network"]
+    assert "include_generic" in tool.inputSchema["properties"]
+    description = tool.description or ""
+    assert "centenas de nós" not in description
+    for text in ("vizinhos considerados", "máx 200", "co-menção", "include_generic",
+                 "Brasil", "Brasília", "Governo Federal", "Portal Gov.br"):  # fmt: skip
+        assert text in description, text
+    assert "dgb_{" not in description  # entidades das agências não são genéricas
+
+
+async def test_entity_network_usa_o_cache_do_conteiner(deps):
+    deps.client.route("EntityNode", {"entity": {"entityId": "Q1", "canonicalName": "Foco"}})
+    deps.client.route(
+        "RelatedEntities",
+        {
+            "relatedEntities": [
+                {"canonicalId": "Q2", "canonicalName": "Vizinha", "type": "ORG", "weight": 9},
+                {"canonicalId": "dgb_saude", "canonicalName": "Min. Saúde", "type": "ORG",
+                 "weight": 5},
+            ]
+        },
+    )  # fmt: skip
+
+    async with Client(server.mcp) as client:
+        first = await client.call_tool_mcp("gobus_get_entity_network", {"entity_id": "Q1"})
+        await client.call_tool_mcp("gobus_get_entity_network", {"entity_id": "Q1"})
+
+    text = first.content[0].text
+    assert "1. **Vizinha**" in text
+    assert "2. **Min. Saúde**" in text  # entidade da agência: vizinho comum
+    assert len(deps.client.calls("RelatedEntities")) == 1  # cache do contêiner
+
+
+async def test_entity_profile_documenta_id_serie_copias_e_relacionadas():
+    async with Client(server.mcp) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+
+    description = tools["gobus_get_entity_profile"].description or ""
+    for text in ("dgb_", "republicações", "cópias idênticas", "20/05/2026", "todo o acervo",
+                 "genéricas", "inclusiv"):  # fmt: skip
+        assert text in description, text
+
+
+async def test_entity_profile_usa_catalogo_do_conteiner(deps):
+    route_catalog(deps.client)
+    deps.client.route("EntityNode", {"entity": {"entityId": "Q1", "canonicalName": "Foco"}})
+    deps.client.route(
+        "EntityCoverage",
+        {"entityCoverage": [
+            {"period": "2026-09-01 00:00:00+00", "agencyKey": "saude", "agencyName": "MS",
+             "articleCount": 3, "totalMentions": 3},
+            {"period": "2026-09-01 00:00:00+00", "agencyKey": "agencia_brasil",
+             "agencyName": "Agência Brasil", "articleCount": 2, "totalMentions": 2},
+        ]},
+    )  # fmt: skip
+    deps.client.route("RelatedEntities", {"relatedEntities": []})
+    deps.client.route("EntityDedupCounts", {"all": {"found": 5}, "distinct": {"found": 5}})
+
+    async with Client(server.mcp) as client:
+        result = await client.call_tool_mcp(
+            "gobus_get_entity_profile",
+            {"entity_name": "Q1", "date_from": "2026-09-01", "date_to": "2026-09-30"},
+        )
+
+    text = result.content[0].text
+    assert "3 artigos de 1 agência + 2 republicações" in text  # republicadora do catálogo
+    assert deps.client.calls("EntityCoverage")[0]["dateTo"] == "2026-10-01"
+
+
 async def test_resources_json_declaram_mime_application_json():
     async with Client(server.mcp) as client:
         resources = {str(r.uri): r for r in await client.list_resources()}

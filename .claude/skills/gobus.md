@@ -29,8 +29,9 @@ description: >
 ## Regras de Orquestração
 
 ### Regra 1: Sempre `gobus_resolve_entity` antes de operações de entidade
-`gobus_get_entity_profile` e `gobus_get_entity_network` precisam do entityId canônico (Wikidata QID).
-Nunca use nomes literais diretamente — sempre resolva primeiro.
+`gobus_get_entity_network` precisa do entityId canônico (QID `Q…` ou interno `dgb_…`).
+`gobus_get_entity_profile` aceita o ID (vai direto, sem busca fuzzy) ou o nome (1º resultado
+da busca) — prefira o ID resolvido, que evita homônimos.
 
 ### Regra 2: UC-01 — perguntas "o que saiu hoje/ontem"
 → Use `gobus_search_news(query="*", agency_key=..., date_from=D, date_to=D)` com o dia em
@@ -49,10 +50,15 @@ Nunca use nomes literais diretamente — sempre resolva primeiro.
 - `gobus_get_entity_profile` + `gobus_get_entity_network` após resolver entityId: **paralelo**
 - `gobus_search_news` para temas diferentes em UC-04: **paralelo entre temas**
 
-### Regra 5: Controle de contexto para redes grandes
-- `gobus_get_entity_network`: prefira `depth=1, max_nodes=15`; com depth=2, sempre `max_nodes ≤ 15`
-  e `node_types`
-- `gobus_get_entity_profile` quando só precisar de resumo: use `summary_only=True`
+### Regra 5: Rede e perfil de entidades
+- `gobus_get_entity_network` é centrada no foco: vizinhos por peso (artigos em co-menção em
+  todo o acervo, inclui republicações). depth=2 expande só os 5 vizinhos mais fortes (~5–6,5 KB);
+  `limit` = vizinhos considerados (máx 200), `max_nodes` = itens da lista
+- Genéricas (Brasil, Brasília, Governo Federal, Portal Gov.br) ficam ocultas e listadas à
+  parte; use `include_generic=true` só se a pergunta for sobre elas. Ministérios e secretarias
+  (inclusive `dgb_{agência}`) sempre aparecem
+- `gobus_get_entity_profile`: o cabeçalho soma o período inteiro (próprias + republicações);
+  quando só precisar de resumo, use `summary_only=True`
 
 ### Regra 6: Citações
 - Cite cada artigo como link Markdown `[título](url)` no ponto em que o fato aparece, só com
@@ -64,7 +70,7 @@ Nunca use nomes literais diretamente — sempre resolva primeiro.
 | Termo | Significado |
 |-------|-------------|
 | `agency_key` | Código da agência (ex: "saude", "mec") — listar em gobus://agencies; código inválido devolve sugestão ("ms" → "saude") |
-| `entity_id` | ID canônico Wikidata no formato "Q<número>" (ex: "Q4294522") |
+| `entity_id` | ID canônico: QID Wikidata "Q<número>" (ex: "Q4294522") ou interno "dgb_…" (ex: "dgb_pe-de-meia") |
 | `granularity` | Agrupamento temporal: "DAY", "WEEK" ou "MONTH" |
 | `window_days` | Janela RECENTE em detect_trends (quantos dias "agora") |
 | `baseline_days` | Período de REFERÊNCIA em detect_trends (quantos dias de histórico) |

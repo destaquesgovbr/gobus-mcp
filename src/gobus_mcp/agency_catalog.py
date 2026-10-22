@@ -58,6 +58,11 @@ query CatalogTopAgencies($days: Int!, $limit: Int!) {
 # Republicadoras que não vêm marcadas em ``isRepublisher``.
 EXTRA_REPUBLISHERS: frozenset[str] = frozenset({"radioagencia_nacional"})
 
+# Republicadoras conhecidas, para quando o catálogo estiver fora do ar.
+FALLBACK_REPUBLISHERS: frozenset[str] = (
+    frozenset({"agencia_brasil", "tvbrasil", "ebc"}) | EXTRA_REPUBLISHERS
+)
+
 # Aliases curados, aplicados ANTES do difflib (que erra: ms→mds/mast, tcu→cgu, …).
 # Valor None = órgão conhecido que não faz parte do catálogo.
 ALIASES: Mapping[str, str | None] = {
@@ -86,6 +91,19 @@ class Agency:
     code: str
     name: str
     is_republisher: bool
+
+
+@dataclass(frozen=True)
+class CatalogInfo:
+    """Republicadoras e códigos do catálogo; ``fallback`` = catálogo fora do ar (lista fixa
+    de republicadoras e nenhum código)."""
+
+    republishers: frozenset[str]
+    codes: frozenset[str]
+    fallback: bool = False
+
+
+FALLBACK_CATALOG_INFO = CatalogInfo(FALLBACK_REPUBLISHERS, frozenset(), fallback=True)
 
 
 @dataclass(frozen=True)
@@ -263,3 +281,14 @@ class AgencyCatalog:
         )
         keys = [r["name"] for r in rows if r.get("name") and r["name"] not in republishers]
         return keys[:limit]
+
+
+async def catalog_info(catalog: AgencyCatalog) -> CatalogInfo:
+    """Republicadoras e códigos (``agencies``, rápido); **nunca levanta**. Os nomes ficam de
+    fora: a consulta de nomes do catálogo é a mais lenta (~1,3–1,9 s a frio) e não pode
+    segurar a análise."""
+    try:
+        return CatalogInfo(await catalog.republishers(), await catalog.codes())
+    except Exception as exc:
+        logger.warning("catálogo indisponível (%s)", exc)
+        return FALLBACK_CATALOG_INFO

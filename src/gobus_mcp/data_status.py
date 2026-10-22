@@ -49,6 +49,10 @@ SINCE_HINTS: Mapping[str, date] = {
     "word_count": date(2026, 6, 30),
 }
 
+# Desde quando o Typesense marca ``entity_canonical`` (``articles.filter.entityCanonical``):
+# o histórico anterior não foi reindexado (o Postgres/``entityCoverage`` tem tudo).
+ENTITY_CANONICAL_INDEX_SINCE = date(2026, 5, 20)
+
 NOTICE_FOR_KEY: Mapping[str, NoticeCode] = {
     "themes": "THEMES_UNCLASSIFIED",
     "sentiment_labels": "SENTIMENT_UNAVAILABLE",

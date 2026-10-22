@@ -7,8 +7,8 @@ O Gobus MCP expõe **14 tools**, todas somente leitura (`readOnlyHint`) e sem `o
 | [search_news](search-news.md) | Busca notícias por texto livre e/ou agência | Encontrar artigos sobre um tema, obter `uniqueId` para leitura completa |
 | [get_article](get-article.md) | Conteúdo completo de um artigo pelo ID | Ler o texto integral, métricas e entidades mencionadas de um artigo |
 | [resolve_entity](resolve-entity.md) | Resolve um nome para o `entityId` canônico | Descobrir o ID canônico de uma entidade antes de usar perfil ou rede |
-| [get_entity_profile](get-entity-profile.md) | Perfil completo: cobertura temporal + relacionadas | Entender a presença de uma entidade ao longo do tempo |
-| [get_entity_network](get-entity-network.md) | Rede de co-menções ao redor de uma entidade | Mapear quem aparece junto com uma entidade nas notícias |
+| [get_entity_profile](get-entity-profile.md) | Perfil completo: série mensal, agências, cópias idênticas e relacionadas | Entender a presença de uma entidade ao longo do tempo |
+| [get_entity_network](get-entity-network.md) | Rede de co-menções centrada numa entidade, sem as genéricas | Mapear quem aparece junto com uma entidade nas notícias |
 | [get_agency_analytics](get-agency-analytics.md) | Métricas de publicação de agências num período | Comparar volume, sentimento e legibilidade entre agências |
 | [get_agency_summary](get-agency-summary.md) | Resumo executivo de uma agência | Overview rápido: volume, legibilidade, sentimento e temas em alta |
 | [detect_trends](detect-trends.md) | Temas em crescimento (janela vs baseline) | Radar de pautas em alta |
