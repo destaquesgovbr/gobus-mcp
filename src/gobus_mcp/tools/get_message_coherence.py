@@ -17,10 +17,14 @@ Fluxo de ``build_coherence_output`` (I/O aqui; a análise fica em ``analytics.co
    2–4 em gather (teto de 1000 → ``SAMPLE_TRUNCATED``). Sem ``content`` (pesado). O ``sort``
    é só decrescente: amostra truncada (ou com página em falha) fica com os mais recentes, a
    1ª publicação de cada agência pode estar fora dela e o timing sai do índice.
-4. Tom: aliases de contagem ``articles(limit:1, filter:{…, agencies:[a], sentiment:[l]})
-   {found}`` para os 12 maiores emissores (mais o total por agência se a amostra foi
-   truncada). Uma requisição; a query é gerada por ``counts_query`` (forma validada pelo
-   teste de contrato via ``_COUNTS_SAMPLE_QUERY``).
+4. Tom: pré-checagem de cobertura em paralelo com a página 1 (``CoherenceSentimentCheck``,
+   4 aliases: o total do assunto na janela e cada rótulo de sentimento). Abaixo de 50%, o
+   tom fica indisponível sem as contagens por agência (com o sentimento parado, eram até
+   48 buscas Typesense em série no resolver). Senão, aliases de contagem
+   ``articles(limit:1, filter:{…, agencies:[a], sentiment:[l]}){found}`` para os 8 maiores
+   emissores (mais o total por agência se a amostra foi truncada). Uma requisição; a query
+   é gerada por ``counts_query`` (forma validada pelo teste de contrato via
+   ``_COUNTS_SAMPLE_QUERY``). Falha da pré-checagem cai nas contagens por agência.
 5. Só entidade, em paralelo com a página 1: ``entityCoverage(DAY)`` (Postgres) dos 30 dias
    antes da janela e da própria janela, numa chamada (com ``agencies``, só as linhas dessas
    agências, a mesma base do ``found``):
@@ -32,7 +36,13 @@ Fluxo de ``build_coherence_output`` (I/O aqui; a análise fica em ``analytics.co
      degradado (50–90%) tira o timing do índice.
 6. ``assess`` → ``CoherenceReport`` → Markdown (``summary`` = o mesmo texto até 6 KB).
 
-Típico: 3–4 requisições em 1–2,5 s. Cada fonte degrada sozinha; a tool não cai.
+Avisos da janela: se ela cruza o defeso, o ``ELECTORAL_BLACKOUT`` traz as janelas
+alternativas concretas (``calendario.blackout_alternatives``): a pré-defeso com a mesma
+duração (no caminho por entidade, desde ``ENTITY_CANONICAL_INDEX_SINCE``) e a pós-defeso a
+partir de 26/10 quando houver dias fechados.
+
+Típico: 3–5 requisições em 1–2,5 s; os tempos de cada fase vão para o log (INFO). Cada
+fonte degrada sozinha; a tool não cai.
 """
 
 from __future__ import annotations
@@ -68,8 +78,10 @@ from gobus_mcp.cache import TTLCache
 from gobus_mcp.calendario import (
     BLACKOUTS,
     CLASSIFIER_CUTOFF,
+    BlackoutAlternatives,
     DateRange,
     as_window,
+    blackout_alternatives,
     brt_bounds,
     calendar_context,
     classifier_changed_within,
@@ -79,6 +91,7 @@ from gobus_mcp.calendario import (
 )
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import (
+    ENTITY_CANONICAL_INDEX_SINCE,
     failed_status,
     indexing_lag_status,
     notices_for,
@@ -110,7 +123,7 @@ MAX_WINDOW_DAYS = 92
 PAGE_SIZE = 250
 MAX_PAGES = 4
 SAMPLE_CAP = PAGE_SIZE * MAX_PAGES
-MAX_TONE_AGENCIES = 12
+MAX_TONE_AGENCIES = 8
 TAXONOMY_TTL = 86_400.0
 NAMES_DEADLINE = 2.0  # segundos desde o início: depois disso a tabela usa os códigos
 SENTIMENT_MIN_COVERAGE = 0.5
@@ -179,6 +192,22 @@ query CoherenceCoverage($id: String!, $dateFrom: String!, $dateTo: String!) {
     agencyKey
     articleCount
   }
+}
+"""
+
+
+# Pré-checagem do tom: total do assunto na janela e cada rótulo, numa requisição.
+_SENTIMENT_CHECK_QUERY = """
+query CoherenceSentimentCheck(
+  $total: ArticleFilter!
+  $positive: ArticleFilter!
+  $negative: ArticleFilter!
+  $neutral: ArticleFilter!
+) {
+  total: articles(limit: 1, filter: $total) { found }
+  positive: articles(limit: 1, filter: $positive) { found }
+  negative: articles(limit: 1, filter: $negative) { found }
+  neutral: articles(limit: 1, filter: $neutral) { found }
 }
 """
 
@@ -404,6 +433,47 @@ async def _counts(client: GobusGraphQLClient, filters: list[dict]) -> list[int]:
     return [int((data.get(f"c{i}") or {}).get("found") or 0) for i in range(len(filters))]
 
 
+@dataclass(frozen=True)
+class _SentimentCheck:
+    """Pré-checagem do tom: artigos do assunto na janela e quantos têm rótulo."""
+
+    labeled: int
+    total: int
+
+    @property
+    def low(self) -> bool:
+        """Cobertura abaixo do mínimo (com artigos): as contagens por agência não valem a pena."""
+        return self.total > 0 and self.labeled / self.total < SENTIMENT_MIN_COVERAGE
+
+
+async def _sentiment_check(client: GobusGraphQLClient, filt: dict) -> _SentimentCheck:
+    variables = {"total": filt, **{lbl: {**filt, "sentiment": [lbl]} for lbl in TONE_LABELS}}
+    data = await client.execute(_SENTIMENT_CHECK_QUERY, variables)
+
+    def found(key: str) -> int:
+        return int((data.get(key) or {}).get("found") or 0)
+
+    return _SentimentCheck(labeled=sum(found(lbl) for lbl in TONE_LABELS), total=found("total"))
+
+
+class _PhaseTimer:
+    """Tempo de cada fase da coerência (segundos), para o log."""
+
+    def __init__(self, started: float) -> None:
+        self.started = self._last = started
+        self.phases: dict[str, float] = {}
+
+    def mark(self, name: str) -> None:
+        now = time.monotonic()
+        self.phases[name] = self.phases.get(name, 0.0) + now - self._last
+        self._last = now
+
+    def summary(self) -> str:
+        total = time.monotonic() - self.started
+        parts = [f"{name}={secs:.2f}s" for name, secs in self.phases.items()]
+        return " ".join([f"total={total:.2f}s", *parts])
+
+
 def _prior_range(window: DateRange) -> DateRange:
     return DateRange(window.start - timedelta(days=PRIOR_DAYS), window.start - timedelta(days=1))
 
@@ -492,12 +562,49 @@ class _Fetch:
     pages_requested: int = 1
 
 
-def _window_notices(window: DateRange, *, theme_path: bool) -> list[Notice]:
-    """Avisos de calendário da **janela** (não da data de hoje)."""
+def _alternatives_text(alt: BlackoutAlternatives | None) -> str:
+    """Janelas concretas sem o defeso, prontas para repetir a chamada."""
+    if alt is None:
+        return ""
+    parts = []
+    if alt.pre is not None:
+        index = (
+            f"; o índice de busca só marca entidades desde {_fmt(alt.pre.start)}"
+            if alt.pre_clamped
+            else ""
+        )
+        parts.append(
+            f'antes, date_from="{alt.pre.start.isoformat()}", '
+            f'date_to="{alt.pre.end.isoformat()}" ({alt.pre.days} dias{index})'
+        )
+    if alt.post is not None:
+        parts.append(
+            f'depois, date_from="{alt.post.start.isoformat()}", '
+            f'date_to="{alt.post.end.isoformat()}" ({alt.post.days} dias, na recuperação '
+            "pós-defeso)"
+        )
+    else:
+        need = (alt.post_ready_on - alt.post_from).days
+        parts.append(
+            f'depois, date_from="{alt.post_from.isoformat()}" ({_fmt(alt.post_from)}, 1º dia '
+            f"pós-defeso), com {need} dias fechados em {_fmt(alt.post_ready_on)}"
+        )
+    return " Para comparar sem o defeso: " + "; ".join(parts) + "."
+
+
+def _window_notices(
+    window: DateRange, *, theme_path: bool, today: date, earliest: date | None = None
+) -> list[Notice]:
+    """Avisos de calendário da **janela** (não da data de hoje). O do defeso sugere janelas
+    concretas antes e depois dele (``earliest``: início mínimo da janela pré-defeso)."""
     notices: list[Notice] = []
+    alternatives = blackout_alternatives(window, today, earliest)
     for period in BLACKOUTS:
         span = f"{period.start.strftime('%d/%m')}–{_fmt(period.end)}"
         if window.start <= period.end and period.start <= window.end:
+            suggestion = _alternatives_text(
+                alternatives if alternatives is not None and alternatives.period == period else None
+            )
             notices.append(
                 Notice(
                     code="ELECTORAL_BLACKOUT",
@@ -505,6 +612,7 @@ def _window_notices(window: DateRange, *, theme_path: bool) -> list[Notice]:
                     message=(
                         f"A janela cruza o {period.label.lower()} ({span}): parte das "
                         "agências está calada e as republicadoras pesam mais no volume."
+                        f"{suggestion}"
                     ),
                     since=period.start,
                     affects=["agencies"],
@@ -617,6 +725,7 @@ async def build_coherence_output(
     Levanta ``CoherenceInputError`` (parâmetro inválido, entidade ou tema não encontrado,
     agência inválida) antes de buscar artigos; falhas de dados degradam o relatório."""
     started = time.monotonic()
+    timer = _PhaseTimer(started)
     now = now or now_brt()
     today = reference_date(now)
     params = parse_params(entity_id, theme, agencies, date_from, date_to, today=today)
@@ -671,14 +780,17 @@ async def build_coherence_output(
     names_task = asyncio.ensure_future(catalog.display_names())  # nunca levanta
 
     coverage_filters = [dict(base)] + [{**base, "themeLabel": lbl} for lbl in labels]
-    entity_r, page1_r, pg_result, coverage_result, info = await asyncio.gather(
+    timer.mark("entrada")
+    entity_r, page1_r, pg_result, coverage_result, info, sentiment_r = await asyncio.gather(
         entity_task if entity_task is not None else none(),
         _page(client, filt, 1),
         _coverage(client, subject.id, window) if subject.kind == "entity" else none(),
         _counts(client, coverage_filters) if labels else none(),
         catalog_info(catalog),
+        _sentiment_check(client, filt),
         return_exceptions=True,
     )
+    timer.mark("lote1")
     if isinstance(info, BaseException):  # defensivo: catalog_info não levanta
         info = FALLBACK_CATALOG_INFO
     if info.fallback:
@@ -730,10 +842,22 @@ async def build_coherence_output(
         calendar=calendar_context(today),
         window=as_window(window, bucket_tz="America/Sao_Paulo"),
     )
-    window_notices = _window_notices(window, theme_path=subject.kind == "theme")
+    window_notices = _window_notices(
+        window,
+        theme_path=subject.kind == "theme",
+        today=today,
+        earliest=ENTITY_CANONICAL_INDEX_SINCE if subject.kind == "entity" else None,
+    )
 
     def finish(report: CoherenceReport) -> tuple[CoherenceReport, str]:
         _detach(names_task)
+        logger.info(
+            "coerência %s %s–%s: tempos %s",
+            subject.id or subject.label,
+            window.start.isoformat(),
+            window.end.isoformat(),
+            timer.summary(),
+        )
         markdown = render_coherence_markdown(report, max_bytes=None)
         return report.model_copy(update={"summary": fit_summary(markdown)}), markdown
 
@@ -834,13 +958,33 @@ async def build_coherence_output(
         if parsed is not None:
             articles.append(parsed)
     truncated = fetch.found > len(fetch.rows) and fetch.found > SAMPLE_CAP
+    timer.mark("páginas")
 
-    # ── tom (aliases de contagem) ──
+    # ── tom (pré-checagem + aliases de contagem) ──
     split = split_agencies(articles, info.republishers)
     tone_agencies = list(split.emitters)[:MAX_TONE_AGENCIES]
     tone_counts = tone_totals = None
     tone_error: str | None = None
-    if len(split.emitters) >= 2:
+    tone_reason: str | None = None
+    check = None
+    if isinstance(sentiment_r, BaseException):
+        logger.warning("coerência: pré-checagem de sentimento indisponível (%s)", sentiment_r)
+    else:
+        check = sentiment_r
+    if len(split.emitters) >= 2 and check is not None and check.low:
+        status = share_status(
+            "sentiment_labels",
+            min(check.labeled, check.total),
+            check.total,
+            dead=SENTIMENT_MIN_COVERAGE,
+        )
+        statuses.append(status)
+        tone_reason = (
+            f"cobertura de sentimento de {_share(check.labeled, check.total)} dos artigos do "
+            f"assunto na janela ({check.labeled} de {check.total}; mínimo "
+            f"{SENTIMENT_MIN_COVERAGE:.0%}): contagens por agência não consultadas"
+        )
+    elif len(split.emitters) >= 2:
         filters, keys = [], []
         for agency in tone_agencies:
             scoped = {**filt, "agencies": [agency]}
@@ -892,7 +1036,9 @@ async def build_coherence_output(
             "1ª publicação de cada agência pode faltar"
         )
     exclude = excluded_entities(subject.id, info.codes)
+    timer.mark("tom")
     names = await _names_within(names_task, started + NAMES_DEADLINE)
+    timer.mark("nomes")
     assessment = assess(
         articles,
         republishers=info.republishers,
@@ -901,6 +1047,7 @@ async def build_coherence_output(
         tone_counts=tone_counts,
         tone_totals=tone_totals,
         tone_error=tone_error,
+        tone_reason=tone_reason,
         timing_unavailable="; ".join(timing_gaps) or None,
     )
     with_entities = sum(1 for a in articles if a.entities)
@@ -964,6 +1111,7 @@ async def build_coherence_output(
         notes=notes,
         **common,
     )
+    timer.mark("análise")
     return finish(report)
 
 

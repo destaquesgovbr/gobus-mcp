@@ -614,10 +614,12 @@ def assess(
     tone_counts: Mapping[str, Mapping[str, int]] | None = None,
     tone_totals: Mapping[str, int] | None = None,
     tone_error: str | None = None,
+    tone_reason: str | None = None,
     timing_unavailable: str | None = None,
 ) -> Assessment:
     """Avalia a coerência da amostra. ``tone_counts``/``tone_totals`` vêm dos aliases de
-    contagem por agência (``None`` = não medido; ``tone_error`` explica a falha).
+    contagem por agência (``None`` = não medido; ``tone_error`` explica a falha e
+    ``tone_reason``, quando dado, é o motivo de não ter medido, como a pré-checagem baixa).
     ``timing_unavailable`` (o motivo) tira o T do índice e das divergências: a amostra não
     cobre a janela inteira e a 1ª publicação de cada agência pode estar fora dela."""
     names = names or {}
@@ -718,7 +720,9 @@ def assess(
     else:
         framing_detail = framing.reason or ""
     if tone is None:
-        tone_detail = f"falha ao consultar o sentimento ({tone_error or 'não medido'})"
+        tone_detail = (
+            tone_reason or f"falha ao consultar o sentimento ({tone_error or 'não medido'})"
+        )
     elif tone.value is not None:
         tone_detail = (
             f"cobertura de sentimento {_pct(tone.coverage)}; {_pct(tone.positive_share)} positivo"

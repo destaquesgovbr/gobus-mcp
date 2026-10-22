@@ -586,6 +586,9 @@ async def gobus_get_message_coherence(
     publicação, atraso, enquadramento dominante, âncoras exclusivas), âncoras
     compartilhadas, pares mais divergentes, republicadoras e avisos de dados (defeso,
     classificação de temas, amostra truncada acima de 1000 artigos, início truncado).
+    Se a janela cruza o defeso eleitoral, o aviso traz date_from/date_to concretos de uma
+    janela antes dele e, quando já houver dias fechados, de uma depois (a partir de 26/10):
+    repita a chamada com eles para comparar sem o defeso.
     """
     deps = get_deps()
     return await get_message_coherence(
