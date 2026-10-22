@@ -95,9 +95,7 @@ def test_query_valida_contra_o_sdl(query: str, schema: GraphQLSchema):
 # Tipos do snapshot que dependem de um deploy da graphql-api ainda pendente: enquanto o SDL ao
 # vivo não os tem, o teste do snapshot é pulado (as queries novas têm reserva *Legacy,
 # conferida em ``tests/test_live_links_lift_flesch.py``). Tire daqui depois do deploy.
-PENDING_UPSTREAM: dict[str, str] = {
-    "RelatedEntityOrder": "GQL-1 (graphql-api#32): lift, url no ArticleSummary e Flesch pt-BR",
-}
+PENDING_UPSTREAM: dict[str, str] = {}  # GQL-1 (graphql-api#32) em produção desde 22/10
 
 
 @pytest.mark.live
