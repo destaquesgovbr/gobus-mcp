@@ -8,8 +8,8 @@ Busca notícias no acervo do Gov.BR por texto livre e, opcionalmente, por agênc
 |-----------|------|-------------|---------|-----------|
 | `query` | `str` | Sim | — | Texto livre para busca full-text; `"*"` lista todas as publicações (use com `agency_key` e/ou datas) |
 | `agency_key` | `str` | Não | — | Chave da agência para filtrar (ex: `"mec"`, `"saude"`) |
-| `date_from` | `str` | Não | — | Primeiro dia, `AAAA-MM-DD`, inclusivo (dia inteiro em Brasília) |
-| `date_to` | `str` | Não | — | Último dia, `AAAA-MM-DD`, inclusivo (dia inteiro em Brasília); `date_from == date_to` = um único dia |
+| `date_from` | `str` | Não | — | Primeiro dia, `AAAA-MM-DD` (ou `AAAAMMDD`), inclusivo (dia inteiro em Brasília) |
+| `date_to` | `str` | Não | — | Último dia, `AAAA-MM-DD` (ou `AAAAMMDD`), inclusivo (dia inteiro em Brasília); `date_from == date_to` = um único dia |
 | `page` | `int` | Não | `1` | Página de resultados |
 | `limit` | `int` | Não | `10` | Resultados por página (máx 50) |
 
@@ -53,7 +53,9 @@ ID: `ms-2024-05-08-doses-vacina`
 
 - O filtro de agência usa `filter: {agencies: [...]}` no schema; informe a `agency_key` (código curto da agência), não o nome completo.
 - **Datas em Brasília, fim inclusivo:** o `search()` da graphql-api compara `published_at >= startDate` e `published_at <= endDate` (segundos inteiros), e uma data pura vira 00:00 UTC — com `date_from == date_to` a busca voltava vazia. Por isso a tool converte `AAAA-MM-DD` nos limites do dia em Brasília: `date_from` → `T00:00:00-03:00` e `date_to` → `T23:59:59-03:00` (o dia entra inteiro e o seguinte fica fora). Data com hora (ex.: `2026-10-20T09:00:00-03:00`) passa como veio.
-- Data inválida (ex.: `20/10/2026`) ou `date_from` depois de `date_to` devolve uma mensagem, sem consultar a API.
+- **Formato ISO "basic":** `20261020` vira o dia inteiro em Brasília, como `2026-10-20` (antes passava cru e o upstream lia 00:00 UTC, perdendo o dia de `date_to`); data e hora "basic" (`20261020T100000-0300`) vão no formato estendido (`2026-10-20T10:00:00-03:00`).
+- Data inválida (ex.: `20/10/2026`) devolve uma mensagem, sem consultar a API.
+- **Período invertido:** `date_from` depois de `date_to` devolve "Período inválido", sem consultar a API, também com hora (`T15:00` → `T10:00` do mesmo dia) e na mistura de dia inteiro com hora. Antes, datetimes invertidos voltavam "Nenhum resultado". A comparação é por instante: hora sem fuso conta como UTC, como no upstream.
 - `query` vazia vira `"*"` (o `search()` rejeita texto vazio).
 - A data exibida é o dia de publicação em Brasília (a API devolve UTC; um artigo das 23h30 de 20/10 aparece em 20/10, não em 21/10).
 - O `search()` da API devolve até 20 artigos por página; para listar mais, use `page`.

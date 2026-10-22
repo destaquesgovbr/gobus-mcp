@@ -131,7 +131,8 @@ async def gobus_search_news(
     - agency_key: Chave da agência para filtrar (ex: "saude", "mec") — ver gobus://agencies
     - date_from: Data de início AAAA-MM-DD, inclusiva (dia inteiro em Brasília) — opcional
     - date_to: Data de fim AAAA-MM-DD, inclusiva (dia inteiro em Brasília) — opcional;
-      date_from == date_to = um único dia
+      date_from == date_to = um único dia. AAAAMMDD também vale; com hora, ISO com fuso
+      (ex: "2026-10-20T09:00:00-03:00"). Início depois do fim devolve "Período inválido"
     - page: Página de resultados (default 1)
     - limit: Artigos por página (default 10, máx 50)
 
