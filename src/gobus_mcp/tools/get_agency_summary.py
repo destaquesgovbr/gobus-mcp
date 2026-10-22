@@ -16,7 +16,7 @@ from gobus_mcp.analytics.ratios import overlap_growth_threshold, ratio_from_tren
 from gobus_mcp.calendario import agency_analytics_bounds, closed_window, reference_date
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import theme_coverage
-from gobus_mcp.formatting import article_ref
+from gobus_mcp.formatting import FollowUp, article_ref, tool_call, with_follow_ups
 from gobus_mcp.readability import (
     LEGACY_SCALE_MESSAGE,
     FleschScale,
@@ -93,6 +93,31 @@ def _sentiment_line(rows: list[dict]) -> str:
     pct = weighted_metric(rows, "pctPositive")
     pct_txt = f" · {pct.value:.0%} positivos" if pct.value is not None else ""
     return f"**Sentimento:** {score.value:.2f} (média){pct_txt}"
+
+
+def _follow_ups(code: str, window, themes: list[dict]) -> list[FollowUp]:
+    """Ler o artigo do 1º tema em alta, o diagnóstico de legibilidade e a série semanal."""
+    items: list[FollowUp] = []
+    top = next((a for t in themes for a in (t.get("topArticles") or []) if a.get("uniqueId")), None)
+    if top is not None:
+        items.append(
+            (tool_call("gobus_get_article", unique_id=top["uniqueId"]), "artigo do tema em alta")
+        )
+    items.append(
+        (
+            tool_call("gobus_get_readability_recommendations", agency_key=code),
+            "diagnóstico de legibilidade",
+        )
+    )
+    weekly = tool_call(
+        "gobus_get_agency_analytics",
+        agencies=[code],
+        date_from=window.start.isoformat(),
+        date_to=window.end.isoformat(),
+        granularity="WEEK",
+    )
+    items.append((weekly, "série semanal"))
+    return items
 
 
 async def get_agency_summary(
@@ -190,4 +215,4 @@ async def get_agency_summary(
     else:
         lines.append("Nenhum tema da agência em crescimento.")
 
-    return "\n".join(lines)
+    return with_follow_ups("\n".join(lines), _follow_ups(code, window, themes))

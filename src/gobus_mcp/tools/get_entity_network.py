@@ -20,6 +20,7 @@ foco, por peso decrescente.
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Sequence
 
 from gobus_mcp.analytics.generic_entities import generic_ids, split_generic
@@ -32,7 +33,14 @@ from gobus_mcp.entity_lookup import (
     fetch_neighbors,
     ranking_label,
 )
-from gobus_mcp.formatting import error_text, fmt_decimal, fmt_int
+from gobus_mcp.formatting import (
+    FollowUp,
+    error_text,
+    fmt_decimal,
+    fmt_int,
+    tool_call,
+    with_follow_ups,
+)
 
 MAX_LIMIT = 200
 MAX_PLACES = 5
@@ -139,6 +147,35 @@ async def _second_hop(
     return lines
 
 
+def _plain_name(name: str) -> str:
+    """Nome sem o parêntese final (``"Ministério da Educação (MEC)"`` → sem a sigla), para
+    a busca por palavras."""
+    return re.sub(r"\s*\([^)]*\)\s*$", "", name).strip() or name
+
+
+def _follow_ups(entity_id: str, title: str, depth: int, ranked: Sequence[dict]) -> list[FollowUp]:
+    """Perfil do foco, rede do 1º vizinho e, em depth=1, o segundo grau; em depth=2, os
+    artigos que citam o foco e o 1º vizinho."""
+    items: list[FollowUp] = [
+        (tool_call("gobus_get_entity_profile", entity_name=entity_id), "série e órgãos do foco")
+    ]
+    first = ranked[0] if ranked else None
+    if first is not None:
+        call = tool_call("gobus_get_entity_network", entity_id=first["canonicalId"])
+        items.append((call, f"a rede de {display_name(first)}"))
+    if depth == 1:
+        items.append(
+            (
+                tool_call("gobus_get_entity_network", entity_id=entity_id, depth=2),
+                "segundo grau e pontes",
+            )
+        )
+    elif first is not None:
+        query = f"{_plain_name(title)} {_plain_name(display_name(first))}"
+        items.append((tool_call("gobus_search_news", query=query), "artigos que citam os dois"))
+    return items
+
+
 async def get_entity_network(
     entity_id: str,
     client: GobusGraphQLClient,
@@ -237,4 +274,4 @@ async def get_entity_network(
     if depth == 2 and seeds:
         exclude = frozenset(r["canonicalId"] for r in related_r) | hide | {entity_id}
         lines.extend(await _second_hop(client, seeds, exclude, allowed, cache))
-    return "\n".join(lines)
+    return with_follow_ups("\n".join(lines), _follow_ups(entity_id, title, depth, ranked))

@@ -45,7 +45,16 @@ from gobus_mcp.entity_lookup import (
     looks_like_id,
     ranking_label,
 )
-from gobus_mcp.formatting import error_text, fmt_date, fmt_int, md_link, plural
+from gobus_mcp.formatting import (
+    FollowUp,
+    error_text,
+    fmt_date,
+    fmt_int,
+    md_link,
+    plural,
+    tool_call,
+    with_follow_ups,
+)
 
 _ENTITY_SEARCH_QUERY = """
 query EntitySearch($query: String!, $entityType: EntityKind) {
@@ -206,6 +215,40 @@ def _related_lines(kept: list[dict], hidden: list[dict], neighbors: RelatedNeigh
     return lines
 
 
+def _follow_ups(
+    entity_id: str,
+    name: str,
+    kind: str | None,
+    rows: list[dict],
+    republishers: frozenset[str],
+    start: date | None,
+    end: date | None,
+) -> list[FollowUp]:
+    """Rede por associação, artigos do órgão que mais publicou (no período pedido) e o
+    ciclo de vida (política) ou a coerência entre as agências (demais tipos)."""
+    items: list[FollowUp] = [
+        (tool_call("gobus_get_entity_network", entity_id=entity_id), "vizinhos por associação")
+    ]
+    agencies = top_agencies(rows, republishers, n=1) if rows else []
+    search = tool_call(
+        "gobus_search_news",
+        query=name,
+        agency_key=agencies[0].agency_key if agencies else None,
+        date_from=start.isoformat() if start else None,
+        date_to=end.isoformat() if end else None,
+    )
+    items.append((search, "artigos do órgão que mais publicou" if agencies else "artigos"))
+    if (kind or "").upper() == "POLICY":
+        items.append(
+            (tool_call("gobus_get_policy_lifecycle", policy_name=name), "fases da política")
+        )
+    else:
+        items.append(
+            (tool_call("gobus_get_message_coherence", entity_id=entity_id), "agências em sintonia?")
+        )
+    return items
+
+
 async def get_entity_profile(
     entity_name: str,
     client: GobusGraphQLClient,
@@ -306,6 +349,7 @@ async def get_entity_profile(
         related_note = None
         kept, hidden = split_generic(related_r.rows, generic_ids())
 
+    follow = _follow_ups(entity_id, name, kind, rows, info.republishers, start, end)
     if summary_only:
         if related_note:
             notes.append(related_note)
@@ -314,7 +358,7 @@ async def get_entity_profile(
                 f"{display_name(r)} ({r.get('type') or '?'})" for r in kept[:SUMMARY_RELATED]
             )
             lines.append(f"**Top relacionadas:** {top}")
-        return "\n".join(lines + ([""] + notes if notes else []))
+        return with_follow_ups("\n".join(lines + ([""] + notes if notes else [])), follow)
 
     if rows:
         series_end = min(end, today) if end is not None else today
@@ -331,4 +375,4 @@ async def get_entity_profile(
 
     lines.append("\n## Entidades relacionadas (co-menção, todo o acervo)")
     lines.extend([related_note] if related_note else _related_lines(kept, hidden, related_r))
-    return "\n".join(lines + ([""] + notes if notes else []))
+    return with_follow_ups("\n".join(lines + ([""] + notes if notes else [])), follow)

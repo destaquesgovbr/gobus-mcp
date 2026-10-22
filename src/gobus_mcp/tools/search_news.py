@@ -1,9 +1,20 @@
 import re
+from collections import Counter
 from datetime import UTC, date, datetime
 
 from gobus_mcp.calendario import BRT, brt_day_end, brt_day_start
 from gobus_mcp.client import GobusGraphQLClient
-from gobus_mcp.formatting import agency_label, brt_day, fmt_int, md_link
+from gobus_mcp.formatting import (
+    FollowUp,
+    agency_label,
+    brt_day,
+    fmt_int,
+    md_link,
+    tool_call,
+    with_follow_ups,
+)
+
+PAGE_SIZE = 20  # o search() devolve 20 por página
 
 _SEARCH_QUERY = """
 query SearchNews($query: String!, $filter: ArticleFilter, $page: Int) {
@@ -56,6 +67,45 @@ def _invalid_date(field: str, value: str) -> str:
         "o dia inteiro em horário de Brasília, ou data e hora ISO com fuso "
         "(ex.: 2026-10-20T09:00:00-03:00)."
     )
+
+
+def _follow_ups(
+    articles: list[dict],
+    *,
+    query: str,
+    agency_key: str | None,
+    date_from: str,
+    date_to: str,
+    page: int,
+    found: int,
+) -> list[FollowUp]:
+    """Ler o 1º resultado, resumir o órgão que mais aparece e a próxima página (ou, na
+    última, resolver a entidade buscada)."""
+    items: list[FollowUp] = []
+    first = articles[0].get("uniqueId")
+    if first:
+        items.append((tool_call("gobus_get_article", unique_id=first), "texto do 1º resultado"))
+    agencies = Counter(a.get("agency") for a in articles if a.get("agency"))
+    if agencies and not agency_key:
+        top = agencies.most_common(1)[0][0]
+        items.append(
+            (tool_call("gobus_get_agency_summary", agency_key=top), "resumo do órgão mais citado")
+        )
+    if found > page * PAGE_SIZE:
+        next_page = tool_call(
+            "gobus_search_news",
+            query=query,
+            agency_key=agency_key,
+            date_from=date_from,
+            date_to=date_to,
+            page=page + 1,
+        )
+        items.append((next_page, "próxima página"))
+    elif query != "*":
+        items.append(
+            (tool_call("gobus_resolve_entity", query=query), "entidade para perfil e rede")
+        )
+    return items
 
 
 async def search_news(
@@ -128,4 +178,13 @@ async def search_news(
             f"ID: `{art.get('uniqueId', '')}`\n"
         )
 
-    return "\n".join(lines)
+    follow = _follow_ups(
+        articles,
+        query=query,
+        agency_key=agency_key,
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        found=found,
+    )
+    return with_follow_ups("\n".join(lines), follow)

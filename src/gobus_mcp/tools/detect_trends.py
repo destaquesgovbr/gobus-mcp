@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
+from datetime import date
 
 from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.analytics.ratios import overlap_growth_threshold, ratio_from_trending_row
+from gobus_mcp.calendario import closed_window, reference_date
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import theme_coverage
-from gobus_mcp.formatting import article_ref
+from gobus_mcp.formatting import FollowUp, article_ref, tool_call, with_follow_ups
 from gobus_mcp.schema_compat import ARTICLE_SUMMARY_URL, execute_compatible
 
 MIN_GROWTH_THRESHOLD = 1.0  # abaixo disso entram temas em queda (e o N+1 de topArticles)
@@ -54,6 +56,46 @@ _TRENDING_QUERY = _TRENDING_TEMPLATE.replace("__SUFFIX__", "").replace("__URL__"
 _TRENDING_LEGACY_QUERY = _TRENDING_TEMPLATE.replace("__SUFFIX__", "Legacy").replace("__URL__", "")
 
 
+def _follow_ups(
+    themes: list[dict],
+    *,
+    window_days: int,
+    baseline_days: int,
+    threshold: float,
+    agency_key: str | None,
+    today: date,
+) -> list[FollowUp]:
+    """Com temas: ler o artigo mais representativo, buscar o 1º tema na janela (dias
+    fechados) e projetar. Sem temas: anomalias e um limiar menor."""
+    if not themes:
+        items: list[FollowUp] = [(tool_call("gobus_detect_anomalies"), "sinais fora do comum")]
+        if threshold > 1.2:
+            lower = tool_call(
+                "gobus_detect_trends",
+                window_days=window_days,
+                baseline_days=baseline_days,
+                growth_threshold=1.2,
+                agency_key=agency_key,
+            )
+            items.append((lower, "limiar menor"))
+        return items
+    items = []
+    top = next((a for t in themes for a in (t.get("topArticles") or []) if a.get("uniqueId")), None)
+    if top is not None:
+        items.append((tool_call("gobus_get_article", unique_id=top["uniqueId"]), "artigo-chave"))
+    window = closed_window(window_days, today)
+    search = tool_call(
+        "gobus_search_news",
+        query=themes[0]["themeLabel"],
+        agency_key=agency_key,
+        date_from=window.start.isoformat(),
+        date_to=window.end.isoformat(),
+    )
+    items.append((search, f"artigos de {themes[0]['themeLabel']} na janela"))
+    items.append((tool_call("gobus_forecast_trends"), "o tema segue em alta?"))
+    return items
+
+
 def _ratio_text(theme: dict, window_days: int, baseline_days: int) -> str:
     g = ratio_from_trending_row(theme, window_days, baseline_days)
     if g.is_new:
@@ -71,6 +113,7 @@ async def detect_trends(
     limit: int = 10,
     *,
     catalog: AgencyCatalog | None = None,
+    today: date | None = None,
 ) -> str:
     """Detecta temas em crescimento comparando janela recente com baseline histórico.
 
@@ -81,6 +124,7 @@ async def detect_trends(
         growth_threshold: Razão mínima sem sobreposição (default 1.5×; mínimo 1.0)
         agency_key: Filtrar por agência (opcional; validada no catálogo)
         limit: Máximo de temas (default 10)
+        today: D em BRT (injetável), base das datas sugeridas no rodapé
 
     Returns:
         Markdown com ranking de temas em crescimento, ou o aviso de temas indisponíveis.
@@ -121,6 +165,14 @@ async def detect_trends(
         theme_coverage(client, window_days),
     )
     themes = data.get("trendingThemes") or []
+    follow = _follow_ups(
+        themes,
+        window_days=window_days,
+        baseline_days=baseline_days,
+        threshold=r0,
+        agency_key=variables.get("agencyKey"),
+        today=today or reference_date(),
+    )
 
     header = [
         "# Radar de Tendências\n",
@@ -135,19 +187,25 @@ async def detect_trends(
 
     if not themes:
         if coverage.status == "unavailable":
-            return "\n".join(
+            return with_follow_ups(
+                "\n".join(
+                    [
+                        *header,
+                        "\nSem temas para comparar: a classificação de temas não cobre a "
+                        "janela, então a ausência de tendências não significa estabilidade.",
+                    ]
+                ),
+                follow,
+            )
+        return with_follow_ups(
+            "\n".join(
                 [
                     *header,
-                    "\nSem temas para comparar: a classificação de temas não cobre a janela, "
-                    "então a ausência de tendências não significa estabilidade.",
+                    f"\nNenhum tema em crescimento detectado (últimos {window_days}d vs "
+                    f"{baseline_days}d, razão ≥ {r0:.1f}×).",
                 ]
-            )
-        return "\n".join(
-            [
-                *header,
-                f"\nNenhum tema em crescimento detectado (últimos {window_days}d vs "
-                f"{baseline_days}d, razão ≥ {r0:.1f}×).",
-            ]
+            ),
+            follow,
         )
 
     lines = [*header, f"\n## {len(themes)} temas em crescimento\n"]
@@ -175,4 +233,4 @@ async def detect_trends(
         "(suavização de Laplace). growthScore = cálculo da API, com o baseline incluindo a "
         "janela._"
     )
-    return "\n".join(lines)
+    return with_follow_ups("\n".join(lines), follow)
