@@ -51,9 +51,10 @@ da busca) — prefira o ID resolvido, que evita homônimos.
 - `gobus_search_news` para temas diferentes em UC-04: **paralelo entre temas**
 
 ### Regra 5: Rede e perfil de entidades
-- `gobus_get_entity_network` é centrada no foco: vizinhos por peso (artigos em co-menção em
-  todo o acervo, inclui republicações). depth=2 expande só os 5 vizinhos mais fortes (~5–6,5 KB);
-  `limit` = vizinhos considerados (máx 200), `max_nodes` = itens da lista
+- `gobus_get_entity_network` é centrada no foco: vizinhos por associação (artigos em co-menção
+  em todo o acervo × log2 do lift, "650 artigos · 14,6× o esperado"; peso bruto quando a API
+  não traz o lift — a linha **Ranking:** diz qual valeu). depth=2 expande os 5 primeiros
+  (~5–6,5 KB); `limit` = vizinhos considerados (máx 200), `max_nodes` = itens da lista
 - Genéricas (Brasil, Brasília, Governo Federal, Portal Gov.br) ficam ocultas e listadas à
   parte; use `include_generic=true` só se a pergunta for sobre elas. Ministérios e secretarias
   (inclusive `dgb_{agência}`) sempre aparecem
@@ -62,8 +63,15 @@ da busca) — prefira o ID resolvido, que evita homônimos.
 
 ### Regra 6: Citações
 - Cite cada artigo como link Markdown `[título](url)` no ponto em que o fato aparece, só com
-  URLs devolvidas pelas tools (`gobus_search_news` e `gobus_get_article` já trazem o título
-  como link). Sem URL, cite o `unique_id` e ofereça `gobus_get_article`.
+  URLs devolvidas pelas tools (`gobus_search_news`, `gobus_get_article` e os artigos dos temas
+  em alta já trazem o título como link). Sem URL, cite o `unique_id` e ofereça `gobus_get_article`.
+
+### Regra 7: Para explorar e legibilidade
+- As tools de texto terminam com "**Para explorar:**" (até 3 chamadas prontas, tiradas do
+  resultado): use-as para as perguntas de continuação
+- Legibilidade = Flesch pt-BR (Martins): 0–25 muito difícil · 25–50 difícil · 50–75 fácil ·
+  75–100 muito fácil; meta de serviço 50; notícia de governo fica perto de 15. Com o aviso
+  "Flesch pt-BR indisponível", os valores são da fórmula inglesa (legado)
 
 ## Glossário Mínimo
 
