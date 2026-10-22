@@ -9,6 +9,7 @@ SDL, por exemplo para pré-validar contra o schema de um PR da graphql-api.
 import importlib
 import os
 import pkgutil
+import re
 from pathlib import Path
 
 import pytest
@@ -91,10 +92,27 @@ def test_query_valida_contra_o_sdl(query: str, schema: GraphQLSchema):
     assert not errors, "\n".join(e.message for e in errors)
 
 
+# Tipos do snapshot que dependem de um deploy da graphql-api ainda pendente: enquanto o SDL ao
+# vivo não os tem, o teste do snapshot é pulado (as queries novas têm reserva *Legacy,
+# conferida em ``tests/test_live_links_lift_flesch.py``). Tire daqui depois do deploy.
+PENDING_UPSTREAM: dict[str, str] = {
+    "RelatedEntityOrder": "GQL-1 (graphql-api#32): lift, url no ArticleSummary e Flesch pt-BR",
+}
+
+
 @pytest.mark.live
 def test_snapshot_igual_a_introspeccao_ao_vivo():
     from tests.fixtures.refresh_schema import fetch_sdl
 
-    assert fetch_sdl() == SNAPSHOT_PATH.read_text(encoding="utf-8"), (
+    live = fetch_sdl()
+    snapshot = SNAPSHOT_PATH.read_text(encoding="utf-8")
+    pending = [
+        why
+        for marker, why in PENDING_UPSTREAM.items()
+        if re.search(rf"\b{marker}\b", snapshot) and not re.search(rf"\b{marker}\b", live)
+    ]
+    if live != snapshot and pending:
+        pytest.skip(f"snapshot à frente da produção: {'; '.join(pending)}")
+    assert live == snapshot, (
         "SDL ao vivo divergiu do snapshot: rode python tests/fixtures/refresh_schema.py"
     )
