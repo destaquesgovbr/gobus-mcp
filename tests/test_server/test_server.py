@@ -119,6 +119,36 @@ async def test_tools_usam_o_cliente_do_conteiner(deps):
     assert deps.client.calls("GetArticle") == [{"uniqueId": "abc"}]
 
 
+async def test_search_news_recebe_o_catalogo_do_conteiner_para_o_nome_do_orgao(deps):
+    # gobus-mcp#17: o search() devolve agencyName nulo; o nome vem do catálogo do Deps
+    route_catalog(deps.client)
+    deps.client.route(
+        "SearchNews",
+        {
+            "search": {
+                "articles": [
+                    {
+                        "uniqueId": "abc",
+                        "title": "Vacina",
+                        "agency": "saude",
+                        "agencyName": None,
+                        "publishedAt": "2026-10-01T10:00:00Z",
+                        "summary": "Resumo",
+                        "url": "https://www.gov.br/x",
+                        "features": {"trendingScore": 0.0, "viewCount": 0},
+                    }
+                ],
+                "found": 1,
+                "page": 1,
+            }
+        },
+    )
+    async with Client(server.mcp) as client:
+        result = await client.call_tool_mcp("gobus_search_news", {"query": "vacina"})
+
+    assert "**[saude] Ministério da Saúde** ·" in result.content[0].text
+
+
 async def test_readability_aceita_date_to_e_nao_fixa_benchmark():
     async with Client(server.mcp) as client:
         tools = {t.name: t for t in await client.list_tools()}
