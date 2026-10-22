@@ -328,6 +328,15 @@ async def test_rodape_diz_a_escala_ptbr_e_as_faixas_de_martins(fake_client):
     assert "fórmula inglesa" not in result
 
 
+async def test_rodape_ptbr_traz_a_mediana_do_acervo_como_referencia(fake_client):
+    route_catalog(fake_client)
+    _route_window(fake_client, {REQ_FROM: RANKING_ROWS, LOOKBACK_FROM: RANKING_ROWS})
+
+    result = await _md(fake_client, agency_key=None)
+
+    assert "Referência: mediana do acervo ≈ 25" in result
+
+
 async def test_sem_ptbr_usa_o_ingles_com_aviso_e_amostra_na_mesma_escala(fake_client):
     rows = [_row("2026-10", "saude", 100, 20.0, legacy=True)]
     route_catalog(fake_client)
@@ -344,6 +353,7 @@ async def test_sem_ptbr_usa_o_ingles_com_aviso_e_amostra_na_mesma_escala(fake_cl
     assert report.agency.flesch == 20.0
     assert (report.worst_article.unique_id, report.best_article.unique_id) == ("a1", "a2")
     assert "Flesch pt-BR indisponível" in report.summary
+    assert "mediana do acervo" not in report.summary  # a referência é da escala pt-BR
 
 
 async def test_api_sem_ptbr_usa_as_queries_antigas(fake_client):

@@ -1,6 +1,9 @@
 """Flesch pt-BR (Martins et al., 1996, GQL-1) com a fórmula inglesa (legado) de reserva:
 escalas, escolha por resposta, média pela contagem de artigos com valor, status e aviso."""
 
+import re
+from pathlib import Path
+
 import pytest
 
 from gobus_mcp.readability import (
@@ -8,15 +11,22 @@ from gobus_mcp.readability import (
     FLESCH_SCALE_EN,
     FLESCH_SCALE_PTBR,
     LEGACY_SCALE_MESSAGE,
+    PTBR_CORPUS_MEDIAN,
+    PTBR_REFERENCE_NOTE,
     PTBR_SCALE,
     article_flesch,
     choose_scale,
     common_scale,
+    describe_flesch,
+    flesch_band,
     legacy_scale_notice,
+    readability_score,
     readability_status,
     scale_metric,
     weighted_metric,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _row(n, ptbr=None, count=None, english=None):
@@ -161,3 +171,49 @@ def test_aviso_so_na_escala_inglesa():
     assert notice.severity == "warn"
     assert notice.message == LEGACY_SCALE_MESSAGE
     assert notice.affects == ["readability"]
+
+
+# ── calibração pela distribuição real (033 aplicada em 22/10/2026) ───────────
+# Acervo inteiro: mediana 25,18; diferença típica sobre o inglês +5,03; 2,5% negativos
+# (mín −339) e 3 acima de 100; 47,8% "difícil" e 46,9% "muito difícil".
+
+
+def test_referencia_do_acervo_e_a_mediana_real_na_divisa_das_faixas():
+    assert PTBR_CORPUS_MEDIAN == pytest.approx(25.2, abs=0.05)
+    assert flesch_band(PTBR_CORPUS_MEDIAN).key == "hard"  # 25,2: logo acima da divisa
+    assert readability_score(PTBR_CORPUS_MEDIAN) == 5.0
+    assert "mediana do acervo ≈ 25" in PTBR_REFERENCE_NOTE
+
+
+@pytest.mark.parametrize(
+    ("raw", "text"),
+    [
+        (-0.03, "0.0 (muito difícil)"),  # antes: "valor bruto -0.0"
+        (100.04, "100.0 (muito fácil)"),
+        (-0.2, "0.0 (muito difícil; valor bruto -0.2)"),
+        (-339.0, "0.0 (muito difícil; valor bruto -339.0)"),
+        (25.18, "25.2 (difícil)"),
+    ],
+)
+def test_bruto_so_aparece_quando_difere_do_exibido(raw, text):
+    assert describe_flesch(raw) == text
+
+
+# Promessas da calibração antiga (amostra de 29 artigos): mediana ≈ 15, "abaixo de 25",
+# ≈ +2 sobre o inglês. A real é ≈ 25 e ≈ +5.
+_STALE = re.compile(r"(≈|~|perto de|em torno de) ?15\b|abaixo de 25|≈ \+2\b|2 pontos abaixo")
+
+
+def _texts() -> list[Path]:
+    files = [*ROOT.glob("src/**/*.py"), *ROOT.glob("src/**/*.js"), *ROOT.glob("docs/**/*.md")]
+    files += [ROOT / "CLAUDE.md", ROOT / "README.md", *ROOT.glob(".claude/skills/*.md")]
+    files += [ROOT / "tests/fixtures/ui/build.py"]
+    return [f for f in files if f.exists() and "experimentos" not in f.parts]
+
+
+def test_textos_nao_prometem_a_mediana_antiga_do_flesch_ptbr():
+    stale = []
+    for path in _texts():
+        text = re.sub(r"\s+", " ", path.read_text(encoding="utf-8"))
+        stale += [f"{path.relative_to(ROOT)}: {m.group(0)}" for m in _STALE.finditer(text)]
+    assert stale == []

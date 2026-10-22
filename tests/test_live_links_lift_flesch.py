@@ -4,7 +4,7 @@ produção (só queries de leitura).
 Fora do CI: ``pytest -m live tests/test_live_links_lift_flesch.py -s``. ``GOBUS_LIVE_URL``
 troca o endpoint. Antes do deploy do GQL-1 (graphql-api#32), os testes conferem a reserva
 (queries ``*Legacy`` válidas no SDL ao vivo, peso bruto, Flesch inglês com aviso); depois,
-os campos novos (links, lift, Flesch pt-BR com mediana ≈ 15).
+os campos novos (links, lift, Flesch pt-BR com mediana perto da do acervo, 25,2).
 """
 
 import importlib
@@ -98,7 +98,9 @@ async def test_temas_em_alta_com_link_quando_a_api_traz_url(client):
         assert all(re.search(r"`[^`]+`$", line) for line in articles)  # id para o get_article
 
 
-async def test_flesch_ptbr_mediana_perto_de_15_e_nao_40_acima_do_ingles(client):
+async def test_flesch_ptbr_mediana_perto_da_do_acervo_e_poucos_pontos_acima_do_ingles(client):
+    """Calibração pela distribuição real (033, 22/10/2026): mediana 25,2, diferença típica
+    sobre o inglês +5, 2,5% negativos. Nos 250 mais recentes (21/10): 24,7, +2,7 e 4,8%."""
     from gobus_mcp.client import GobusGraphQLError
     from gobus_mcp.schema_compat import is_schema_mismatch
 
@@ -113,13 +115,18 @@ async def test_flesch_ptbr_mediana_perto_de_15_e_nao_40_acima_do_ingles(client):
     if len(ptbr) < 20:
         pytest.skip(f"só {len(ptbr)} artigos recentes com Flesch pt-BR (backfill 033 pendente?)")
     median = statistics.median(ptbr)
+    negatives = sum(v < 0 for v in ptbr) / len(ptbr)
     pairs = [
         f["readabilityFleschPtbr"] - f["readabilityFlesch"]
         for f in feats
         if f.get("readabilityFleschPtbr") is not None and f.get("readabilityFlesch") is not None
     ]
-    print(f"\n[Flesch pt-BR] n={len(ptbr)} mediana={median:.1f}; pares={len(pairs)}")
-    assert 0 <= median <= 40  # notícia de governo: ≈ 15 ("muito difícil")
+    print(
+        f"\n[Flesch pt-BR] n={len(ptbr)} mediana={median:.1f} negativos={negatives:.1%}; "
+        f"pares={len(pairs)}"
+    )
+    assert 15 <= median <= 35  # acervo: 25,2, na divisa entre "difícil" e "muito difícil"
+    assert negatives <= 0.10  # acervo: 2,5% (o clamp leva a 0)
     if len(pairs) >= 20:
-        assert abs(statistics.median(pairs)) < 15  # ≈ +2, não os +42 da constante de Martins
+        assert 0 <= statistics.median(pairs) <= 12  # acervo: +5, não os +42 da constante
     assert FLESCH_PTBR  # a feature existe no compat
