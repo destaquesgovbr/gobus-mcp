@@ -73,6 +73,16 @@ def fake_client():
     return FakeGraphQLClient()
 
 
+@pytest.fixture(autouse=True)
+def _schema_compat_limpo():
+    """O ``COMPAT`` é do processo: uma feature marcada como ausente não vaza entre testes."""
+    from gobus_mcp.schema_compat import COMPAT
+
+    COMPAT.reset()
+    yield
+    COMPAT.reset()
+
+
 # ── catálogo de agências fictício (rotas CatalogAgencies / Names / TopAgencies) ──
 
 # (código, republicadora, nome humano). A ordem é a do topAgencies (mais ativas primeiro).
