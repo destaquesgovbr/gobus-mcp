@@ -33,6 +33,11 @@ ID: `ms-2024-05-12-vacinacao-gripe`
 **[saude] Ministério da Saúde** · 2024-05-08
 O quantitativo cobre todos os grupos prioritários da campanha...
 ID: `ms-2024-05-08-doses-vacina`
+
+**Para explorar:**
+- `gobus_get_article(unique_id="ms-2024-05-12-vacinacao-gripe")` — texto do 1º resultado
+- `gobus_get_agency_summary(agency_key="saude")` — resumo do órgão mais citado
+- `gobus_search_news(query="vacinação", page=2)` — próxima página
 ```
 
 ## Exemplos
@@ -60,4 +65,5 @@ ID: `ms-2024-05-08-doses-vacina`
 - A data exibida é o dia de publicação em Brasília (a API devolve UTC; um artigo das 23h30 de 20/10 aparece em 20/10, não em 21/10).
 - O `search()` da API devolve até 20 artigos por página; para listar mais, use `page`.
 - `limit` acima de 50 é limitado a 50 pelo servidor.
+- **Para explorar:** ler o 1º resultado, o resumo do órgão que mais aparece (quando a busca não filtra agência) e a próxima página com os mesmos filtros; na última página, `gobus_resolve_entity` com a própria busca. Sem resultado, não há rodapé.
 - O indicador de trending só aparece quando `trendingScore` é maior que 1.0.

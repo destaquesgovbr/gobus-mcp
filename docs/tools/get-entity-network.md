@@ -15,8 +15,10 @@ Mostra a rede de co-menções **centrada numa entidade**: os vizinhos que mais a
 
 ## Como a rede é montada
 
-- **Fonte:** `relatedEntities(id, limit)`, que traz só as arestas que tocam o foco, por peso decrescente. O `entityNetwork` não é usado: ele devolve todos os nós alcançáveis sem ordem e corta as arestas entre quaisquer pares, então pares de hubs (Brasil ↔ Brasília, 10.733 artigos) expulsavam as conexões do foco.
+- **Fonte:** `relatedEntities(id, limit)`, que traz só as arestas que tocam o foco. O `entityNetwork` não é usado: ele devolve todos os nós alcançáveis sem ordem e corta as arestas entre quaisquer pares, então pares de hubs (Brasil ↔ Brasília, 10.733 artigos) expulsavam as conexões do foco.
 - **Peso:** número de artigos em que as duas entidades aparecem juntas, em **todo o acervo** (não respeita janela de datas) e **sem deduplicar republicações** (o mesmo release publicado por várias agências conta várias vezes).
+- **Ranking por associação** (GQL-1): cada vizinho vale `w · max(0, log2 lift)`, com `lift` = co-menção observada ÷ esperada pela frequência das duas entidades (`RelatedEntity.lift`), e só com `w ≥ 3` (abaixo, 0). O peso bruto premia quem aparece em tudo; o lift sozinho premia co-menções raras. Os candidatos são a **união** de dois pools: os `limit` de maior peso (`orderBy: WEIGHT, minWeight: 2`) e os `limit` de maior lift com `minWeight: 3` — o pool por lift sozinho perderia os vizinhos fortes (em 21/10/2026, o MEC era só o 65º vizinho do Pé-de-Meia por lift, e o 1º por associação). Cada linha mostra `650 artigos · 14,6× o esperado`, e a linha **Ranking:** do cabeçalho diz qual ranking valeu.
+- **Peso bruto de reserva:** sem o lift — API sem o GQL-1 (a consulta volta para a forma antiga por 1 h) ou estatísticas do grafo ainda não calculadas (`lift` nulo em todas as linhas) —, a ordem é o peso bruto e o cabeçalho diz `**Ranking:** peso bruto (artigos em co-menção) — <motivo>`. A lista curada de genéricas vale nos dois casos.
 - **Cabeçalho honesto:** "Mostrando X de Y vizinhos diretos", em que Y conta os vizinhos depois dos filtros; vira "Y+" quando o `limit` foi atingido (há mais vizinhos, todos com peso menor), com uma nota dizendo o peso de corte.
 - **Lugares:** vizinhos do tipo `LOC` (UFs, capitais) saem da lista e vão para a linha "Lugares", com no máximo 5 e "+k lugares". Se `node_types` pede `LOC`, eles voltam para a lista, sem teto.
 - **Genéricas:** ficam fora por padrão e aparecem numa linha "Ocultas como genéricas: …" com os pesos. `include_generic=true` traz todas de volta.
@@ -51,7 +53,7 @@ Continuam visíveis: as UFs (inclusive o Distrito Federal, `Q119158`), as demais
 ### Segundo grau (`depth=2`)
 
 1. Pega os 5 primeiros da lista ranqueada (ou menos, se `max_nodes` for menor).
-2. Busca em paralelo os 25 vizinhos mais fortes de cada um (medido ao vivo: com 15, sobravam 1–3 entidades novas por vizinho; com 25, a rodada continua em ≤ 0,8 s).
+2. Busca em paralelo os 25 vizinhos de maior peso de cada um (só o pool por peso, reordenado pela associação; medido ao vivo: com 15, sobravam 1–3 entidades novas por vizinho; com 25, a rodada continua em ≤ 0,8 s). Com lift, cada item mostra `(peso · lift×, id)`.
 3. Mostra, por vizinho, até 5 entidades **novas**: sem o foco, sem as genéricas e sem os vizinhos diretos já considerados; `node_types` também vale aqui.
 4. Lista as **pontes**: entidades novas alcançadas por 2 ou mais vizinhos (as de mais vizinhos primeiro).
 
@@ -59,12 +61,13 @@ Um vizinho cuja consulta falha vira nota ("Não foi possível expandir …") e o
 
 ## Retorno
 
-**Exemplo (Pé-de-Meia, `depth=2`, 21/10/2026, abreviado):**
+**Exemplo (Pé-de-Meia, `depth=2`, 21/10/2026, antes do GQL-1, abreviado):**
 
 ```
 # Rede de entidades: Pé-de-Meia (POLICY)
 
 `dgb_pe-de-meia` · Mostrando 25 de 46+ vizinhos diretos (pesos = artigos em co-menção em todo o acervo, inclui republicações)
+**Ranking:** peso bruto (artigos em co-menção) — a API ainda não expõe o lift
 
 ## Vizinhos diretos
 1. **Ministério da Educação (MEC)** (ORG) · 650 artigos em co-menção · `Q4294522`
@@ -81,12 +84,19 @@ Ocultas como genéricas: República Federativa do Brasil (341), Portal Gov.br (1
 
 > O limite de 50 vizinhos foi atingido: há mais vizinhos, todos com peso ≤ 18. Aumente `limit` (máx 200).
 
-## Segundo grau (via os 5 vizinhos mais fortes)
+## Segundo grau (via os 5 primeiros vizinhos)
 - via **Ministério da Educação (MEC)** (650): Fundo Nacional de Desenvolvimento da Educação (FNDE) (1.300, `Q10286468`), Coordenação de Aperfeiçoamento de Pessoal de Nível Superior (CAPES) (1.030, `Q5167991`), …, Ministério da Saúde (617, `dgb_saude`), …
 - via **Camilo Sobreira de Santana** (170): Fundo Nacional de Desenvolvimento da Educação (FNDE) (213, `Q10286468`), Fortaleza (106, `dgb_fortaleza`), …
 
 **Pontes** (alcançadas por 2+ vizinhos): Fundo Nacional de Desenvolvimento da Educação (FNDE) (via …), …
+
+**Para explorar:**
+- `gobus_get_entity_profile(entity_name="dgb_pe-de-meia")` — série e órgãos do foco
+- `gobus_get_entity_network(entity_id="Q4294522")` — a rede de Ministério da Educação (MEC)
+- `gobus_search_news(query="Pé-de-Meia Ministério da Educação")` — artigos que citam os dois
 ```
+
+Com o lift (GQL-1), as linhas viram `` 1. **Ministério da Educação (MEC)** (ORG) · 650 artigos · 14,6× o esperado · `Q4294522` `` e o cabeçalho, `**Ranking:** associação (artigos em co-menção × log2 do lift, com ≥ 3 artigos; …)`. Em `depth=1`, o rodapé termina com `gobus_get_entity_network(entity_id="…", depth=2)`.
 
 Em produção (21/10/2026), `depth=2` leva ≤ 0,8 s e ~5–6,5 KB (uma rodada para o foco e uma rodada paralela para os 5 vizinhos).
 

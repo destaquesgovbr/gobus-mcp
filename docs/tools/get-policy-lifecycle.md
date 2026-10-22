@@ -40,6 +40,11 @@ Ciclo de vida comunicacional de uma política pública: série **mensal** de cob
 
 ## Artigos Representativos (pico: 2026-04)
 - [Pé-de-Meia paga …](https://www.gov.br/…) — Ministério da Educação · 2026-04-12
+
+**Para explorar:**
+- `gobus_get_entity_profile(entity_name="dgb_pe-de-meia")` — série, órgãos e relacionadas
+- `gobus_get_message_coherence(entity_id="dgb_pe-de-meia", date_from="2026-04-01", date_to="2026-04-30")` — sintonia no pico
+- `gobus_get_article(unique_id="…")` — artigo do pico
 ```
 
 ## Exemplos
@@ -56,3 +61,5 @@ Ciclo de vida comunicacional de uma política pública: série **mensal** de cob
 - **Âncoras:** agência com mais artigos em cada fase (soma dos meses da fase).
 - **Artigos do pico:** `articles(filter: {entityCanonical, startDate, endDate})` no mês de pico; se nenhum artigo tiver a entidade marcada, busca pelo nome na mesma janela.
 - Use `gobus_resolve_entity(entity_type="POLICY")` para descobrir o nome canônico. `policyDetails` (domínio, população-alvo) é opcional.
+- Artigo sem URL `http(s)` sai com o título em texto puro (`md_link`).
+- **Para explorar:** o perfil completo, a coerência entre as agências no mês de pico (dentro do limite de 92 dias da tool) e o artigo do pico.

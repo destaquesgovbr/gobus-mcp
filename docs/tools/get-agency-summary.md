@@ -24,9 +24,13 @@ Resumo executivo de uma agência numa única chamada: volume, legibilidade, sent
 ## Temas em alta (últimos 7 dias, razão ≥ 1.5× sem sobreposição)
 
 Temas indisponíveis: a classificação de temas não cobre a janela.
+
+**Para explorar:**
+- `gobus_get_readability_recommendations(agency_key="saude")` — diagnóstico de legibilidade
+- `gobus_get_agency_analytics(agencies=["saude"], date_from="2026-09-05", date_to="2026-10-04", granularity="WEEK")` — série semanal
 ```
 
-Com dados, a legibilidade aparece como `55.0 (médio) — 40 de 42 artigos com Flesch` e cada tema como `📈 **Vacinação** · razão 3.0× · growthScore 2.0 · 42 artigos`, com até 2 artigos representativos.
+Com dados, a legibilidade aparece como `**Legibilidade (Flesch pt-BR):** 15.2 (muito difícil) — 40 de 42 artigos com Flesch` e cada tema como `📈 **Vacinação** · razão 3.0× · growthScore 2.0 · 42 artigos`, com até 2 artigos representativos no formato `` [título](url) · `id` `` (a URL vem do `ArticleSummary.url`, GQL-1; sem ela, só o título e o id). Com tema em alta, o rodapé começa por `gobus_get_article(unique_id="…")` do primeiro artigo.
 
 ## Exemplos
 
@@ -37,7 +41,8 @@ Com dados, a legibilidade aparece como `55.0 (médio) — 40 de 42 artigos com F
 ## Notas
 
 - **Nulo nunca vira 0:** legibilidade e sentimento sem dado aparecem como "indisponível", com aviso.
-- **Legibilidade:** média ponderada por artigos, ignorando períodos sem Flesch; valor limitado a 0–100 com as faixas únicas (0/25/50/75).
+- **Legibilidade:** Flesch pt-BR (`avgReadabilityFleschPtbr`), média ponderada pelos artigos que têm o valor (`readabilityFleschPtbrCount`), ignorando períodos sem Flesch; valor limitado a 0–100 com as faixas de Martins (0–25 muito difícil · 25–50 difícil · 50–75 fácil · 75–100 muito fácil). Sem o pt-BR, a fórmula inglesa (legado) com o aviso "Flesch pt-BR indisponível".
+- **Para explorar:** a resposta termina com até 3 chamadas concretas, montadas do resultado (até 400 B; ver [Tools](index.md#convencoes-de-saida)).
 - **Temas em alta:** `trendingThemes` (7/28 dias) com limiar de razão 1,5× **sem sobreposição**, convertido para o limiar da API (ver [detect_trends](detect-trends.md)). Sem temas, a cobertura de classificação diz se é estabilidade ou falta de dado.
 - **Agência inválida** devolve sugestões (ex: `"trabalho"` → `trabalho-e-emprego`).
 - Não substitui `gobus_get_agency_analytics` quando for preciso granularidade diária/semanal ou comparar agências.

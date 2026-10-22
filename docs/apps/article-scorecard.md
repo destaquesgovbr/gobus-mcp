@@ -9,7 +9,7 @@
 
 - Nota geral e um **semáforo por dimensão** (legibilidade, concisão, densidade de entidades), sempre com ícone e texto, não só cor: ✓ verde (≥ 7), ! amarelo (≥ 4), ✕ vermelho, – cinza (sem nota). Os limiares e as cores vêm do payload (`light`, `overallLight`).
 - Chip de estado: **nota completa**, **parcial** (sem benchmark de concisão; média renormalizada) ou **nota recusada** (sem Flesch ou sem contagem de palavras: nunca um número).
-- Benchmark: barras do Flesch do artigo contra as medianas da agência e da Agência Brasil (90 dias antes da publicação), palavras contra as medianas e o tamanho real das amostras.
+- Benchmark: barras do Flesch pt-BR do artigo contra as medianas da agência e da Agência Brasil (90 dias antes da publicação), palavras contra as medianas e o tamanho real das amostras. Sem o pt-BR no artigo, artigo e medianas usam a fórmula inglesa (legado), com o aviso `READABILITY_LEGACY_SCALE` (`scaleFallback: true`).
 - Ações: **Comparar** (a mesma tool com `compare_with` = a primeira sugestão), **Pedir reescrita** (`ui/message` com título, `uniqueId` e métricas) e **Expandir**.
 - Tabela das dimensões em `<details>`.
 

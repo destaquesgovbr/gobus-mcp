@@ -21,7 +21,8 @@ Retorna Markdown com um cabeçalho do período e granularidade, avisos de cobert
 # Analytics: saude, mec
 **2026-06-01 → 2026-07-31** (granularity: MONTH)
 
-> Legibilidade (Flesch): degradado — 53% dos artigos com valor (352 de 666) (desde 30/06/2026)
+Legibilidade: Flesch pt-BR (Martins et al., 1996), limitado a 0–100.
+> Legibilidade (Flesch): degradado — Flesch pt-BR: 53% dos artigos com valor (352 de 666)
 > Sentimento (analytics): indisponível — 0% dos artigos com valor (0 de 666)
 
 ## 2026-06-01
@@ -47,6 +48,6 @@ Retorna Markdown com um cabeçalho do período e granularidade, avisos de cobert
 
 - As datas devem estar no formato ISO `"YYYY-MM-DD"`. O `date_to` é inclusivo em toda granularidade: em `MONTH`/`WEEK` a API trata o `dateTo` como exclusivo (00:00 do dia), e a tool envia o dia seguinte. Os dias são UTC, como na API.
 - Granularidades válidas: `DAY`, `WEEK`, `MONTH` (convertidas para maiúsculas automaticamente).
-- A legibilidade usa o índice Flesch limitado a 0–100, com as faixas únicas 0–25 muito difícil · 25–50 difícil · 50–75 médio · 75–100 fácil (o valor bruto aparece quando foi limitado).
+- A legibilidade usa o Flesch pt-BR (Martins et al., 1996; `avgReadabilityFleschPtbr`) limitado a 0–100, com as faixas de Martins 0–25 muito difícil · 25–50 difícil · 50–75 fácil · 75–100 muito fácil (o valor bruto aparece quando foi limitado). Uma linha no topo diz a escala; sem o pt-BR, a resposta inteira usa a fórmula inglesa (legado), com aviso — as escalas não se misturam.
 - **Nulo não é zero:** métrica sem dado aparece como "indisponível". Sem `avgSentimentScore`, o `pctPositive` 0.0 da API é artefato e não é exibido. Um aviso no topo mostra a cobertura de legibilidade e de sentimento no período.
 - Os nomes das agências vêm do catálogo. Informe as agências pelo código (`agency_key`); sem dados, a tool sugere o código certo para chaves inválidas (ex: `"ms"` → `saude`).

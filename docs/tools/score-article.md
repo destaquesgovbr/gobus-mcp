@@ -56,7 +56,7 @@ Markdown com a nota geral (ou "Nota indisponível"), as notas por dimensão, uma
 ## Notas
 
 - **Benchmark ancorado na publicação:** amostra `articles` da agência (até 250) e da Agência Brasil nos **90 dias antes da publicação** do artigo (o próprio artigo fica fora). As medianas são calculadas no cliente; com menos de 10 artigos com o campo, a mediana é `null` ("—").
-- **Legibilidade:** Flesch limitado a 0–100 (fórmula inglesa do `textstat`); nota linear até a meta de serviço (Flesch 50 = 10).
+- **Legibilidade:** Flesch pt-BR (Martins et al., 1996) limitado a 0–100; nota linear até a meta de serviço (Flesch 50 = 10). Notícia de governo fica tipicamente perto de 15 (nota ≈ 3). Sem o pt-BR no artigo, a fórmula inglesa do `textstat` (legado), com o aviso `READABILITY_LEGACY_SCALE` e `scaleFallback: true`; o benchmark usa sempre a mesma escala do artigo.
 - **Concisão:** razão palavras ÷ mediana da agência — ≤0,8 → 10; ≤1,0 → 8; ≤1,3 → 6; ≤1,6 → 4; acima → 2.
 - **Densidade de entidades:** entidades por 100 palavras — ≥2 → 8; ≥1 → 6; ≥0,5 → 4; abaixo → 2.
 - Quando o pipeline de features está parado, a tabela de benchmark mostra quantos artigos da amostra têm métricas e um aviso "indisponível (desde …)".

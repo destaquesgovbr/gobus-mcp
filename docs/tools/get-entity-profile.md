@@ -17,7 +17,7 @@ Monta o perfil completo de uma entidade: dados canônicos, a série mensal intei
 1. **Entidade:** ID canônico (`Q…`/`dgb_…`) vai direto ao `entity(id)`, sem busca fuzzy; nome passa pelo `entitySearch(limit: 1)` (use `entity_type` para desambiguar).
 2. **Em paralelo**, cada parte degradando sozinha (uma falha vira nota na seção, as demais seguem):
     - `entityCoverage(MONTH)` com `dateTo` = último dia + 1: o resolver compara `published_at <= dateTo::timestamptz` e a data pura vira 00:00 UTC, o que cortaria o último dia;
-    - `relatedEntities(limit: 40)`;
+    - `relatedEntities(limit: 40)` nos dois pools do [ranking por associação](get-entity-network.md#como-a-rede-e-montada) (por peso e por lift);
     - contagem de cópias idênticas (`EntityDedupCounts`; a falha vira nota no fim);
     - catálogo de agências (republicadoras e códigos).
 
@@ -41,7 +41,7 @@ Quando há cópia, o perfil ganha **uma linha** logo abaixo do cabeçalho: "16 c
 
 ### Entidades relacionadas
 
-As 8 mais fortes por co-menção, **em todo o acervo** (os pesos não respeitam o período), sem as [entidades genéricas](get-entity-network.md#entidades-genericas) (Brasil, Brasília, Governo Federal, Portal Gov.br e Diário Oficial da União), que aparecem numa linha "Ocultas como genéricas" (para vê-las na lista, use [get_entity_network](get-entity-network.md) com `include_generic=true`). Ministérios e secretarias, inclusive as entidades das próprias agências (`dgb_{código}`), continuam na lista.
+As 8 primeiras por **associação** (`w · max(0, log2 lift)`, com `w ≥ 3`; peso bruto quando a API não traz o lift, com o motivo na linha **Ordem:**), **em todo o acervo** (os pesos não respeitam o período), sem as [entidades genéricas](get-entity-network.md#entidades-genericas) (Brasil, Brasília, Governo Federal, Portal Gov.br e Diário Oficial da União), que aparecem numa linha "Ocultas como genéricas" (para vê-las na lista, use [get_entity_network](get-entity-network.md) com `include_generic=true`). Ministérios e secretarias, inclusive as entidades das próprias agências (`dgb_{código}`), continuam na lista.
 
 ## Retorno
 
@@ -69,11 +69,17 @@ As 8 mais fortes por co-menção, **em todo o acervo** (os pesos não respeitam 
 …
 
 ## Entidades relacionadas (co-menção, todo o acervo)
-- **Ministério da Educação (MEC)** (ORG) · 650 artigos em co-menção · `Q4294522`
-- **Exame Nacional do Ensino Médio (Enem)** (EVENT) · 306 artigos em co-menção · `Q5419278`
+**Ordem:** associação (artigos em co-menção × log2 do lift, com ≥ 3 artigos; lift = co-menção observada ÷ esperada ao acaso)
+- **Ministério da Educação (MEC)** (ORG) · 650 artigos · 14,6× o esperado · `Q4294522`
+- **Exame Nacional do Ensino Médio (Enem)** (EVENT) · 306 artigos · 68,6× o esperado · `Q5419278`
 …
 
 Ocultas como genéricas: República Federativa do Brasil (341), Portal Gov.br (139), Brasília (77), …
+
+**Para explorar:**
+- `gobus_get_entity_network(entity_id="dgb_pe-de-meia")` — vizinhos por associação
+- `gobus_search_news(query="Pé-de-Meia", agency_key="mec", date_from="2026-01-01", date_to="2026-10-20")` — artigos do órgão que mais publicou
+- `gobus_get_policy_lifecycle(policy_name="Pé-de-Meia")` — fases da política
 ```
 
 O Pé-de-Meia não tem cópia idêntica desde 20/05, então a linha de cópias não aparece. No mesmo recorte, o Brasil (`Q155`) mostra, logo abaixo do cabeçalho:
@@ -97,3 +103,4 @@ O Pé-de-Meia não tem cópia idêntica desde 20/05, então a linha de cópias n
 
 - Em produção, o perfil completo leva ~0,5 s (a busca pelo nome, quando há, mais uma rodada paralela).
 - O `articleCount` do `entitySearch` (todo o acervo) não aparece mais: o cabeçalho é sempre a soma do período pedido.
+- **Para explorar:** a rede por associação, a busca do nome no órgão que mais publicou (no período pedido) e, para políticas (`POLICY`), o ciclo de vida; para os demais tipos, a coerência de mensagem entre as agências. Entidade não encontrada não tem rodapé.
