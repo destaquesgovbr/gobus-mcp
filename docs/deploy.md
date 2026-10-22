@@ -10,12 +10,25 @@ Todas as configurações usam o prefixo `GOBUS_` e são lidas por `Settings` (py
 | `GOBUS_GRAPHQL_API_KEY` | `""` | Chave de API (opcional, enviada como header `X-API-Key`) |
 | `GOBUS_REQUEST_TIMEOUT` | `10.0` | Timeout do httpx, em segundos |
 | `GOBUS_LOG_LEVEL` | `INFO` | Nível de log |
-| `GOBUS_TAXONOMY_CHANGE_DATE` | `""` | Data da virada da taxonomia de temas (tema 26), `AAAA-MM-DD`; `off` desliga o aviso `TAXONOMY_CHANGED`. Vazio = a data do código (`calendario.TAXONOMY_CHANGE_2026_DEFAULT`, **provisória** até a D0 real). Valor inválido cai na data do código, com warning no log |
+| `GOBUS_TAXONOMY_CHANGE_DATE` | `""` | **Não declarada no Terraform.** Data da virada da taxonomia de temas (tema 26), `AAAA-MM-DD`; `off` desliga o aviso `TAXONOMY_CHANGED`. Vazio = a data do código (`calendario.TAXONOMY_CHANGE_2026_DEFAULT`, **provisória** até a D0 real). Valor inválido cai na data do código, com warning no log. Serve para simular a virada localmente (ver abaixo) |
 | `GOBUS_DEV_PREVIEW` | `false` | **Só desenvolvimento.** `1` registra as tools `gobus_dev_preview_*` (fixtures "DEV — dados fictícios") |
 | `GOBUS_DEV_FIXTURES` | `""` | **Só desenvolvimento.** Diretório das fixtures das previews (padrão: `tests/fixtures/ui` do clone) |
 | `GOBUS_CORS_ORIGINS` | `""` | **Só desenvolvimento.** Origens liberadas por CORS no HTTP (ex.: `http://localhost:8080` para o basic-host) |
 
 As três variáveis de desenvolvimento nunca vão para o Cloud Run; ver [Desenvolvimento e validação dos MCP Apps](apps/desenvolvimento.md).
+
+### Data da virada da taxonomia (tema 26)
+
+Em produção, a data da virada vem **só** de `calendario.TAXONOMY_CHANGE_2026_DEFAULT`. O `infra/terraform/gobus-mcp.tf` declara apenas `GOBUS_GRAPHQL_URL`, `GOBUS_LOG_LEVEL` e `GOBUS_REQUEST_TIMEOUT`, e as env vars do Cloud Run são geridas só pelo Terraform. Mudar `GOBUS_TAXONOMY_CHANGE_DATE` direto no serviço gera drift e viola essa regra.
+
+| Ação | Caminho |
+|------|---------|
+| Ajustar a D0 | Mudar `TAXONOMY_CHANGE_2026_DEFAULT` no código: PR → merge em `main` → deploy automático |
+| Desligar só o aviso | `TAXONOMY_CHANGE_2026_DEFAULT = None`, pelo mesmo caminho |
+| Rollback do PR inteiro | Reverter o squash em `main`; o deploy automático publica a versão anterior |
+| Usar a env var em produção | Antes, um PR no `infra/` que declare `GOBUS_TAXONOMY_CHANGE_DATE` (aplicado pelo workflow Terraform Apply) |
+
+Localmente, a env var simula a virada sem mexer no código. Por exemplo, `GOBUS_TAXONOMY_CHANGE_DATE=2026-10-10 python -m gobus_mcp` faz os baselines de outubro cruzarem a data.
 
 Além dessas, o servidor lê `PORT` (injetada pelo Cloud Run) para decidir o transport — veja [Arquitetura → Transport](arquitetura.md#transport).
 
