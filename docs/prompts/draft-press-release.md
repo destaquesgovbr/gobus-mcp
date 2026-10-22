@@ -8,8 +8,8 @@ O prompt chega ao modelo como **uma única mensagem de usuário** (texto) com o 
 
 O prompt guia o LLM por 4 passos sequenciais:
 
-1. **Pesquisa de base** — [`gobus_search_news`](../tools/search-news.md) com `query=topic` (e `agency_key`, se informado) — encontra os artigos de referência mais relevantes.
-2. **Aprofundamento** — [`gobus_get_article`](../tools/get-article.md) nos 3 mais relevantes — obtém o conteúdo completo.
+1. **Pesquisa de base** — a chamada completa `gobus_search_news(query=topic, agency_key=…, limit=limit)` ([`gobus_search_news`](../tools/search-news.md); `agency_key` só se informado) — encontra os `limit` artigos de referência mais relevantes. O `limit` vai na chamada (antes ficava só no texto e a tool usava o padrão dela, 10).
+2. **Aprofundamento** — [`gobus_get_article`](../tools/get-article.md) nos 3 mais relevantes (com `limit` 1 a 3, em todos os encontrados: "Para o artigo encontrado", "Para os 2 artigos encontrados") — obtém o conteúdo completo.
 3. **Síntese de fatos** — análise — extrai dados e estatísticas, ações anunciadas, declarações de autoridades e impactos para a população.
 4. **Rascunho do release** — síntese — o LLM escreve título, lead, corpo, citação e notas para editores, marcando com `[VERIFICAR]` todo dado não confirmado.
 

@@ -11,15 +11,23 @@ def draft_press_release_prompt(topic: str, agency_key: str = "", limit: int | st
     """
     limit = _int_arg(limit, 5, 1, 20)
     agency_filter = f" da agência `{agency_key}`" if agency_key else ""
+    agency_arg = f', agency_key="{agency_key}"' if agency_key else ""
+    # passo 2: aprofunda até 3 artigos, sem prometer mais do que o limit traz
+    if limit == 1:
+        step2 = "Para o artigo encontrado"
+    elif limit <= 3:
+        step2 = f"Para os {limit} artigos encontrados"
+    else:
+        step2 = "Para os 3 artigos mais relevantes"
     return f"""Crie um rascunho de release de imprensa sobre **{topic}**{agency_filter}.
 
 ## Roteiro de produção
 
 ### 1. Pesquisa de base
-Use `gobus_search_news` com query="{topic}"{f' e agency_key="{agency_key}"' if agency_key else ""} para encontrar os {limit} artigos mais relevantes.
+Chame `gobus_search_news(query="{topic}"{agency_arg}, limit={limit})` para encontrar os {limit} artigos mais relevantes.
 
 ### 2. Aprofundamento
-Para os 3 artigos mais relevantes, use `gobus_get_article` para obter o conteúdo completo.
+{step2}, use `gobus_get_article` para obter o conteúdo completo.
 
 ### 3. Síntese de fatos
 Extraia:

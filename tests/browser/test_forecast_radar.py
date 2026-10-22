@@ -1,6 +1,7 @@
 """``ui://forecast-radar`` no mini-host: todas as fixtures × claro/escuro × 320/760 px e as
 interações (radar em escala log2 com o anel 1×, top-3 com momentum, horizonte por
-``tools/call``, "explicar" por ``ui/message``, contexto do modelo)."""
+``tools/call`` — compacto no card, completo no fullscreen —, "explicar" por ``ui/message``,
+contexto do modelo)."""
 
 import math
 
@@ -142,15 +143,47 @@ async def test_horizonte_pela_mesma_tool(open_host):
     assert run.problems == []
 
 
-async def test_card_inline_sem_controles_e_com_expandir(open_host):
+async def test_card_inline_tem_horizonte_compacto_e_expandir(open_host):
+    # A7 (teste 5.5): o horizonte aparece no card, sem precisar de "Expandir"
     run, _ = await _open(open_host, "ok")
 
-    assert await run.app.get_by_test_id("horizon-7").count() == 0
+    controls = run.app.get_by_test_id("controls")
+    assert await controls.get_attribute("data-compact") == "true"
+    assert await run.app.get_by_test_id("horizon-7").count() == 1
+    assert (await run.app.get_by_test_id("horizon-7").text_content()).strip() == "7"
+    assert await run.app.get_by_test_id("horizon-21").get_attribute("aria-pressed") == "true"
+    assert "dias" in await controls.text_content()
     assert await run.app.get_by_test_id("table-windows").count() == 0
     assert await run.app.get_by_test_id("action-expand").count() == 1
     await run.app.get_by_test_id("action-expand").click()
-    await run.wait_testid("horizon-7")
+    await run.app.locator('[data-testid="controls"][data-compact="false"]').wait_for()
     assert (await run.gb())["displayModes"] == ["fullscreen"]
+    assert "7 dias" in await run.app.get_by_test_id("horizon-7").text_content()
+    assert run.problems == []
+
+
+@pytest.mark.parametrize("width", [320, 760])
+async def test_horizonte_inline_chama_a_mesma_tool_sem_sair_do_card(open_host, width):
+    run, fixture = await _open(open_host, "ok", width=width)
+    limit = _sc(fixture)["params"]["limit"]
+
+    await run.app.get_by_test_id("horizon-7").click()
+    await run.app.locator('[data-testid="horizon-7"][aria-pressed="true"]').wait_for()
+
+    gb = await run.gb()
+    assert gb["toolCalls"] == [{"name": TOOL, "arguments": {"horizon_days": 7, "limit": limit}}]
+    assert gb["displayModes"] == []
+    assert await run.app.get_by_test_id("controls").get_attribute("data-compact") == "true"
+    assert await run.no_horizontal_overflow()
+    assert run.problems == []
+
+
+@pytest.mark.parametrize("state", ["unavailable", "empty"])
+async def test_card_sem_temas_nao_oferece_horizonte(open_host, state):
+    # sem radar, trocar o horizonte não muda nada: o controle fica só no fullscreen
+    run, _ = await _open(open_host, state)
+
+    assert await run.app.get_by_test_id("horizon-7").count() == 0
     assert run.problems == []
 
 
@@ -186,6 +219,24 @@ async def test_sem_capacidades_do_host_nao_oferece_acoes(open_host):
     for testid in ("horizon-7", "action-explain"):
         assert await run.app.get_by_test_id(testid).count() == 0, testid
     assert await run.app.get_by_test_id("radar").count() == 1
+    assert run.problems == []
+
+
+@pytest.mark.parametrize("width", [320, 760])
+async def test_host_sem_server_tools_o_chip_manda_pedir_no_chat(open_host, width):
+    run, _ = await _open(open_host, "ok", capabilities={"message": {"text": {}}}, width=width)
+
+    assert await run.app.get_by_test_id("horizon-7").count() == 0
+    chip = await run.app.get_by_test_id("chip-horizon").text_content()
+    assert "21 dias" in chip and "peça no chat para trocar" in chip
+    assert await run.no_horizontal_overflow()
+    assert run.problems == []
+
+
+async def test_host_com_server_tools_o_chip_nao_manda_pedir_no_chat(open_host):
+    run, _ = await _open(open_host, "ok")
+
+    assert "peça no chat" not in await run.app.get_by_test_id("chip-horizon").text_content()
     assert run.problems == []
 
 

@@ -241,3 +241,72 @@ async def test_data_exibida_e_o_dia_de_brasilia(fake_client):
 
     assert "· 2026-10-20" in result
     assert "2026-10-21" not in result
+
+
+# ── ajustes do pós-merge do #12: data ISO "basic" e período invertido com hora ──
+
+
+async def test_data_iso_basic_vira_o_dia_inteiro_em_brasilia(fake_client):
+    # "20261020" passava crua: o upstream lia 00:00 UTC e perdia o dia de date_to
+    fake_client.route("SearchNews", EMPTY)
+
+    await search_news("*", fake_client, date_from="20261020", date_to="20261020")
+
+    (variables,) = fake_client.calls("SearchNews")
+    assert variables["filter"]["startDate"] == "2026-10-20T00:00:00-03:00"
+    assert variables["filter"]["endDate"] == "2026-10-20T23:59:59-03:00"
+
+
+async def test_data_e_hora_iso_basic_viram_o_formato_estendido(fake_client):
+    fake_client.route("SearchNews", EMPTY)
+
+    await search_news("*", fake_client, date_from="20261020T100000-0300")
+
+    (variables,) = fake_client.calls("SearchNews")
+    assert variables["filter"]["startDate"] == "2026-10-20T10:00:00-03:00"
+
+
+@pytest.mark.parametrize("value", ["2026102", "202610200", "20261340"])
+async def test_data_basic_invalida_devolve_mensagem(fake_client, value):
+    fake_client.route("SearchNews", EMPTY)
+
+    result = await search_news("*", fake_client, date_to=value)
+
+    assert "`date_to`" in result and "AAAA-MM-DD" in result
+    assert fake_client.calls("SearchNews") == []
+
+
+@pytest.mark.parametrize(
+    ("date_from", "date_to"),
+    [
+        ("2026-10-20T15:00:00-03:00", "2026-10-20T10:00:00-03:00"),  # datetimes invertidos
+        ("2026-10-21", "2026-10-20T23:00:00-03:00"),  # dia inteiro depois da hora final
+        ("2026-10-20T12:00:00-03:00", "2026-10-20T14:00:00Z"),  # 15:00Z > 14:00Z
+        ("20261021", "20261020"),  # basic invertido
+        ("2026-10-20T15:00:00", "2026-10-20T12:00:00Z"),  # sem fuso = UTC (como a API)
+    ],
+)
+async def test_periodo_invertido_com_hora_e_periodo_invalido(fake_client, date_from, date_to):
+    fake_client.route("SearchNews", EMPTY)
+
+    result = await search_news("*", fake_client, date_from=date_from, date_to=date_to)
+
+    assert result.startswith("Período inválido")
+    assert "Nenhum resultado" not in result
+    assert fake_client.calls("SearchNews") == []
+
+
+@pytest.mark.parametrize(
+    ("date_from", "date_to"),
+    [
+        ("2026-10-20", "2026-10-20T10:00:00-03:00"),
+        ("2026-10-20T10:00:00-03:00", "2026-10-20T10:00:00-03:00"),
+        ("2026-10-20T09:00:00-03:00", "2026-10-20"),
+    ],
+)
+async def test_periodo_com_hora_na_ordem_consulta(fake_client, date_from, date_to):
+    fake_client.route("SearchNews", EMPTY)
+
+    await search_news("*", fake_client, date_from=date_from, date_to=date_to)
+
+    assert len(fake_client.calls("SearchNews")) == 1

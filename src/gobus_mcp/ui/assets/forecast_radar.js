@@ -1,8 +1,9 @@
 // ── forecast_radar.js ── ui://forecast-radar ← gobus_forecast_trends(horizon_days, limit)
 // Card: radar do ritmo semanal dos temas em escala log2 (anel 1× = baseline; fora dele o
 // tema ganha espaço) com o polígono da fatia no horizonte, top-3 com momentum e artigos
-// esperados, chips do calendário e das janelas. Fullscreen (ou host sem fullscreen):
-// horizonte pela mesma tool (opções do payload) e as razões por janela.
+// esperados, chips do calendário e das janelas e o horizonte compacto (mesma tool, opções
+// do payload; sem serverTools, o chip manda pedir no chat). Fullscreen (ou host sem
+// fullscreen): o horizonte completo e as razões por janela.
 const APP_TOOL = "gobus_forecast_trends";
 const APP_INLINE_AXES = 8;
 const APP_TOP = 3;
@@ -185,7 +186,8 @@ function appHeader(sc) {
     if (w.status === "ok") continue;
     chips.push(domChip("Janela " + key + " " + APP_WINDOW_STATUS[w.status] + " (cobertura " + appPct(w.classifiedCoverage) + ")", w.status === "unavailable" ? "error" : "warn", "chip-window-" + key));
   }
-  chips.push(domChip("Horizonte " + horizon + " dias" + (requested !== undefined && requested !== null && requested !== horizon ? " (pedido: " + requested + ")" : ""), null, "chip-horizon"));
+  const asked = requested !== undefined && requested !== null && requested !== horizon ? " (pedido: " + requested + ")" : "";
+  chips.push(domChip("Horizonte " + horizon + " dias" + asked + (bridgeCan("serverTools") ? "" : " · peça no chat para trocar"), null, "chip-horizon"));
   return h("header", { class: "gb-head" },
     h("div", null,
       h("h1", { class: "gb-title" }, "Radar de tendências"),
@@ -230,11 +232,12 @@ function appWindowTable(sc) {
   }), "table-windows");
 }
 
-function appHorizon(sc, view) {
+// compacto (card): só os números, "Horizonte (dias)" na frente; completo: "7 dias"…
+function appHorizon(sc, view, compact) {
   if (!bridgeCan("serverTools")) return null;
-  const options = (sc.horizonOptions || []).map((d) => ({ value: d, label: d + " dias" }));
-  return h("div", { class: "gb-row fr-controls", "data-testid": "controls" },
-    h("span", { class: "gb-small gb-muted" }, "Horizonte"),
+  const options = (sc.horizonOptions || []).map((d) => ({ value: d, label: compact ? String(d) : d + " dias" }));
+  return h("div", { class: "gb-row fr-controls", "data-testid": "controls", "data-compact": String(compact) },
+    h("span", { class: "gb-small gb-muted" }, compact ? "Horizonte (dias)" : "Horizonte"),
     domSegment(options, sc.params.horizon_days, (d) => view.call(APP_TOOL, { horizon_days: d, limit: sc.params.limit }, "Projetando " + d + " dias…"), "horizon-", "Horizonte"));
 }
 
@@ -243,7 +246,9 @@ function appRender(sc, view) {
   const full = document.documentElement.dataset.mode === "fullscreen";
   const rich = full || !bridgeCanDisplay("fullscreen");
   const nodes = [appHeader(sc)];
-  if (rich) nodes.push(appHorizon(sc, view));
+  // no card, o horizonte compacto só quando há radar (sem temas, trocar não muda nada)
+  if (rich) nodes.push(appHorizon(sc, view, false));
+  else if (sc.status !== "unavailable" && sc.themes.length) nodes.push(appHorizon(sc, view, true));
   if (sc.status === "unavailable") {
     const why = (sc.dataStatus || []).filter((d) => d.status !== "ok").map((d) => d.message).join("\n");
     nodes.push(domState("unavailable", "Forecast indisponível", why || "Nenhuma janela com cobertura de classificação suficiente."), domNotices(sc.notices));

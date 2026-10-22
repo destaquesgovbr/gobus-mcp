@@ -1,6 +1,7 @@
 """``ui://anomaly-radar`` no mini-host: todas as fixtures × claro/escuro × 320/760 px e as
-interações (fullscreen com a lista, toggle local pico/silêncio/outros, sensibilidade e
-domínio por ``tools/call``, "investigar" por ``ui/message``, contexto do modelo)."""
+interações (sensibilidade no card e no fullscreen; fullscreen com a lista, toggle local
+pico/silêncio/outros e domínio por ``tools/call``, "investigar" por ``ui/message``,
+contexto do modelo)."""
 
 import pytest
 
@@ -93,8 +94,11 @@ async def test_card_inline_8_gauges_em_ordem_fixa_com_faixas_do_payload(open_hos
     values = {await ticks.nth(i).get_attribute("data-tick") for i in range(await ticks.count())}
     bands = sc["severityBands"]
     assert values == {str(bands["watch"]), str(bands["alert"])}
-    # card inline: sem a lista (fica no fullscreen), com o total e as ações
+    # card inline: sem a lista e sem o domínio (ficam no fullscreen), com a sensibilidade,
+    # o total e as ações
     assert await run.app.get_by_test_id("signals").count() == 0
+    assert await run.app.get_by_test_id("domain-HEALTH").count() == 0
+    assert await run.app.get_by_test_id("sens-high").count() == 1
     totals = await run.app.get_by_test_id("totals").text_content()
     assert "pico" in totals and "silêncio" in totals
     assert await run.app.get_by_test_id("action-expand").count() == 1
@@ -168,6 +172,71 @@ async def test_sensibilidade_e_dominio_pela_mesma_tool(open_host):
     assert "Saúde" in await run.app.get_by_test_id("chip-domain").text_content()
     # os 8 gauges continuam (o payload resume todos os domínios mesmo com filtro)
     assert await run.app.locator('[data-testid^="gauge-"]').count() == 8
+    assert run.problems == []
+
+
+async def test_sensibilidade_inline_no_card(open_host):
+    # A7: a sensibilidade aparece no card, sem precisar de "Expandir"
+    run, fixture = await _open(open_host, "ok")
+    sc = _sc(fixture)
+
+    controls = run.app.get_by_test_id("controls")
+    assert await controls.get_attribute("data-compact") == "true"
+    current = sc["params"]["sensitivity"]
+    assert await run.app.get_by_test_id(f"sens-{current}").get_attribute("aria-pressed") == "true"
+    assert await run.app.get_by_test_id("domain-HEALTH").count() == 0
+    # gauges não viram botões no card (o domínio fica no fullscreen)
+    assert await run.app.locator('button[data-testid^="gauge-"]').count() == 0
+
+    await run.app.get_by_test_id("sens-high").click()
+    await run.app.locator('[data-testid="sens-high"][aria-pressed="true"]').wait_for()
+    gb = await run.gb()
+    assert gb["toolCalls"] == [{"name": TOOL, "arguments": {"sensitivity": "high"}}]
+    assert gb["displayModes"] == []
+    assert await run.app.get_by_test_id("controls").get_attribute("data-compact") == "true"
+    assert await run.app.get_by_test_id("signals").count() == 0
+    assert run.problems == []
+
+
+@pytest.mark.parametrize("width", [320, 760])
+async def test_sensibilidade_inline_cabe_em_tela_estreita(open_host, width):
+    run, _ = await _open(open_host, "ok", width=width)
+
+    assert await run.app.get_by_test_id("sens-low").count() == 1
+    assert await run.no_horizontal_overflow()
+    assert run.problems == []
+
+
+async def test_fullscreen_tem_os_controles_completos(open_host):
+    run, _ = await _fullscreen(open_host, "ok")
+
+    assert await run.app.get_by_test_id("controls").get_attribute("data-compact") == "false"
+    assert await run.app.get_by_test_id("domain-HEALTH").count() == 1
+    assert run.problems == []
+
+
+async def test_card_indisponivel_nao_oferece_sensibilidade(open_host):
+    run, _ = await _open(open_host, "unavailable")
+
+    assert await run.app.get_by_test_id("sens-high").count() == 0
+    assert run.problems == []
+
+
+@pytest.mark.parametrize("width", [320, 760])
+async def test_host_sem_server_tools_o_chip_manda_pedir_no_chat(open_host, width):
+    run, _ = await _open(open_host, "ok", capabilities={"message": {"text": {}}}, width=width)
+
+    assert await run.app.get_by_test_id("sens-high").count() == 0
+    chip = await run.app.get_by_test_id("chip-sensitivity").text_content()
+    assert "peça no chat para trocar" in chip
+    assert await run.no_horizontal_overflow()
+    assert run.problems == []
+
+
+async def test_host_com_server_tools_o_chip_nao_manda_pedir_no_chat(open_host):
+    run, _ = await _open(open_host, "ok")
+
+    assert "peça no chat" not in await run.app.get_by_test_id("chip-sensitivity").text_content()
     assert run.problems == []
 
 

@@ -8,7 +8,8 @@
 ## Card inline
 
 - **8 gauges por domínio**, na ordem fixa do payload (Saúde, Educação, Social, Economia, Segurança, Meio ambiente, Governança, Outros). Cada gauge tem dois arcos de 0 a 1: o externo (laranja) é o **pico** (tema em alta e cobertura concentrada) e o interno (azul) é o **silêncio** (queda de tema e silêncio coordenado). As marcas ficam nos limiares de atenção e alerta que vêm do payload (`severityBands`), e o arco na faixa normal fica esmaecido. Embaixo, ▲ picos e ▼ silêncios.
-- **Chips:** defeso eleitoral (dias restantes) ou recuperação pós-defeso (até quando), temas degradados ou indisponíveis "desde dd/mm" (detecção dinâmica, data do `dataStatus`), entidades com dados degradados, sensibilidade e domínio filtrado.
+- **Chips:** defeso eleitoral (dias restantes) ou recuperação pós-defeso (até quando), temas degradados ou indisponíveis "desde dd/mm" (detecção dinâmica, data do `dataStatus`), entidades com dados degradados, sensibilidade e domínio filtrado. Em host sem `serverTools`, o chip da sensibilidade diz "peça no chat para trocar".
+- **Sensibilidade compacta** (alta, média, baixa; opções do payload `sensitivityOptions`) logo abaixo do cabeçalho, sempre que o host oferece `serverTools`: o clique faz o `tools/call` da mesma tool, sem sair do card. O domínio (9 botões) e o clique nos gauges ficam no fullscreen; com o radar indisponível, a sensibilidade também.
 - Total de sinais (picos, silêncios e os outros: rajadas, entidades novas, explicados pelo calendário) e o banner do calendário: no defeso, silêncio de agência calada vira "explicado pelo calendário"; na recuperação, baselines pré-defeso e confiança −1 nível.
 - Com os dois blocos ok e nada anômalo: "Nada fora do padrão nesta sensibilidade". Com dado faltando (status `partial`), o app **não** afirma isso: mostra "Nenhum sinal nos dados disponíveis" e o motivo de cada bloco.
 - Avisos de dados recolhidos em `<details>`; tabela dos domínios em `<details>`.
@@ -20,7 +21,7 @@
 - **Lista com toggle local** (sem nova consulta): Picos, Silêncios e Outros. Cada sinal traz classe, domínio, severidade e faixa, confiança, o detalhe (razões, volume, agências, dona), a explicação e as flags. Entidades têm a **sparkline** de 28 dias (em destaque, a janela; tracejada, a agência dona).
 - Clique no nome → `ui/update-model-context` ("o usuário selecionou…"). **Investigar** → `ui/message` sugerindo `gobus_get_entity_profile` (entidade) ou `gobus_search_news` e `gobus_detect_trends` (tema).
 - Se o payload foi compactado, o app avisa quantos sinais ficaram fora do painel ("a lista completa está no texto da resposta").
-- Em host sem fullscreen, a lista e os controles aparecem no próprio card.
+- Em host sem fullscreen, a lista e os controles completos (sensibilidade e domínio) aparecem no próprio card.
 
 ## Estados
 
