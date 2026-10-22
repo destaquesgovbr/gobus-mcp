@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from gobus_mcp.tools.search_news import search_news
@@ -310,3 +312,78 @@ async def test_periodo_com_hora_na_ordem_consulta(fake_client, date_from, date_t
     await search_news("*", fake_client, date_from=date_from, date_to=date_to)
 
     assert len(fake_client.calls("SearchNews")) == 1
+
+
+# ── paginação: a página da tool tem `limit` artigos (a API devolve 20 por página) ──
+
+
+def _paged_api(found: int):
+    """``search()`` como na graphql-api: 20 artigos por página, ``found`` no total."""
+
+    def respond(variables: dict) -> dict:
+        start = (variables["page"] - 1) * 20
+        articles = [_make_article(i) for i in range(start, min(start + 20, found))]
+        return {"search": {"articles": articles, "found": found, "page": variables["page"]}}
+
+    return respond
+
+
+def _shown(result: str) -> list[int]:
+    return [int(n) for n in re.findall(r"^## \[Artigo (\d+)\]", result, flags=re.MULTILINE)]
+
+
+async def test_pagina_2_com_limit_padrao_traz_os_resultados_11_a_20(fake_client):
+    # antes: page=2 ia direto à página 2 da API (21–40) e o corte em 10 mostrava 21–30,
+    # pulando 11–20 sem aviso
+    fake_client.route("SearchNews", _paged_api(found=45))
+
+    result = await search_news("educação", fake_client, page=2)
+
+    assert _shown(result) == list(range(10, 20))
+    assert [v["page"] for v in fake_client.calls("SearchNews")] == [1]
+
+
+async def test_pagina_que_cruza_duas_paginas_da_api_junta_as_duas(fake_client):
+    fake_client.route("SearchNews", _paged_api(found=45))
+
+    result = await search_news("educação", fake_client, page=2, limit=15)
+
+    assert _shown(result) == list(range(15, 30))
+    assert sorted(v["page"] for v in fake_client.calls("SearchNews")) == [1, 2]
+
+
+async def test_limit_50_junta_tres_paginas_da_api_sem_pedir_alem_do_total(fake_client):
+    fake_client.route("SearchNews", _paged_api(found=45))
+
+    result = await search_news("educação", fake_client, limit=50)
+
+    assert _shown(result) == list(range(45))
+    assert sorted(v["page"] for v in fake_client.calls("SearchNews")) == [1, 2, 3]
+
+
+async def test_paginas_seguidas_da_tool_nao_pulam_nem_repetem_resultados(fake_client):
+    fake_client.route("SearchNews", _paged_api(found=45))
+
+    seen: list[int] = []
+    for page in (1, 2, 3, 4, 5):
+        seen += _shown(await search_news("educação", fake_client, page=page))
+
+    assert seen == list(range(45))
+
+
+async def test_proxima_pagina_do_rodape_repassa_o_limit(fake_client):
+    fake_client.route("SearchNews", _paged_api(found=45))
+
+    result = await search_news("educação", fake_client, limit=5)
+
+    assert '- `gobus_search_news(query="educação", page=2, limit=5)` — próxima página' in result
+
+
+async def test_proxima_pagina_so_quando_ha_mais_resultados_que_page_vezes_limit(fake_client):
+    fake_client.route("SearchNews", _paged_api(found=45))
+
+    page_4 = await search_news("educação", fake_client, page=4)  # 31–40: há a 5
+    page_5 = await search_news("educação", fake_client, page=5)  # 41–45: última
+
+    assert 'gobus_search_news(query="educação", page=5)' in page_4
+    assert "próxima página" not in page_5
