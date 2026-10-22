@@ -30,7 +30,7 @@ Use `gobus_get_entity_profile` com o entity_name encontrado{f', date_from="{date
 > e podem ser executadas em paralelo.
 
 ### 3. Rede de relacionamentos
-Use `gobus_get_entity_network` com o entityId canônico, depth=1, max_nodes=15 para mapear as entidades conectadas (a rede de 2 níveis passa de centenas de nós).
+Use `gobus_get_entity_network` com o entityId canônico, depth=1, max_nodes=15 para mapear as entidades conectadas. A rede é centrada na entidade e ranqueada por associação (artigos em co-menção × lift); para conexões indiretas, siga o segundo grau sugerido no rodapé "Para explorar" da própria rede.
 
 ### 4. Artigos âncoras
 Use `gobus_search_news` com query="{entity_name}"{f', date_from="{date_from}"' if date_from else ""}{f', date_to="{date_to}"' if date_to else ""} para encontrar as publicações mais relevantes. Use `gobus_get_article` nos 3 mais relevantes para extrair detalhes.
