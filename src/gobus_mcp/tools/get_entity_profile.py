@@ -8,8 +8,9 @@ passa pelo ``entitySearch(limit: 1)``. Depois, em paralelo e cada parte degradan
   o resolver compara ``published_at <= dateTo::timestamptz`` e a data pura vira 00:00 UTC,
   cortando o último dia. Cabeçalho, série e tabela somam as mesmas linhas
   (``analytics.profile``);
-- ``relatedEntities(limit: 40)`` sem as entidades genéricas da lista curada (pesos de todo
-  o acervo);
+- ``relatedEntities(limit: 40)`` por associação (``entity_lookup.fetch_neighbors``: peso ×
+  log2 do lift, com o peso bruto de reserva), sem as entidades genéricas da lista curada
+  (pesos de todo o acervo);
 - ``EntityDedupCounts``: artigos × textos distintos (o ``dedup`` do Typesense agrupa por
   ``content_hash``), só desde ``ENTITY_CANONICAL_INDEX_SINCE`` (antes, o índice não marca a
   entidade). Conteúdo idêntico é raro (republicação costuma mudar o texto), então a saída
@@ -35,7 +36,15 @@ from gobus_mcp.cache import TTLCache
 from gobus_mcp.calendario import DateRange, reference_date, utc_day_bounds
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import ENTITY_CANONICAL_INDEX_SINCE
-from gobus_mcp.entity_lookup import display_name, fetch_entity, fetch_related, looks_like_id
+from gobus_mcp.entity_lookup import (
+    RelatedNeighbors,
+    association_text,
+    display_name,
+    fetch_entity,
+    fetch_neighbors,
+    looks_like_id,
+    ranking_label,
+)
 from gobus_mcp.formatting import error_text, fmt_date, fmt_int, md_link, plural
 
 _ENTITY_SEARCH_QUERY = """
@@ -175,10 +184,11 @@ def _agency_lines(rows: list[dict], republishers: frozenset[str]) -> list[str]:
     return lines
 
 
-def _related_lines(kept: list[dict], hidden: list[dict]) -> list[str]:
-    lines = [
-        f"- **{display_name(r)}** ({r.get('type') or '?'}) · {fmt_int(int(r.get('weight') or 0))} "
-        f"artigos em co-menção · `{r['canonicalId']}`"
+def _related_lines(kept: list[dict], hidden: list[dict], neighbors: RelatedNeighbors) -> list[str]:
+    lines = [f"**Ordem:** {ranking_label(neighbors)}"]
+    lines += [
+        f"- **{display_name(r)}** ({r.get('type') or '?'}) · {association_text(r)} · "
+        f"`{r['canonicalId']}`"
         for r in kept[:RELATED_SHOWN]
     ]
     if not kept:
@@ -243,7 +253,7 @@ async def get_entity_profile(
     node_r, coverage_r, related_r, dedup_r, info = await asyncio.gather(
         fetch_entity(client, entity_id, cache=cache) if by_id else _none(),
         _coverage(client, entity_id, start, end),
-        fetch_related(client, entity_id, RELATED_LIMIT, cache=cache),
+        fetch_neighbors(client, entity_id, RELATED_LIMIT, cache=cache),
         _dedup_counts(client, entity_id, window) if window and not summary_only else _none(),
         catalog_info(catalog),
         return_exceptions=True,
@@ -294,7 +304,7 @@ async def get_entity_profile(
         related_note = f"> Entidades relacionadas indisponíveis ({error_text(related_r)})."
     else:
         related_note = None
-        kept, hidden = split_generic(related_r, generic_ids())
+        kept, hidden = split_generic(related_r.rows, generic_ids())
 
     if summary_only:
         if related_note:
@@ -320,5 +330,5 @@ async def get_entity_profile(
         notes.append(f"> Contagem de cópias idênticas indisponível ({error_text(dedup_r)}).")
 
     lines.append("\n## Entidades relacionadas (co-menção, todo o acervo)")
-    lines.extend([related_note] if related_note else _related_lines(kept, hidden))
+    lines.extend([related_note] if related_note else _related_lines(kept, hidden, related_r))
     return "\n".join(lines + ([""] + notes if notes else []))
