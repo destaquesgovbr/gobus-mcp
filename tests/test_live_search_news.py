@@ -55,3 +55,20 @@ async def test_mec_no_ultimo_dia_util_tem_artigos_e_so_daquele_dia():
     articles = client.responses[-1]["search"]["articles"]
     days = {datetime.fromisoformat(a["publishedAt"]).astimezone(BRT).date() for a in articles}
     assert days == {day}
+
+
+def _ids(markdown: str) -> list[str]:
+    return re.findall(r"^ID: `([^`]+)`", markdown, flags=re.MULTILINE)
+
+
+async def test_paginas_de_10_seguem_as_20_primeiras_sem_pular():
+    """A página 2 com o ``limit`` padrão traz os resultados 11–20 (não os 21–30)."""
+    client = GobusGraphQLClient(os.environ.get("GOBUS_LIVE_URL") or DEFAULT_URL, timeout=30.0)
+    kwargs = {"agency_key": "mec", "date_from": "2026-09-01", "date_to": "2026-09-30"}
+
+    first_20 = _ids(await search_news("*", client, limit=20, **kwargs))
+    page_1 = _ids(await search_news("*", client, page=1, **kwargs))
+    page_2 = _ids(await search_news("*", client, page=2, **kwargs))
+
+    assert len(first_20) == 20, "o MEC publicou mais de 20 artigos em set/2026"
+    assert page_1 + page_2 == first_20

@@ -111,20 +111,13 @@ class TestSearchNews:
 
     @pytest.mark.asyncio
     async def test_limit_cap_em_50(self):
-        """limit > 50 deve ser silenciosamente capado em 50."""
+        """limit > 50 deve ser silenciosamente capado em 50 (3 páginas de 20 da API)."""
         client = FakeGraphQLClient()
-        client.set_response(
-            {
-                "search": {
-                    "articles": [_make_article(i) for i in range(60)],
-                    "found": 60,
-                    "page": 1,
-                }
-            }
-        )
+        client.route("SearchNews", _paged_api(found=60))
         result = await search_news("test", client, limit=100)
         assert "Artigo 49" in result
         assert "Artigo 50" not in result
+        assert sorted(v["page"] for v in client.calls("SearchNews")) == [1, 2, 3]
 
     @pytest.mark.asyncio
     async def test_hint_quando_agency_key_invalida_sem_resultados(self):
