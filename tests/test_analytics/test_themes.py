@@ -165,7 +165,9 @@ def test_sinais_ordenados_por_severidade():
     ("count", "kwargs", "expected"),
     [(15, {}, "high"), (5, {}, "medium"), (4, {}, "low"), (15, {"degraded": True}, "low"),
      (15, {"recovery": True}, "medium"), (15, {"recovery": True, "classifier_changed": True},
-                                           "low"), (5, {"recovery": True}, "low")],
+                                           "low"), (5, {"recovery": True}, "low"),
+     (15, {"taxonomy_changed": True}, "medium"),
+     (15, {"classifier_changed": True, "taxonomy_changed": True}, "low")],
 )  # fmt: skip
 def test_theme_confidence(count, kwargs, expected):
     assert theme_confidence(count, 5, **kwargs) == expected
@@ -229,3 +231,49 @@ def test_confianca_da_queda_usa_o_volume_esperado_pelo_baseline():
     drop = next(s for s in signals if s.kind == "sustained_drop")
     assert drop.label == "Educação" and drop.count_long == 10
     assert drop.confidence == "high"
+
+
+# ── virada da taxonomia (tema 26) ───────────────────────────────────────────
+
+CIVIL = "Defesa Civil e Gestão de Desastres"
+DEFESA = "Defesa e Forças Armadas"
+LATER = datetime(2026, 12, 15, 15, 0, tzinfo=UTC)  # ranges de 21/28 dias: 24/11 e 17/11
+
+
+def _renamed(pair: WindowPair, names: dict[str, str]) -> WindowPair:
+    def rename(r: ThemeRange) -> ThemeRange:
+        return ThemeRange(r.days, {names.get(k, k): v for k, v in r.counts.items()}, r.total)
+
+    return WindowPair(window=rename(pair.window), including=rename(pair.including))
+
+
+def test_virada_da_taxonomia_marca_so_os_temas_afetados_e_rebaixa_a_confianca():
+    # Saúde (fora da virada) dispara; Defesa e Forças Armadas (19) cai: o pico do 26 e a
+    # queda do 19 logo depois da D0 podem ser só a migração de Defesa Civil.
+    short, long = _renamed(SHORT, {"Educação": DEFESA}), _renamed(LONG, {"Educação": DEFESA})
+    block, _ = build_themes_block(
+        short, long, sens=MEDIUM, now=LATER, taxonomy_change=date(2026, 12, 1)
+    )
+    by_label = {s.label: s for s in block.signals}
+    drop, spike = by_label[DEFESA], by_label["Saúde"]
+    assert drop.kind == "sustained_drop" and spike.kind == "sustained_spike"
+    assert "taxonomy_changed" in drop.flags and drop.confidence == "medium"  # high − 1
+    assert "taxonomy_changed" not in spike.flags and spike.confidence == "high"
+
+
+def test_virada_fora_dos_baselines_nao_marca_nada():
+    short, long = _renamed(SHORT, {"Educação": DEFESA}), _renamed(LONG, {"Educação": DEFESA})
+    for change in (date(2026, 11, 10), date(2026, 12, 16), None):  # antes, depois, sem data
+        block, _ = build_themes_block(short, long, sens=MEDIUM, now=LATER, taxonomy_change=change)
+        drop = next(s for s in block.signals if s.label == DEFESA)
+        assert "taxonomy_changed" not in drop.flags and drop.confidence == "high"
+
+
+def test_tema_26_entra_no_dominio_seguranca_do_radar():
+    short, long = _renamed(SHORT, {"Saúde": CIVIL}), _renamed(LONG, {"Saúde": CIVIL})
+    block, _ = build_themes_block(
+        short, long, sens=MEDIUM, now=LATER, taxonomy_change=date(2026, 12, 1)
+    )
+    spike = next(s for s in block.signals if s.label == CIVIL)
+    assert spike.kind == "sustained_spike" and spike.domain is Domain.SECURITY
+    assert "taxonomy_changed" in spike.flags

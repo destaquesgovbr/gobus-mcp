@@ -4,7 +4,7 @@ de contagem, prior, tema dinâmico e erros. Relógio fixo em 06/10/2026 12:00 BR
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import pytest
@@ -16,9 +16,11 @@ from gobus_mcp.payloads.coherence import CoherenceReport
 from gobus_mcp.payloads.common import payload_size
 from gobus_mcp.tools.get_message_coherence import (
     MAX_TONE_AGENCIES,
+    CoherenceInputError,
     build_coherence_output,
     counts_query,
     get_message_coherence,
+    resolve_theme,
 )
 from tests.conftest import route_catalog
 
@@ -749,6 +751,52 @@ async def test_tema_cruzando_a_troca_de_classificador(fake_client):
     theme_scenario(fake_client, classified=95, total=100)
     report, _ = await run(fake_client, theme="Saúde", date_from="2026-09-15")
     assert "CLASSIFIER_CHANGED" in {n.code for n in report.notices}
+
+
+# ── virada da taxonomia (tema 26) ───────────────────────────────────────────
+
+CIVIL = "Defesa Civil e Gestão de Desastres"
+
+
+async def test_tema_afetado_com_janela_cruzando_a_virada_da_taxonomia(fake_client):
+    # janela padrão 22/09–05/10; virada injetada em 01/10 (a constante é provisória)
+    theme_scenario(fake_client, classified=95, total=100)
+    report, markdown = await run(
+        fake_client, theme="Defesa e Forças Armadas", taxonomy_change=date(2026, 10, 1)
+    )
+
+    notice = next(n for n in report.notices if n.code == "TAXONOMY_CHANGED")
+    assert notice.severity == "warn" and notice.since == date(2026, 10, 1)
+    assert notice.affects == ["subject"]
+    assert "01/10/2026" in notice.message and CIVIL in notice.message
+    assert "01/10/2026" in markdown
+
+
+@pytest.mark.parametrize(
+    ("theme", "date_from", "change"),
+    [
+        ("Saúde", "", date(2026, 10, 1)),  # tema fora da virada
+        ("Defesa e Forças Armadas", "2026-10-02", date(2026, 10, 1)),  # janela toda depois
+        ("Defesa e Forças Armadas", "", date(2026, 10, 6)),  # virada depois da janela
+        ("Defesa e Forças Armadas", "", None),  # aviso desligado
+    ],
+)
+async def test_sem_aviso_de_taxonomia_fora_do_caso(fake_client, theme, date_from, change):
+    theme_scenario(fake_client, classified=95, total=100)
+    report, _ = await run(fake_client, theme=theme, date_from=date_from, taxonomy_change=change)
+    assert "TAXONOMY_CHANGED" not in {n.code for n in report.notices}
+
+
+def test_resolve_theme_depois_da_d0_com_o_tema_26():
+    labels = [*LABELS, CIVIL]
+    assert resolve_theme("defesa civil", labels) == CIVIL
+    assert resolve_theme("Defesa Civil e Gestao de Desastres", labels) == CIVIL
+    assert resolve_theme("forças armadas", labels) == "Defesa e Forças Armadas"
+    # "defesa" deixa de ser prefixo único: a tool pede para escolher em vez de adivinhar
+    with pytest.raises(CoherenceInputError) as exc:
+        resolve_theme("defesa", labels)
+    assert exc.value.label == "Tema ambíguo"
+    assert CIVIL in str(exc.value) and "Defesa e Forças Armadas" in str(exc.value)
 
 
 # ── contrato da query gerada ────────────────────────────────────────────────

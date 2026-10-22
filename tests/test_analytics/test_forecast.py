@@ -74,7 +74,9 @@ def test_momentum_usa_a_diferenca_de_taxas():
     [((3, 40), {"phase": "normal"}, "high"), ((2, 40), {"phase": "normal"}, "medium"),
      ((3, 4), {"phase": "normal"}, "low"), ((1, 40), {"phase": "normal"}, "low"),
      ((3, 40), {"phase": "recovery"}, "medium"), ((2, 40), {"phase": "recovery"}, "low"),
-     ((3, 40), {"phase": "normal", "degraded": True}, "low")],
+     ((3, 40), {"phase": "normal", "degraded": True}, "low"),
+     ((3, 40), {"phase": "normal", "taxonomy_changed": True}, "medium"),
+     ((3, 40), {"phase": "recovery", "taxonomy_changed": True}, "low")],
 )  # fmt: skip
 def test_confianca_com_rebaixamento_na_recuperacao(args, kwargs, expected):
     assert confidence(*args, **kwargs) == expected
@@ -298,3 +300,33 @@ def test_janela_com_pouco_volume_do_tema_nao_entra_na_razao():
     assert "Rara" not in by_label
     assert by_label["Média"].windows["3d"] is None
     assert by_label["Média"].windows["7d"] is not None
+
+
+# ── virada da taxonomia (tema 26) ───────────────────────────────────────────
+
+CIVIL = "Defesa Civil e Gestão de Desastres"
+
+
+def _renamed(pairs: dict[str, WindowPair], old: str, new: str) -> dict[str, WindowPair]:
+    def rename(r: ThemeRange) -> ThemeRange:
+        return ThemeRange(r.days, {new if k == old else k: v for k, v in r.counts.items()}, r.total)
+
+    return {k: WindowPair(rename(p.window), rename(p.including)) for k, p in pairs.items()}
+
+
+def test_virada_da_taxonomia_marca_o_tema_afetado_e_rebaixa_a_confianca():
+    # 07/12: o baseline de 84 dias (e o de 28) cruza a virada de 20/11; o de 14 não
+    pairs = _renamed(_scenario(), "Saúde", CIVIL)
+    kwargs = dict(today=D(2026, 12, 7), horizon_days=14, limit=5, weights=PROFILE, levels=LEVELS)
+
+    _, themes = forecast_themes(pairs, taxonomy_change=D(2026, 11, 20), **kwargs)
+    by_label = {t.label: t for t in themes}
+    civil = by_label[CIVIL]
+    assert civil.domain is Domain.SECURITY
+    assert "taxonomy_changed" in civil.flags and civil.confidence == "medium"  # high − 1
+    assert all("taxonomy_changed" not in t.flags for t in themes if t.label != CIVIL)
+
+    for change in (D(2026, 12, 8), None):  # virada no futuro ou desligada
+        _, clean = forecast_themes(pairs, taxonomy_change=change, **kwargs)
+        top = next(t for t in clean if t.label == CIVIL)
+        assert "taxonomy_changed" not in top.flags and top.confidence == "high"

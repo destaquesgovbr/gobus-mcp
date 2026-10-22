@@ -22,3 +22,9 @@ class TestTaxonomyQueries:
     async def test_output_contem_saude(self):
         result = await fetch_taxonomy_queries()
         assert "Saúde" in result
+
+    def test_tema_26_defesa_civil_tem_termos_proprios(self):
+        # o 26 (D0 do TH-1) separa Defesa Civil de "Defesa Nacional" (Forças Armadas)
+        terms = TAXONOMY_QUERIES["Defesa Civil e Gestão de Desastres"]
+        assert "defesa civil" in terms
+        assert not set(terms) & set(TAXONOMY_QUERIES["Defesa Nacional"])

@@ -15,14 +15,20 @@ from gobus_mcp.cache import TTLCache
 from gobus_mcp.calendario import BRT
 from gobus_mcp.domains import Domain
 from gobus_mcp.payloads.anomalies import MAX_PAYLOAD_BYTES, AnomalyReport, payload_size
-from gobus_mcp.tools.detect_anomalies import build_anomaly_report, detect_anomalies
+from gobus_mcp.tools.detect_anomalies import (
+    build_anomaly_output,
+    build_anomaly_report,
+    detect_anomalies,
+)
 from tests.fixtures.g2 import (
     ACTIVITY_0510,
     NOW_0510,
     busy,
     context,
     coverage_rows,
+    healthy_theme_ranges,
     many_candidates,
+    rename_theme,
     resumed_on_26_10,
     route_g2,
     scenario_0510,
@@ -456,6 +462,42 @@ async def test_fases_do_calendario_nas_fronteiras(fake_client, today, phase, cod
     assert report.calendar.phase == phase
     assert calendar_codes == codes
     assert report.entities.baseline.start.astimezone(BRT).date() == baseline_start
+
+
+# ── virada da taxonomia (tema 26) ───────────────────────────────────────────
+
+CIVIL = "Defesa Civil e Gestão de Desastres"
+NOW_0712 = datetime(2026, 12, 7, 12, 0, tzinfo=BRT)  # ranges de 21/28 dias desde 16/11 e 09/11
+
+
+@pytest.mark.parametrize(
+    ("domain_filter", "warned"), [("", True), ("seguranca", True), ("saude", False)]
+)
+async def test_aviso_de_taxonomia_so_com_tema_afetado_na_lista(fake_client, domain_filter, warned):
+    # o 26 dispara logo depois da virada (20/11): o pico pode ser só a migração do 19
+    route_g2(fake_client, themes=rename_theme(healthy_theme_ranges(), "Saúde", CIVIL))
+
+    report, markdown = await build_anomaly_output(
+        fake_client, domain_filter=domain_filter, now=NOW_0712, taxonomy_change=D(2026, 11, 20)
+    )
+    notices = {n.code: n for n in report.notices}
+
+    assert ("TAXONOMY_CHANGED" in notices) is warned
+    if warned:
+        spike = next(t for t in report.themes.signals if t.label == CIVIL)
+        assert spike.domain is Domain.SECURITY and "taxonomy_changed" in spike.flags
+        assert CIVIL in notices["TAXONOMY_CHANGED"].message
+        assert "20/11/2026" in markdown
+        assert "virada da taxonomia" in _section(markdown, "Picos Sustentados")
+
+
+async def test_sem_aviso_de_taxonomia_com_a_virada_fora_dos_baselines(fake_client):
+    route_g2(fake_client, themes=rename_theme(healthy_theme_ranges(), "Saúde", CIVIL))
+
+    for change in (D(2026, 11, 1), None):
+        report, _ = await build_anomaly_output(fake_client, now=NOW_0712, taxonomy_change=change)
+        assert "TAXONOMY_CHANGED" not in {n.code for n in report.notices}
+        assert all("taxonomy_changed" not in t.flags for t in report.themes.signals)
 
 
 # ── payload e orçamento ─────────────────────────────────────────────────────

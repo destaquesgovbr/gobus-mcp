@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 
 from gobus_mcp.tools.detect_trends import _TRENDING_QUERY, detect_trends
@@ -113,6 +115,8 @@ class TestGetAgencyAnalytics:
         assert "420" in result
 
 
+CIVIL = "Defesa Civil e Gestão de Desastres"
+
 THEMES = [
     {
         # w=42 em 7 dias; baseline (28 dias, inclui a janela) = 3,0/dia → b_prev = 42
@@ -227,6 +231,38 @@ class TestDetectTrends:
         (variables,) = fake_client.calls("TrendingThemes")
         assert variables["agencyKey"] == "saude"
         assert "saude" in bad  # sugestão, sem nova consulta
+
+    async def test_aviso_de_taxonomia_quando_o_baseline_cruza_a_virada(self, fake_client):
+        # 20/11: o baseline de 28 dias (23/10–20/11) cruza a virada de 10/11
+        _route_trends(fake_client, [{**THEMES[0], "themeLabel": CIVIL}, THEMES[1]])
+
+        result = await detect_trends(
+            fake_client, today=date(2026, 11, 20), taxonomy_change=date(2026, 11, 10)
+        )
+
+        lines = result.splitlines()
+        note = next(line for line in lines if line.startswith(">") and "taxonomia" in line)
+        assert "10/11/2026" in note and CIVIL in note and "Educação" not in note
+        civil = next(line for line in lines if f"**{CIVIL}**" in line)
+        assert "taxonomia" in civil
+        educacao = next(line for line in lines if "**Educação**" in line)
+        assert "taxonomia" not in educacao
+
+    @pytest.mark.parametrize(
+        ("label", "today", "change"),
+        [
+            ("Saúde", date(2026, 11, 20), date(2026, 11, 10)),  # tema fora da virada
+            (CIVIL, date(2026, 11, 9), date(2026, 11, 10)),  # virada ainda no futuro
+            (CIVIL, date(2026, 12, 10), date(2026, 11, 10)),  # baseline todo depois
+            (CIVIL, date(2026, 11, 20), None),  # aviso desligado
+        ],
+    )
+    async def test_sem_aviso_de_taxonomia_fora_do_caso(self, fake_client, label, today, change):
+        _route_trends(fake_client, [{**THEMES[0], "themeLabel": label}])
+
+        result = await detect_trends(fake_client, today=today, taxonomy_change=change)
+
+        assert "taxonomia" not in result.lower()
 
     async def test_baseline_menor_que_janela_e_erro(self, fake_client):
         _route_trends(fake_client, THEMES)
