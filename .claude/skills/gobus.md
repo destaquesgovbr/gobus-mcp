@@ -70,8 +70,9 @@ da busca) — prefira o ID resolvido, que evita homônimos.
 - As tools de texto terminam com "**Para explorar:**" (até 3 chamadas prontas, tiradas do
   resultado): use-as para as perguntas de continuação
 - Legibilidade = Flesch pt-BR (Martins): 0–25 muito difícil · 25–50 difícil · 50–75 fácil ·
-  75–100 muito fácil; meta de serviço 50; notícia de governo fica perto de 15. Com o aviso
-  "Flesch pt-BR indisponível", os valores são da fórmula inglesa (legado)
+  75–100 muito fácil; meta de serviço 50; notícia de governo fica perto de 25 (mediana do
+  acervo 25,2, na divisa entre difícil e muito difícil), e o exibido é limitado a 0–100. Com
+  o aviso "Flesch pt-BR indisponível", os valores são da fórmula inglesa (legado)
 
 ## Glossário Mínimo
 

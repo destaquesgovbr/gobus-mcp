@@ -13,11 +13,11 @@
     "content": [
       {
         "type": "text",
-        "text": "# Diagnóstico de Legibilidade: Ministério da Saúde (`saude`)\n\n**Janela pedida:** 02/04/2026–30/06/2026 (90 dias)\n\n**Flesch médio:** 13.7 (muito difícil) · **Artigos na janela:** 294 (294 com Flesch) · **Palavras/artigo:** 682\n**Gap até a meta de serviço (50):** -36.3\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n\n## Artigos da janela (amostra dos 100 mais recentes: 6 com Flesch)\n\n- **Pior:** [Portaria regulamenta repasses do fundo nacional aos municípios](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-1) — 2026-06-27 · Flesch 0.0 (muito difícil; valor bruto -8.3) · 958 palavras · `saude-artigo-1`\n- **Melhor:** [Ministério amplia vacinação contra a gripe para todas as idades](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-0) — 2026-06-28 · Flesch 42.6 (difícil) · 454 palavras · `saude-artigo-0`\n\n## Recomendações de Estilo\n\n1. **Frases curtas:** meta de no máximo 20 palavras por frase; cada ponto final melhora o índice.\n2. **Palavras simples:** prefira 'fazer' a 'realizar', 'ver' a 'verificar', 'dizer' a 'declarar'; explique siglas e termos técnicos na primeira ocorrência.\n3. **Lead direto e voz ativa:** o quê, quem e quando na primeira frase; troque a voz passiva pela ativa.\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch pt-BR (Martins et al., 1996), limitado a 0–100 (o valor bruto aparece quando foi limitado). Faixas: 0–25 muito difícil, 25–50 difícil, 50–75 fácil, 75–100 muito fácil._"
+        "text": "# Diagnóstico de Legibilidade: Ministério da Saúde (`saude`)\n\n**Janela pedida:** 02/04/2026–30/06/2026 (90 dias)\n\n**Flesch médio:** 21.4 (muito difícil) · **Artigos na janela:** 294 (294 com Flesch) · **Palavras/artigo:** 682\n**Gap até a meta de serviço (50):** -28.6\n**Benchmark interno (Agência Brasil, mesma janela):** 32.4 (difícil)\n\n## Artigos da janela (amostra dos 100 mais recentes: 6 com Flesch)\n\n- **Pior:** [Portaria regulamenta repasses do fundo nacional aos municípios](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-1) — 2026-06-27 · Flesch 0.0 (muito difícil; valor bruto -8.3) · 958 palavras · `saude-artigo-1`\n- **Melhor:** [Ministério amplia vacinação contra a gripe para todas as idades](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-0) — 2026-06-28 · Flesch 42.6 (difícil) · 454 palavras · `saude-artigo-0`\n\n## Recomendações de Estilo\n\n1. **Frases curtas:** meta de no máximo 20 palavras por frase; cada ponto final melhora o índice.\n2. **Palavras simples:** prefira 'fazer' a 'realizar', 'ver' a 'verificar', 'dizer' a 'declarar'; explique siglas e termos técnicos na primeira ocorrência.\n3. **Lead direto e voz ativa:** o quê, quem e quando na primeira frase; troque a voz passiva pela ativa.\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch pt-BR (Martins et al., 1996), limitado a 0–100 (o valor bruto aparece quando foi limitado). Faixas: 0–25 muito difícil, 25–50 difícil, 50–75 fácil, 75–100 muito fácil. Referência: mediana do acervo ≈ 25 (divisa entre difícil e muito difícil)._"
       }
     ],
     "structuredContent": {
-      "summary": "# Diagnóstico de Legibilidade: Ministério da Saúde (`saude`)\n\n**Janela pedida:** 02/04/2026–30/06/2026 (90 dias)\n\n**Flesch médio:** 13.7 (muito difícil) · **Artigos na janela:** 294 (294 com Flesch) · **Palavras/artigo:** 682\n**Gap até a meta de serviço (50):** -36.3\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n\n## Artigos da janela (amostra dos 100 mais recentes: 6 com Flesch)\n\n- **Pior:** [Portaria regulamenta repasses do fundo nacional aos municípios](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-1) — 2026-06-27 · Flesch 0.0 (muito difícil; valor bruto -8.3) · 958 palavras · `saude-artigo-1`\n- **Melhor:** [Ministério amplia vacinação contra a gripe para todas as idades](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-0) — 2026-06-28 · Flesch 42.6 (difícil) · 454 palavras · `saude-artigo-0`\n\n## Recomendações de Estilo\n\n1. **Frases curtas:** meta de no máximo 20 palavras por frase; cada ponto final melhora o índice.\n2. **Palavras simples:** prefira 'fazer' a 'realizar', 'ver' a 'verificar', 'dizer' a 'declarar'; explique siglas e termos técnicos na primeira ocorrência.\n3. **Lead direto e voz ativa:** o quê, quem e quando na primeira frase; troque a voz passiva pela ativa.\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch pt-BR (Martins et al., 1996), limitado a 0–100 (o valor bruto aparece quando foi limitado). Faixas: 0–25 muito difícil, 25–50 difícil, 50–75 fácil, 75–100 muito fácil._",
+      "summary": "# Diagnóstico de Legibilidade: Ministério da Saúde (`saude`)\n\n**Janela pedida:** 02/04/2026–30/06/2026 (90 dias)\n\n**Flesch médio:** 21.4 (muito difícil) · **Artigos na janela:** 294 (294 com Flesch) · **Palavras/artigo:** 682\n**Gap até a meta de serviço (50):** -28.6\n**Benchmark interno (Agência Brasil, mesma janela):** 32.4 (difícil)\n\n## Artigos da janela (amostra dos 100 mais recentes: 6 com Flesch)\n\n- **Pior:** [Portaria regulamenta repasses do fundo nacional aos municípios](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-1) — 2026-06-27 · Flesch 0.0 (muito difícil; valor bruto -8.3) · 958 palavras · `saude-artigo-1`\n- **Melhor:** [Ministério amplia vacinação contra a gripe para todas as idades](https://www.gov.br/saude/pt-br/assuntos/noticias/2026/06/artigo-0) — 2026-06-28 · Flesch 42.6 (difícil) · 454 palavras · `saude-artigo-0`\n\n## Recomendações de Estilo\n\n1. **Frases curtas:** meta de no máximo 20 palavras por frase; cada ponto final melhora o índice.\n2. **Palavras simples:** prefira 'fazer' a 'realizar', 'ver' a 'verificar', 'dizer' a 'declarar'; explique siglas e termos técnicos na primeira ocorrência.\n3. **Lead direto e voz ativa:** o quê, quem e quando na primeira frase; troque a voz passiva pela ativa.\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch pt-BR (Martins et al., 1996), limitado a 0–100 (o valor bruto aparece quando foi limitado). Faixas: 0–25 muito difícil, 25–50 difícil, 50–75 fácil, 75–100 muito fácil. Referência: mediana do acervo ≈ 25 (divisa entre difícil e muito difícil)._",
       "schemaVersion": 1,
       "kind": "gobus.readability",
       "tool": "gobus_get_readability_recommendations",
@@ -116,11 +116,11 @@
         "isRepublisher": true,
         "articleCount": 939,
         "articlesWithData": 939,
-        "flesch": 33.61,
-        "fleschRaw": 33.61,
+        "flesch": 32.41,
+        "fleschRaw": 32.41,
         "band": "hard",
         "bandLabel": "difícil",
-        "gapToTarget": -16.39,
+        "gapToTarget": -17.59,
         "avgWordCount": 434.0
       },
       "agency": {
@@ -129,11 +129,11 @@
         "isRepublisher": false,
         "articleCount": 294,
         "articlesWithData": 294,
-        "flesch": 13.73,
-        "fleschRaw": 13.73,
+        "flesch": 21.43,
+        "fleschRaw": 21.43,
         "band": "very_hard",
         "bandLabel": "muito difícil",
-        "gapToTarget": -36.27,
+        "gapToTarget": -28.57,
         "avgWordCount": 682.0
       },
       "sampleSize": 6,

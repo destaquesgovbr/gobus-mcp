@@ -7,8 +7,10 @@ codifica limiares: as faixas saem daqui no payload.
 ``readability_flesch_ptbr`` do feature-worker, exposta pelo GQL-1 como
 ``readabilityFleschPtbr``/``avgReadabilityFleschPtbr`` + ``readabilityFleschPtbrCount``).
 Faixas de Martins: 75–100 muito fácil, 50–75 fácil, 25–50 difícil, 0–25 muito difícil; a
-meta de serviço continua 50. Notícia de governo fica tipicamente em "muito difícil"
-(mediana ≈ 15).
+meta de serviço continua 50. Notícia de governo fica na divisa entre "difícil" e "muito
+difícil": no acervo inteiro (033, 22/10/2026), mediana 25,2, cerca de 5 pontos acima da
+fórmula inglesa, com 2,5% de valores negativos (mín −339) e 3 acima de 100 — por isso o
+exibido é sempre limitado a [0, 100].
 
 **Reserva:** sem o pt-BR (API sem o campo ou valor nulo), vale o Flesch antigo, a fórmula
 **inglesa** do ``textstat`` (``EN_SCALE``), com aviso (``READABILITY_LEGACY_SCALE``). As
@@ -40,6 +42,12 @@ FLESCH_MAX: Final = 100.0
 TARGET_SERVICE: Final = 50.0  # meta para textos de serviço ao cidadão
 TARGET_INSTITUTIONAL: Final = 30.0  # meta para textos institucionais
 PTBR_MIN_SHARE: Final = 0.1  # abaixo disso o pt-BR está "morto" e o inglês, se houver, vale
+# Mediana do Flesch pt-BR no acervo (033, 22/10/2026; 47,8% "difícil", 46,9% "muito difícil").
+PTBR_CORPUS_MEDIAN: Final = 25.2
+PTBR_REFERENCE_NOTE: Final = (
+    f"Referência: mediana do acervo ≈ {PTBR_CORPUS_MEDIAN:.0f} "
+    "(divisa entre difícil e muito difícil)"
+)
 
 Granularity = Literal["DAY", "WEEK", "MONTH"]
 
@@ -180,13 +188,15 @@ def flesch_band(v: float | FleschValue | None) -> FleschBand | None:
 
 
 def describe_flesch(v: float | FleschValue | None) -> str:
-    """``"33.5 (difícil)"``; com clamp, ``"0.0 (muito difícil; valor bruto -22.9)"``."""
+    """``"33.5 (difícil)"``; com clamp, ``"0.0 (muito difícil; valor bruto -22.9)"``. O bruto
+    só aparece quando difere do exibido em uma casa (−0,03 vira só ``"0.0"``, sem
+    ``"valor bruto -0.0"``)."""
     fv = _value(v)
     band = flesch_band(fv)
     if fv.value is None or band is None:
         return "indisponível"
     text = f"{fv.value:.1f} ({band.label}"
-    if fv.clamped:
+    if fv.clamped and round(fv.raw, 1) != round(fv.value, 1):
         text += f"; valor bruto {fv.raw:.1f}"
     return text + ")"
 

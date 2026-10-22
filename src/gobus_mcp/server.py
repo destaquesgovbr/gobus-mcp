@@ -389,8 +389,9 @@ async def gobus_get_readability_recommendations(
     parou antes do fim da janela, a análise usa a janela efetiva (mesmo tamanho, até o
     último mês com dado) e avisa "dados até MM/AAAA". Escala: Flesch pt-BR (Martins et
     al., 1996), limitado a 0–100, com as faixas de Martins (0–25 muito difícil, 25–50
-    difícil, 50–75 fácil, 75–100 muito fácil); notícia de governo costuma ficar abaixo
-    de 25. Sem o pt-BR, a fórmula inglesa do textstat (legado), com aviso.
+    difícil, 50–75 fácil, 75–100 muito fácil); notícia de governo fica perto de 25, na
+    divisa entre difícil e muito difícil (mediana do acervo 25,2). Sem o pt-BR, a fórmula
+    inglesa do textstat (legado), com aviso.
 
     MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o painel
     ui://readability-dashboard; o texto devolvido é o mesmo resumo em Markdown.

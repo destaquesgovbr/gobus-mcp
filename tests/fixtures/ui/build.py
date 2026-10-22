@@ -70,14 +70,18 @@ READABILITY_AGENCIES: list[tuple[str, bool, str]] = [
     ("mcti", False, "Ministério da Ciência, Tecnologia e Inovação"),
 ]
 # (agência, mês) → (artigos, Flesch pt-BR bruto | None, palavras | None). Abr–jun com dado.
-# O Flesch inglês (legado) vem ≈ 2 pontos abaixo (como medido em 29 artigos).
+# Calibrado pela distribuição real (033, 22/10/2026): mediana do acervo 25,2, Agência Brasil
+# ≈ 32 e saude ≈ 20–23; a defesa negativa é o caso-limite do clamp (2,5% dos artigos têm
+# bruto negativo). O Flesch inglês (legado) vem ``EN_OFFSET`` pontos abaixo (mediana da
+# diferença no acervo: +5,0).
+EN_OFFSET = 5.0
 READABILITY_MONTHS = ("2026-04", "2026-05", "2026-06")
 READABILITY_BASE: dict[str, tuple[int, float | None, float | None]] = {
-    "agencia_brasil": (310, 33.6, 434.0),
-    "saude": (95, 13.7, 682.0),
+    "agencia_brasil": (310, 32.4, 434.0),
+    "saude": (95, 21.4, 682.0),
     "mec": (60, 28.4, 590.0),
     "secom": (52, 41.2, 512.0),
-    "cgu": (40, -1.2, 620.0),
+    "cgu": (40, 17.6, 620.0),
     "defesa": (66, -22.9, 800.0),
     "pf": (48, 52.3, 380.0),
     "trabalho-e-emprego": (35, 38.9, 540.0),
@@ -108,7 +112,7 @@ def readability_rows(
                 "agencyKey": code,
                 "agencyName": names.get(code, code),
                 "articleCount": count + 3 * i,
-                "avgReadabilityFlesch": None if value is None else round(value - 2.0, 1),
+                "avgReadabilityFlesch": None if value is None else round(value - EN_OFFSET, 1),
                 "avgWordCount": words,
             }
             if ptbr:
@@ -167,7 +171,7 @@ def readability_articles(code: str = "saude") -> list[dict]:
             "publishedAt": f"2026-06-{28 - i:02d}T13:00:00+00:00",
             "features": {
                 "readabilityFleschPtbr": flesch,
-                "readabilityFlesch": None if flesch is None else round(flesch - 2.0, 1),
+                "readabilityFlesch": None if flesch is None else round(flesch - EN_OFFSET, 1),
                 "wordCount": words,
             },
         }
@@ -398,8 +402,8 @@ def route_score(
         if code in samples:
             return samples[code]
         if code == "agencia_brasil":
-            return score_sample(code, 60, flesch0=36.0, words0=450)
-        return score_sample(code, 40, flesch0=30.0, words0=520)
+            return score_sample(code, 60, flesch0=27.0, words0=450)  # mediana ≈ 32
+        return score_sample(code, 40, flesch0=20.0, words0=520)  # mediana ≈ 25 (acervo)
 
     def article(variables: dict) -> dict:
         uid = variables["uniqueId"]
@@ -443,7 +447,7 @@ async def scorecard_fixtures() -> dict[str, dict]:
     best = scored["structuredContent"]["suggestedComparisons"][0]["uniqueId"]
     compared = await _score(route_score(FakeGraphQLClient()), main, best)
     versus = await _score(route_score(FakeGraphQLClient()), main, "saude-campanha-gripe")
-    thin = {"pf": score_sample("pf", 6, flesch0=30.0, words0=520)}
+    thin = {"pf": score_sample("pf", 6, flesch0=20.0, words0=520)}
     partial = await _score(route_score(FakeGraphQLClient(), samples=thin), "pf-balanco-semestral")
     refused = await _score(route_score(FakeGraphQLClient()), "pf-operacao-outubro")
     xss_agencies = [("agencia_brasil", True, "Agência Brasil"), ("xss-img", False, XSS_IMG)]

@@ -42,6 +42,7 @@ from gobus_mcp.payloads.readability import (
 )
 from gobus_mcp.readability import (
     LEGACY_SCALE_MESSAGE,
+    PTBR_REFERENCE_NOTE,
     PTBR_SCALE,
     TARGET_INSTITUTIONAL,
     TARGET_SERVICE,
@@ -401,11 +402,13 @@ def _benchmark_line(report: ReadabilityReport) -> str | None:
 
 def _footer(report: ReadabilityReport) -> list[str]:
     bands = ", ".join(f"{b.lower:.0f}–{b.upper:.0f} {b.label}" for b in report.bands)
+    # a mediana do acervo é da escala pt-BR; na reserva inglesa ela não vale
+    reference = "" if report.scale_fallback else f" {PTBR_REFERENCE_NOTE}."
     return [
         f"**Meta:** ≥{TARGET_SERVICE:.0f} para serviço ao cidadão · "
         f"≥{TARGET_INSTITUTIONAL:.0f} para institucional",
         f"_Escala: {report.scale_label} (o valor bruto aparece quando foi limitado). "
-        f"Faixas: {bands}._",
+        f"Faixas: {bands}.{reference}_",
     ]
 
 
