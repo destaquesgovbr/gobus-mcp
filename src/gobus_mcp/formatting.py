@@ -2,7 +2,7 @@
 datas, texto de erro e o rodapé "Para explorar"."""
 
 import json
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import date, datetime
 from urllib.parse import urlsplit
 
@@ -56,6 +56,21 @@ def agency_label(code: str | None, name: str | None) -> str:
     if code:
         return f"[{code}]"
     return name or ""
+
+
+def article_agency(article: Mapping, names: Mapping[str, str]) -> tuple[str | None, str | None]:
+    """``(código, nome)`` do órgão de um artigo (gobus-mcp#17).
+
+    O código vem de ``agencyKey`` (``ArticleSummary``, GQL-1), de ``agency`` (``Article``)
+    ou, sem os dois, de ``agencyName`` (o ``ArticleSummary`` antigo carrega a key nele). O
+    nome é o do catálogo (``names`` = ``AgencyCatalog.display_names()``, resolvido uma vez
+    por resposta); senão, o ``agencyName`` da API quando não é o próprio código (o
+    ``search()`` devolve nulo: graphql-api#34).
+    """
+    code = article.get("agencyKey") or article.get("agency") or article.get("agencyName")
+    api_name = article.get("agencyName")
+    name = (names.get(code) if code else None) or (api_name if api_name != code else None)
+    return code, name
 
 
 def fmt_int(n: int) -> str:

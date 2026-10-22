@@ -13,12 +13,19 @@ import asyncio
 from collections import Counter
 from datetime import date
 
-from gobus_mcp.agency_catalog import AgencyCatalog
+from gobus_mcp.agency_catalog import AgencyCatalog, catalog_display_names
 from gobus_mcp.analytics.ratios import overlap_growth_threshold, ratio_from_trending_row
 from gobus_mcp.calendario import closed_window, reference_date
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import theme_coverage
-from gobus_mcp.formatting import FollowUp, article_ref, tool_call, with_follow_ups
+from gobus_mcp.formatting import (
+    FollowUp,
+    agency_label,
+    article_agency,
+    article_ref,
+    tool_call,
+    with_follow_ups,
+)
 from gobus_mcp.schema_compat import ARTICLE_SUMMARY_URL, execute_compatible
 
 MIN_GROWTH_THRESHOLD = 1.0  # abaixo disso entram temas em queda (e o N+1 de topArticles)
@@ -51,8 +58,9 @@ query TrendingThemes__SUFFIX__(
 }
 """
 
-# ``ArticleSummary.url`` veio com o GQL-1; sem ele, a antiga responde (schema_compat).
-_TRENDING_QUERY = _TRENDING_TEMPLATE.replace("__SUFFIX__", "").replace("__URL__", " url")
+# ``ArticleSummary.url`` e ``agencyKey`` vieram com o GQL-1; sem eles, a antiga responde
+# (schema_compat), e o ``agencyName`` (que carrega a key) vira o código do órgão.
+_TRENDING_QUERY = _TRENDING_TEMPLATE.replace("__SUFFIX__", "").replace("__URL__", " url agencyKey")
 _TRENDING_LEGACY_QUERY = _TRENDING_TEMPLATE.replace("__SUFFIX__", "Legacy").replace("__URL__", "")
 
 
@@ -94,6 +102,19 @@ def _follow_ups(
     items.append((search, "artigos do tema na janela"))
     items.append((tool_call("gobus_forecast_trends"), "o tema segue em alta?"))
     return items
+
+
+def _agencies_line(articles: list[dict], names: dict[str, str]) -> str:
+    """``[saude] Ministério da Saúde (2) · [mec] Ministério da Educação (1)``: os 3 órgãos
+    mais frequentes nos top artigos, pelo código (gobus-mcp#17)."""
+    labels: dict[str, str] = {}
+    counts: Counter[str] = Counter()
+    for art in articles:
+        code, name = article_agency(art, names)
+        if code:
+            counts[code] += 1
+            labels.setdefault(code, agency_label(code, name))
+    return " · ".join(f"{labels[code]} ({cnt})" for code, cnt in counts.most_common(3))
 
 
 def _ratio_text(theme: dict, window_days: int, baseline_days: int) -> str:
@@ -158,11 +179,12 @@ async def detect_trends(
             return check.message
         variables["agencyKey"] = check.code
 
-    (data, _), coverage = await asyncio.gather(
+    (data, _), coverage, names = await asyncio.gather(
         execute_compatible(
             client, ARTICLE_SUMMARY_URL, _TRENDING_QUERY, _TRENDING_LEGACY_QUERY, variables
         ),
         theme_coverage(client, window_days),
+        catalog_display_names(catalog),  # gobus-mcp#17: nome do órgão, uma vez por resposta
     )
     themes = data.get("trendingThemes") or []
     follow = _follow_ups(
@@ -222,9 +244,7 @@ async def detect_trends(
         )
         top_arts = theme.get("topArticles") or []
         if top_arts:
-            agency_counts = Counter(a.get("agencyName") for a in top_arts if a.get("agencyName"))
-            agency_str = " · ".join(f"{name} ({cnt})" for name, cnt in agency_counts.most_common(3))
-            lines.append(f"   Agências: {agency_str}")
+            lines.append(f"   Agências: {_agencies_line(top_arts, names)}")
             for art in top_arts[:3]:
                 lines.append(f"   - {article_ref(art, 80)}")
 

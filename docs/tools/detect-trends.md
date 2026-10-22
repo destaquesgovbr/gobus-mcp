@@ -27,7 +27,7 @@ Retorna Markdown com um cabeçalho dos parâmetros e do limiar e um ranking de t
 ## 2 temas em crescimento
 
 1. 📈 **Saúde** · razão **3.0×** · growthScore 2.0 · 42 artigos (janela) vs 3.0/dia (baseline)
-   Agências: Ministério da Saúde (1) · SECOM (1)
+   Agências: [saude] Ministério da Saúde (1) · [secom] Secretaria de Comunicação Social (1)
    - [Novo imunizante aprovado](https://www.gov.br/saude/...) · `a1`
 2. 🔥 **Educação** · **novo** (sem artigos antes da janela) · growthScore 4.0 · 21 artigos (janela) vs 0.8/dia (baseline)
 
@@ -57,5 +57,6 @@ _Razão = …_
 - **Temas indisponíveis:** sem temas, a tool mede a cobertura de classificação (`topThemes` ÷ `analyticsKpis.total`) da janela. Abaixo de 50% ela avisa "Temas: indisponível" em vez de dizer que nada cresceu (a classificação parou em 26/09/2026).
 - Os indicadores visuais refletem o `growthScore`: 🔥 ≥ 3.0, 📈 ≥ 2.0, ↗ abaixo disso.
 - `min_articles` evita ruído de temas com poucos artigos na janela recente.
+- **Órgãos dos top artigos** ([#17](https://github.com/destaquesgovbr/gobus-mcp/issues/17)): a linha "Agências:" conta os órgãos pelo código (`ArticleSummary.agencyKey`, do GQL-1; na query antiga, o `agencyName`, que carrega a key) e mostra `[código] Nome` com o nome do catálogo de agências, resolvido uma vez por resposta. Antes ela mostrava só os códigos. Com o catálogo fora do ar, sai `[código]`.
 - **Para explorar:** com temas, o artigo mais representativo, a busca do 1º tema nos dias fechados da janela (com a `agency_key`, se houver) e o forecast; sem temas, `gobus_detect_anomalies()` e o mesmo radar com limiar 1,2×.
 - **Compatibilidade:** sem o `ArticleSummary.url` na API, a tool repete a consulta sem o campo (`TrendingThemesLegacy`) e segue assim por 1 h.

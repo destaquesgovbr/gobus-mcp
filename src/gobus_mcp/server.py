@@ -149,6 +149,7 @@ async def gobus_search_news(
         limit,
         date_from or None,
         date_to or None,
+        catalog=get_deps().catalog,
     )
 
 

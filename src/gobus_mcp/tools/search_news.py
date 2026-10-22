@@ -3,11 +3,13 @@ import re
 from collections import Counter
 from datetime import UTC, date, datetime
 
+from gobus_mcp.agency_catalog import AgencyCatalog, catalog_display_names
 from gobus_mcp.calendario import BRT, brt_day_end, brt_day_start
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.formatting import (
     FollowUp,
     agency_label,
+    article_agency,
     brt_day,
     fmt_int,
     md_link,
@@ -152,6 +154,8 @@ async def search_news(
     limit: int = 10,
     date_from: str | None = None,
     date_to: str | None = None,
+    *,
+    catalog: AgencyCatalog | None = None,
 ) -> str:
     """Busca artigos por texto livre (``"*"`` = todos), agência e período.
 
@@ -159,6 +163,8 @@ async def search_news(
     inteiros em Brasília (ambos inclusivos); com hora, passam como vieram. Início depois
     do fim (com ou sem hora) devolve "Período inválido" sem consultar. A página ``page``
     tem ``limit`` artigos (até 50), montada das páginas de 20 da API (``api_pages``).
+    O nome do órgão vem do ``catalog`` (o ``search()`` devolve ``agencyName`` nulo,
+    graphql-api#34), resolvido uma vez por página; sem catálogo, só o código.
     """
     query = query.strip() or "*"  # search() rejeita query vazia; "*" lista tudo
     label = "todas as publicações" if query == "*" else query
@@ -191,7 +197,10 @@ async def search_news(
     if filter_dict:
         variables["filter"] = filter_dict
 
-    articles, found = await _fetch(client, variables, page, effective_limit)
+    (articles, found), names = await asyncio.gather(
+        _fetch(client, variables, page, effective_limit),
+        catalog_display_names(catalog),  # cache de 24 h; fora do ar = {}
+    )
 
     if not articles:
         msg = f"Nenhum resultado encontrado para: **{label}**"
@@ -202,7 +211,7 @@ async def search_news(
     lines = [f"# Resultados: {label}\n\n**{fmt_int(found)} artigos encontrados** (página {page})\n"]
     for art in articles:
         pub_at = brt_day(art.get("publishedAt"))
-        agency_str = agency_label(art.get("agency"), art.get("agencyName"))
+        agency_str = agency_label(*article_agency(art, names))
         features = art.get("features") or {}
         trending = features.get("trendingScore")
         trending_str = f" 🔥 trending={trending:.1f}" if trending and trending > 1.0 else ""
