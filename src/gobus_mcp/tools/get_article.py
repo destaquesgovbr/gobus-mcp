@@ -1,10 +1,11 @@
 from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.formatting import agency_label, brt_day, fmt_int, md_link
-from gobus_mcp.readability import describe_flesch
+from gobus_mcp.readability import article_flesch, describe_flesch
+from gobus_mcp.schema_compat import FLESCH_PTBR, execute_compatible
 
-_ARTICLE_QUERY = """
-query GetArticle($uniqueId: String!) {
+_ARTICLE_TEMPLATE = """
+query GetArticle__SUFFIX__($uniqueId: String!) {
   article(uniqueId: $uniqueId) {
     uniqueId
     title
@@ -20,7 +21,7 @@ query GetArticle($uniqueId: String!) {
       uniqueSessions
       trendingScore
       wordCount
-      readabilityFlesch
+      readabilityFlesch__PTBR__
       entities {
         text
         type
@@ -31,6 +32,12 @@ query GetArticle($uniqueId: String!) {
   }
 }
 """
+
+# Flesch pt-BR (GQL-1); sem ele na API, a antiga responde (schema_compat).
+_ARTICLE_QUERY = _ARTICLE_TEMPLATE.replace("__SUFFIX__", "").replace(
+    "__PTBR__", "\n      readabilityFleschPtbr"
+)
+_ARTICLE_LEGACY_QUERY = _ARTICLE_TEMPLATE.replace("__SUFFIX__", "Legacy").replace("__PTBR__", "")
 
 
 async def get_article(
@@ -47,10 +54,13 @@ async def get_article(
 
     Returns:
         Markdown com artigo completo incluindo features e entidades mencionadas.
-        Métricas nulas aparecem como "indisponível" (nunca 0); Flesch na faixa única.
+        Métricas nulas aparecem como "indisponível" (nunca 0); Flesch pt-BR (o inglês,
+        legado, só quando o pt-BR falta) nas faixas de Martins.
     """
     catalog = catalog or AgencyCatalog(client)
-    data = await client.execute(_ARTICLE_QUERY, {"uniqueId": unique_id})
+    data, _ = await execute_compatible(
+        client, FLESCH_PTBR, _ARTICLE_QUERY, _ARTICLE_LEGACY_QUERY, {"uniqueId": unique_id}
+    )
     art = data.get("article")
     if not art:
         return f"Artigo não encontrado: `{unique_id}`"
@@ -69,7 +79,7 @@ async def get_article(
     features = art.get("features") or {}
     if features:
         wc = features.get("wordCount")
-        flesch = features.get("readabilityFlesch")
+        flesch, scale = article_flesch(features)
         vc = features.get("viewCount")
         ts = features.get("trendingScore")
         meta_parts = []
@@ -78,7 +88,8 @@ async def get_article(
             meta_parts.append(f"⏱ {read_min} min leitura ({wc} palavras)")
         else:
             meta_parts.append("⏱ Tamanho: indisponível")
-        meta_parts.append(f"📖 Legibilidade: {describe_flesch(flesch)}")
+        scale_txt = f" ({scale.short})" if flesch is not None else ""
+        meta_parts.append(f"📖 Legibilidade{scale_txt}: {describe_flesch(flesch)}")
         if vc:
             meta_parts.append(f"👁 {fmt_int(vc)} visualizações")
         if ts and ts > 1.0:

@@ -1,7 +1,11 @@
 """Nota editorial (0–10) de um artigo, comparada ao benchmark da própria agência.
 
-Três dimensões (pesos 50/30/20): legibilidade (Flesch limitado a [0, 100]), concisão
-(palavras contra a mediana da agência) e densidade de entidades (por 100 palavras).
+Três dimensões (pesos 50/30/20): legibilidade (Flesch pt-BR limitado a [0, 100]; nota 10 na
+meta de serviço 50), concisão (palavras contra a mediana da agência) e densidade de
+entidades (por 100 palavras).
+
+Escala: o Flesch pt-BR do artigo; sem ele, o inglês (legado), com aviso
+``READABILITY_LEGACY_SCALE``. O benchmark usa a mesma escala do artigo.
 
 - **refused**: sem Flesch ou sem wordCount → "Nota indisponível" (nunca uma nota neutra);
 - **partial**: sem benchmark de concisão (amostra < 10) → média renormalizada;
@@ -35,7 +39,16 @@ from gobus_mcp.payloads.scorecard import (
     ScoreReport,
     SuggestedComparison,
 )
-from gobus_mcp.readability import clamp_flesch, describe_flesch, readability_score
+from gobus_mcp.readability import (
+    PTBR_SCALE,
+    FleschScale,
+    article_flesch,
+    clamp_flesch,
+    describe_flesch,
+    legacy_scale_notice,
+    readability_score,
+)
+from gobus_mcp.schema_compat import FLESCH_PTBR, execute_compatible
 
 BENCHMARK_AGENCY = "agencia_brasil"
 BENCHMARK_DAYS = 90
@@ -51,8 +64,8 @@ LABELS = {
     "entity_density": "Densidade de entidades",
 }
 
-_ARTICLE_QUERY = """
-query ScoreArticle($uniqueId: String!) {
+_ARTICLE_TEMPLATE = """
+query ScoreArticle__SUFFIX__($uniqueId: String!) {
   article(uniqueId: $uniqueId) {
     uniqueId
     title
@@ -61,7 +74,7 @@ query ScoreArticle($uniqueId: String!) {
     agencyName
     publishedAt
     features {
-      readabilityFlesch
+      readabilityFlesch__PTBR__
       wordCount
       entities { type }
     }
@@ -69,8 +82,8 @@ query ScoreArticle($uniqueId: String!) {
 }
 """
 
-_BENCHMARK_QUERY = """
-query ScoreArticleBenchmark(
+_BENCHMARK_TEMPLATE = """
+query ScoreArticleBenchmark__SUFFIX__(
   $agencies: [String!]!, $startDate: String!, $endDate: String!, $limit: Int!
 ) {
   ag: articles(
@@ -80,7 +93,7 @@ query ScoreArticleBenchmark(
     sort: DATE
   ) {
     found
-    articles { uniqueId title publishedAt features { readabilityFlesch wordCount } }
+    articles { uniqueId title publishedAt features { readabilityFlesch__PTBR__ wordCount } }
   }
   ab: articles(
     page: 1
@@ -89,10 +102,23 @@ query ScoreArticleBenchmark(
     sort: DATE
   ) {
     found
-    articles { uniqueId title publishedAt features { readabilityFlesch wordCount } }
+    articles { uniqueId title publishedAt features { readabilityFlesch__PTBR__ wordCount } }
   }
 }
 """
+
+
+def _ptbr(template: str, *, legacy: bool) -> str:
+    """Query nova (com o Flesch pt-BR, GQL-1) ou a antiga (``…Legacy``, sem ele)."""
+    if legacy:
+        return template.replace("__SUFFIX__", "Legacy").replace("__PTBR__", "")
+    return template.replace("__SUFFIX__", "").replace("__PTBR__", " readabilityFleschPtbr")
+
+
+_ARTICLE_QUERY = _ptbr(_ARTICLE_TEMPLATE, legacy=False)
+_ARTICLE_LEGACY_QUERY = _ptbr(_ARTICLE_TEMPLATE, legacy=True)
+_BENCHMARK_QUERY = _ptbr(_BENCHMARK_TEMPLATE, legacy=False)
+_BENCHMARK_LEGACY_QUERY = _ptbr(_BENCHMARK_TEMPLATE, legacy=True)
 
 
 # ── dimensões (puras) ───────────────────────────────────────────────────────
@@ -170,7 +196,12 @@ def _parse_dt(value: str | None) -> datetime | None:
 
 
 def _benchmark(
-    result: dict | None, *, code: str, name: str, exclude: str
+    result: dict | None,
+    *,
+    code: str,
+    name: str,
+    exclude: str,
+    scale: FleschScale = PTBR_SCALE,
 ) -> tuple[ScoreBenchmark, int, int]:
     """Benchmark da amostra e ``(com Flesch, total)`` para o data_status."""
     result = result or {}
@@ -184,8 +215,8 @@ def _benchmark(
         if feats.get("wordCount") is not None:
             words.append(feats["wordCount"])
             used = True
-        if feats.get("readabilityFlesch") is not None:
-            flesch.append(clamp_flesch(feats["readabilityFlesch"]).value)
+        if feats.get(scale.article_field) is not None:
+            flesch.append(clamp_flesch(feats[scale.article_field]).value)
             used = True
         published = _parse_dt(art.get("publishedAt"))
         if used and published is not None:
@@ -209,21 +240,28 @@ def _benchmark(
 
 
 def _suggestion(
-    result: dict | None, *, code: str, name: str, exclude: set[str], reason: str
+    result: dict | None,
+    *,
+    code: str,
+    name: str,
+    exclude: set[str],
+    reason: str,
+    scale: FleschScale = PTBR_SCALE,
 ) -> SuggestedComparison | None:
     """Artigo de maior Flesch (limitado; o bruto desempata) da amostra, fora ``exclude``."""
+    field = scale.article_field
     candidates = [
         a
         for a in (result or {}).get("articles") or []
         if a.get("uniqueId")
         and a["uniqueId"] not in exclude
-        and (a.get("features") or {}).get("readabilityFlesch") is not None
+        and (a.get("features") or {}).get(field) is not None
     ]
     if not candidates:
         return None
 
     def key(a: dict) -> tuple[float, float]:
-        fv = clamp_flesch(a["features"]["readabilityFlesch"])
+        fv = clamp_flesch(a["features"][field])
         return fv.value, fv.raw
 
     best = max(candidates, key=key)
@@ -232,7 +270,7 @@ def _suggestion(
         title=best.get("title") or best["uniqueId"],
         agency_key=code,
         agency_name=name,
-        flesch=clamp_flesch(best["features"]["readabilityFlesch"]).value,
+        flesch=clamp_flesch(best["features"][field]).value,
         word_count=best["features"].get("wordCount"),
         reason=reason,
     )
@@ -274,6 +312,7 @@ class _Scored(NamedTuple):
     bench_data: dict  # amostras ``ag``/``ab`` (base das sugestões)
     name: str
     ab_name: str
+    scale: FleschScale
 
 
 async def _score_one(
@@ -285,13 +324,16 @@ async def _score_one(
 ) -> _Scored | None:
     """Pontua um artigo; ``None`` se ele não existe."""
     today = reference_date(now)
-    data = await client.execute(_ARTICLE_QUERY, {"uniqueId": unique_id})
+    data, _ = await execute_compatible(
+        client, FLESCH_PTBR, _ARTICLE_QUERY, _ARTICLE_LEGACY_QUERY, {"uniqueId": unique_id}
+    )
     art = data.get("article")
     if not art:
         return None
 
     features = art.get("features") or {}
-    fv = clamp_flesch(features.get("readabilityFlesch"))
+    raw_flesch, scale = article_flesch(features)
+    fv = clamp_flesch(raw_flesch)
     word_count = features.get("wordCount")
     entity_count = len(features.get("entities") or [])
     code = art.get("agency") or ""
@@ -305,8 +347,11 @@ async def _score_one(
     bench_data: dict = {}
     data_status: list[DataStatus] = []
     if published is not None and code:
-        bench_data = await client.execute(
+        bench_data, _ = await execute_compatible(
+            client,
+            FLESCH_PTBR,
             _BENCHMARK_QUERY,
+            _BENCHMARK_LEGACY_QUERY,
             {
                 "agencies": [code],
                 "startDate": (published - timedelta(days=BENCHMARK_DAYS)).isoformat(),
@@ -315,10 +360,14 @@ async def _score_one(
             },
         )
         benchmark, with_flesch, total = _benchmark(
-            bench_data.get("ag"), code=code, name=name, exclude=unique_id
+            bench_data.get("ag"), code=code, name=name, exclude=unique_id, scale=scale
         )
         reference, _, _ = _benchmark(
-            bench_data.get("ab"), code=BENCHMARK_AGENCY, name=ab_name, exclude=unique_id
+            bench_data.get("ab"),
+            code=BENCHMARK_AGENCY,
+            name=ab_name,
+            exclude=unique_id,
+            scale=scale,
         )
         if total:
             data_status = [
@@ -365,7 +414,7 @@ async def _score_one(
             scores["readability"],
             fv.value,
             None,
-            f"Flesch {describe_flesch(fv)}",
+            f"{scale.short} {describe_flesch(fv)}",
         ),
         _dimension(
             "conciseness",
@@ -395,6 +444,10 @@ async def _score_one(
     if score_status == "refused":
         dims = [d.model_copy(update={"score": None, "light": "gray"}) for d in dims]
 
+    notices = notices_for(data_status)
+    legacy = legacy_scale_notice(scale) if fv.value is not None else None
+    if legacy is not None:
+        notices.append(legacy)
     report = ScoreReport(
         summary="",
         status=status,
@@ -403,7 +456,10 @@ async def _score_one(
         params={"unique_id": unique_id},
         calendar=calendar_context(today),
         data_status=data_status,
-        notices=notices_for(data_status),
+        notices=notices,
+        scale=scale.id,
+        scale_label=scale.label,
+        scale_fallback=scale.legacy and fv.value is not None,
         score_status=score_status,
         overall=overall,
         overall_light=score_light(overall),
@@ -426,7 +482,7 @@ async def _score_one(
         reference_benchmark=reference,
         flags=flags,
     )
-    return _Scored(report, bench_data, name, ab_name)
+    return _Scored(report, bench_data, name, ab_name, scale)
 
 
 def _suggestions(scored: _Scored, exclude: set[str]) -> list[SuggestedComparison]:
@@ -437,6 +493,7 @@ def _suggestions(scored: _Scored, exclude: set[str]) -> list[SuggestedComparison
             name=scored.name,
             exclude=exclude,
             reason=f"maior Flesch da amostra de {scored.name} nos {BENCHMARK_DAYS} dias antes",
+            scale=scored.scale,
         ),
         _suggestion(
             scored.bench_data.get("ab"),
@@ -444,6 +501,7 @@ def _suggestions(scored: _Scored, exclude: set[str]) -> list[SuggestedComparison
             name=scored.ab_name,
             exclude=exclude,
             reason=f"maior Flesch de {scored.ab_name} (referência) na mesma janela",
+            scale=scored.scale,
         ),
     ]
     out, seen = [], set()

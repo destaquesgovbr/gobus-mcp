@@ -12,11 +12,11 @@
     "content": [
       {
         "type": "text",
-        "text": "# Ranking de Legibilidade — 02/04/2026–30/06/2026 (90 dias)\n\n| # | Agência | Flesch | Nível | Artigos (com Flesch) | Gap até 50 |\n|---|---------|--------|-------|----------------------|------------|\n| 1 | Agência Brasil (republicadora) | 33.6 | difícil | 909 (909) | -16.4 |\n| 2 | <img src=x onerror=alert(1)> | 27.1 | difícil | 129 (129) | -22.9 |\n| 3 | </script><script>alert(2)</script> | 12.1 | muito difícil | 99 (99) | -37.9 |\n\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._"
+        "text": "# Ranking de Legibilidade — 02/04/2026–30/06/2026 (90 dias)\n\n| # | Agência | Flesch | Nível | Artigos (com Flesch) | Gap até 50 |\n|---|---------|--------|-------|----------------------|------------|\n| 1 | Agência Brasil (republicadora) | 33.6 | difícil | 909 (909) | -16.4 |\n| 2 | <img src=x onerror=alert(1)> | 27.1 | difícil | 129 (129) | -22.9 |\n| 3 | </script><script>alert(2)</script> | 12.1 | muito difícil | 99 (99) | -37.9 |\n\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch pt-BR (Martins et al., 1996), limitado a 0–100 (o valor bruto aparece quando foi limitado). Faixas: 0–25 muito difícil, 25–50 difícil, 50–75 fácil, 75–100 muito fácil._"
       }
     ],
     "structuredContent": {
-      "summary": "# Ranking de Legibilidade — 02/04/2026–30/06/2026 (90 dias)\n\n| # | Agência | Flesch | Nível | Artigos (com Flesch) | Gap até 50 |\n|---|---------|--------|-------|----------------------|------------|\n| 1 | Agência Brasil (republicadora) | 33.6 | difícil | 909 (909) | -16.4 |\n| 2 | <img src=x onerror=alert(1)> | 27.1 | difícil | 129 (129) | -22.9 |\n| 3 | </script><script>alert(2)</script> | 12.1 | muito difícil | 99 (99) | -37.9 |\n\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._",
+      "summary": "# Ranking de Legibilidade — 02/04/2026–30/06/2026 (90 dias)\n\n| # | Agência | Flesch | Nível | Artigos (com Flesch) | Gap até 50 |\n|---|---------|--------|-------|----------------------|------------|\n| 1 | Agência Brasil (republicadora) | 33.6 | difícil | 909 (909) | -16.4 |\n| 2 | <img src=x onerror=alert(1)> | 27.1 | difícil | 129 (129) | -22.9 |\n| 3 | </script><script>alert(2)</script> | 12.1 | muito difícil | 99 (99) | -37.9 |\n\n**Benchmark interno (Agência Brasil, mesma janela):** 33.6 (difícil)\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch pt-BR (Martins et al., 1996), limitado a 0–100 (o valor bruto aparece quando foi limitado). Faixas: 0–25 muito difícil, 25–50 difícil, 50–75 fácil, 75–100 muito fácil._",
       "schemaVersion": 1,
       "kind": "gobus.readability",
       "tool": "gobus_get_readability_recommendations",
@@ -44,7 +44,7 @@
           "key": "readability",
           "status": "ok",
           "since": null,
-          "message": "Legibilidade (Flesch): ok — 100% dos artigos com valor (1137 de 1137)",
+          "message": "Legibilidade (Flesch): ok — Flesch pt-BR: 100% dos artigos com valor (1137 de 1137)",
           "metric": {
             "coveredArticles": 1137,
             "totalArticles": 1137,
@@ -55,7 +55,9 @@
       "notices": [],
       "mode": "ranking",
       "error": null,
-      "scale": "flesch_en_textstat",
+      "scale": "flesch_ptbr_martins1996",
+      "scaleLabel": "Flesch pt-BR (Martins et al., 1996), limitado a 0–100",
+      "scaleFallback": false,
       "bands": [
         {
           "key": "very_hard",
@@ -70,14 +72,14 @@
           "upper": 50.0
         },
         {
-          "key": "medium",
-          "label": "médio",
+          "key": "easy",
+          "label": "fácil",
           "lower": 50.0,
           "upper": 75.0
         },
         {
-          "key": "easy",
-          "label": "fácil",
+          "key": "very_easy",
+          "label": "muito fácil",
           "lower": 75.0,
           "upper": 100.0
         }

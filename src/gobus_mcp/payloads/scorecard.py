@@ -11,7 +11,12 @@ from typing import Literal
 
 from gobus_mcp.payloads.common import Payload, ReportBase
 from gobus_mcp.payloads.readability import DayRange, FleschBandInfo
-from gobus_mcp.readability import FLESCH_SCALE_ID, TARGET_INSTITUTIONAL, TARGET_SERVICE
+from gobus_mcp.readability import (
+    FLESCH_SCALE_ID,
+    PTBR_SCALE,
+    TARGET_INSTITUTIONAL,
+    TARGET_SERVICE,
+)
 
 ScoreStatus = Literal["scored", "partial", "refused"]
 DimensionKey = Literal["readability", "conciseness", "entity_density"]
@@ -94,7 +99,9 @@ class ScoreReport(ReportBase):
     score_status: ScoreStatus
     overall: float | None
     refusal_reason: str | None = None
-    scale: str = FLESCH_SCALE_ID
+    scale: str = FLESCH_SCALE_ID  # do artigo: pt-BR, ou a inglesa de reserva
+    scale_label: str = PTBR_SCALE.label
+    scale_fallback: bool = False  # True = artigo sem Flesch pt-BR (fórmula inglesa)
     bands: list[FleschBandInfo]
     target_service: float = TARGET_SERVICE
     target_institutional: float = TARGET_INSTITUTIONAL

@@ -10,11 +10,11 @@
     "content": [
       {
         "type": "text",
-        "text": "# Score Editorial: Operação cumpre mandados em três estados\n**Polícia Federal** (`pf`) · 02/10/2026 · `pf-operacao-outubro`\n\n## Nota indisponível\n\n> Artigo sem Flesch e sem contagem de palavras — o pipeline de features não calculou as métricas deste artigo, então não há base para uma nota.\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** indisponível — Flesch indisponível\n- **Concisão (peso 30%):** indisponível — contagem de palavras indisponível (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** indisponível — 2 entidades\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-38` — Notícia 39 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)"
+        "text": "# Score Editorial: Operação cumpre mandados em três estados\n**Polícia Federal** (`pf`) · 02/10/2026 · `pf-operacao-outubro`\n\n## Nota indisponível\n\n> Artigo sem Flesch e sem contagem de palavras — o pipeline de features não calculou as métricas deste artigo, então não há base para uma nota.\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** indisponível — Flesch pt-BR indisponível\n- **Concisão (peso 30%):** indisponível — contagem de palavras indisponível (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** indisponível — 2 entidades\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-38` — Notícia 39 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)"
       }
     ],
     "structuredContent": {
-      "summary": "# Score Editorial: Operação cumpre mandados em três estados\n**Polícia Federal** (`pf`) · 02/10/2026 · `pf-operacao-outubro`\n\n## Nota indisponível\n\n> Artigo sem Flesch e sem contagem de palavras — o pipeline de features não calculou as métricas deste artigo, então não há base para uma nota.\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** indisponível — Flesch indisponível\n- **Concisão (peso 30%):** indisponível — contagem de palavras indisponível (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** indisponível — 2 entidades\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-38` — Notícia 39 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)",
+      "summary": "# Score Editorial: Operação cumpre mandados em três estados\n**Polícia Federal** (`pf`) · 02/10/2026 · `pf-operacao-outubro`\n\n## Nota indisponível\n\n> Artigo sem Flesch e sem contagem de palavras — o pipeline de features não calculou as métricas deste artigo, então não há base para uma nota.\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** indisponível — Flesch pt-BR indisponível\n- **Concisão (peso 30%):** indisponível — contagem de palavras indisponível (mediana da agência: 546)\n- **Densidade de entidades (peso 20%):** indisponível — 2 entidades\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 40 artigos com palavras, 40 com Flesch (01/05–28/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | 33.5 (difícil) | 39.9 (difícil) |\n| Palavras (mediana) | 546 | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-38` — Notícia 39 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)",
       "schemaVersion": 1,
       "kind": "gobus.scorecard",
       "tool": "gobus_score_article",
@@ -63,7 +63,9 @@
       "scoreStatus": "refused",
       "overall": null,
       "refusalReason": "artigo sem Flesch e sem contagem de palavras — o pipeline de features não calculou as métricas deste artigo, então não há base para uma nota",
-      "scale": "flesch_en_textstat",
+      "scale": "flesch_ptbr_martins1996",
+      "scaleLabel": "Flesch pt-BR (Martins et al., 1996), limitado a 0–100",
+      "scaleFallback": false,
       "bands": [
         {
           "key": "very_hard",
@@ -78,14 +80,14 @@
           "upper": 50.0
         },
         {
-          "key": "medium",
-          "label": "médio",
+          "key": "easy",
+          "label": "fácil",
           "lower": 50.0,
           "upper": 75.0
         },
         {
-          "key": "easy",
-          "label": "fácil",
+          "key": "very_easy",
+          "label": "muito fácil",
           "lower": 75.0,
           "upper": 100.0
         }
@@ -113,7 +115,7 @@
           "score": null,
           "value": null,
           "reference": null,
-          "detail": "Flesch indisponível",
+          "detail": "Flesch pt-BR indisponível",
           "light": "gray"
         },
         {

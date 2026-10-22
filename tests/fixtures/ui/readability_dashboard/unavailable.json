@@ -11,11 +11,11 @@
     "content": [
       {
         "type": "text",
-        "text": "# Ranking de Legibilidade — 07/07/2026–04/10/2026 (90 dias)\n\n> **Legibilidade indisponível:** sem dados de legibilidade no histórico consultado.\n> Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)\n\n**Sem dado de legibilidade na janela (12):** Agência Brasil (0 artigos), Controladoria-Geral da União (0 artigos), Ministério da Defesa (0 artigos), Ministério da Ciência, Tecnologia e Inovação (0 artigos), Ministério do Desenvolvimento e Assistência Social (0 artigos), Ministério da Educação (0 artigos), Ministério do Meio Ambiente e Mudança do Clima (0 artigos), Polícia Federal (0 artigos), Ministério da Saúde (0 artigos), Secretaria de Comunicação Social (0 artigos), Ministério do Trabalho e Emprego (0 artigos), TV Brasil (0 artigos)\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._"
+        "text": "# Ranking de Legibilidade — 07/07/2026–04/10/2026 (90 dias)\n\n> **Legibilidade indisponível:** sem dados de legibilidade no histórico consultado.\n> Legibilidade (Flesch): indisponível — Flesch pt-BR: sem artigos no período\n\n**Sem dado de legibilidade na janela (12):** Agência Brasil (0 artigos), Controladoria-Geral da União (0 artigos), Ministério da Defesa (0 artigos), Ministério da Ciência, Tecnologia e Inovação (0 artigos), Ministério do Desenvolvimento e Assistência Social (0 artigos), Ministério da Educação (0 artigos), Ministério do Meio Ambiente e Mudança do Clima (0 artigos), Polícia Federal (0 artigos), Ministério da Saúde (0 artigos), Secretaria de Comunicação Social (0 artigos), Ministério do Trabalho e Emprego (0 artigos), TV Brasil (0 artigos)\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch pt-BR (Martins et al., 1996), limitado a 0–100 (o valor bruto aparece quando foi limitado). Faixas: 0–25 muito difícil, 25–50 difícil, 50–75 fácil, 75–100 muito fácil._"
       }
     ],
     "structuredContent": {
-      "summary": "# Ranking de Legibilidade — 07/07/2026–04/10/2026 (90 dias)\n\n> **Legibilidade indisponível:** sem dados de legibilidade no histórico consultado.\n> Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)\n\n**Sem dado de legibilidade na janela (12):** Agência Brasil (0 artigos), Controladoria-Geral da União (0 artigos), Ministério da Defesa (0 artigos), Ministério da Ciência, Tecnologia e Inovação (0 artigos), Ministério do Desenvolvimento e Assistência Social (0 artigos), Ministério da Educação (0 artigos), Ministério do Meio Ambiente e Mudança do Clima (0 artigos), Polícia Federal (0 artigos), Ministério da Saúde (0 artigos), Secretaria de Comunicação Social (0 artigos), Ministério do Trabalho e Emprego (0 artigos), TV Brasil (0 artigos)\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto aparece quando foi limitado)._",
+      "summary": "# Ranking de Legibilidade — 07/07/2026–04/10/2026 (90 dias)\n\n> **Legibilidade indisponível:** sem dados de legibilidade no histórico consultado.\n> Legibilidade (Flesch): indisponível — Flesch pt-BR: sem artigos no período\n\n**Sem dado de legibilidade na janela (12):** Agência Brasil (0 artigos), Controladoria-Geral da União (0 artigos), Ministério da Defesa (0 artigos), Ministério da Ciência, Tecnologia e Inovação (0 artigos), Ministério do Desenvolvimento e Assistência Social (0 artigos), Ministério da Educação (0 artigos), Ministério do Meio Ambiente e Mudança do Clima (0 artigos), Polícia Federal (0 artigos), Ministério da Saúde (0 artigos), Secretaria de Comunicação Social (0 artigos), Ministério do Trabalho e Emprego (0 artigos), TV Brasil (0 artigos)\n\n**Meta:** ≥50 para serviço ao cidadão · ≥30 para institucional\n_Escala: Flesch pt-BR (Martins et al., 1996), limitado a 0–100 (o valor bruto aparece quando foi limitado). Faixas: 0–25 muito difícil, 25–50 difícil, 50–75 fácil, 75–100 muito fácil._",
       "schemaVersion": 1,
       "kind": "gobus.readability",
       "tool": "gobus_get_readability_recommendations",
@@ -42,8 +42,8 @@
         {
           "key": "readability",
           "status": "unavailable",
-          "since": "2026-06-30",
-          "message": "Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)",
+          "since": null,
+          "message": "Legibilidade (Flesch): indisponível — Flesch pt-BR: sem artigos no período",
           "metric": {
             "coveredArticles": 0,
             "totalArticles": 0,
@@ -55,8 +55,8 @@
         {
           "code": "READABILITY_UNAVAILABLE",
           "severity": "error",
-          "message": "Legibilidade (Flesch): indisponível — sem artigos no período (desde 30/06/2026)",
-          "since": "2026-06-30",
+          "message": "Legibilidade (Flesch): indisponível — Flesch pt-BR: sem artigos no período",
+          "since": null,
           "affects": [
             "readability"
           ]
@@ -64,7 +64,9 @@
       ],
       "mode": "ranking",
       "error": null,
-      "scale": "flesch_en_textstat",
+      "scale": "flesch_ptbr_martins1996",
+      "scaleLabel": "Flesch pt-BR (Martins et al., 1996), limitado a 0–100",
+      "scaleFallback": false,
       "bands": [
         {
           "key": "very_hard",
@@ -79,14 +81,14 @@
           "upper": 50.0
         },
         {
-          "key": "medium",
-          "label": "médio",
+          "key": "easy",
+          "label": "fácil",
           "lower": 50.0,
           "upper": 75.0
         },
         {
-          "key": "easy",
-          "label": "fácil",
+          "key": "very_easy",
+          "label": "muito fácil",
           "lower": 75.0,
           "upper": 100.0
         }

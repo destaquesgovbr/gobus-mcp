@@ -49,7 +49,7 @@ function appLegend(sc) {
   return h("div", { class: "gb-legend", "data-testid": "legend" },
     (sc.bands || []).map((b) => h("span", null, h("span", { class: "gb-swatch", "data-band": b.key }), b.label + " " + domInt(b.lower) + "–" + domInt(b.upper))),
     h("span", null, "Meta ≥" + domInt(sc.targetService) + " serviço · ≥" + domInt(sc.targetInstitutional) + " institucional"),
-    h("span", null, "Flesch (fórmula inglesa do textstat), limitado a 0–100"));
+    h("span", { "data-testid": "scale" }, sc.scaleLabel || "Flesch, limitado a 0–100"));
 }
 
 function appTargets(sc) {

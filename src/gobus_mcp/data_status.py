@@ -82,8 +82,9 @@ def _make(
     *,
     since: date | None,
     metric: dict[str, float | int | None],
+    hint: bool = True,
 ) -> DataStatus:
-    if status != "ok" and since is None:
+    if status != "ok" and since is None and hint:
         since = SINCE_HINTS.get(key)
     if status == "ok":
         since = None
@@ -228,21 +229,28 @@ def metric_coverage_status(
     field: str,
     *,
     weight_key: str = "articleCount",
+    count_key: str | None = None,
     dead: float = 0.1,
     degraded: float = 0.8,
     since: date | None = None,
+    label: str | None = None,
+    hint: bool = True,
 ) -> DataStatus:
     """Cobertura de uma média do ``agencyAnalytics`` ponderada por artigos.
 
     Linha com ``field`` nulo não tem dado (0.0 é dado). Mede a fração de artigos em
-    linhas com valor — é o que separa "0.0 de verdade" de "pipeline parado".
+    linhas com valor — é o que separa "0.0 de verdade" de "pipeline parado". Com
+    ``count_key`` (ex.: ``readabilityFleschPtbrCount``), conta só os artigos que têm o
+    valor. ``label`` vai no detalhe (ex.: a escala do Flesch); ``hint=False`` dispensa o
+    "desde" de ``SINCE_HINTS`` (a data do incidente é de outra métrica).
     """
     total = covered = 0
     for row in rows:
         weight = row.get(weight_key) or 0
         total += weight
         if row.get(field) is not None:
-            covered += weight
+            count = row.get(count_key) if count_key else None
+            covered += min(count, weight) if count is not None else weight
     ratio = covered / total if total > 0 else None
     status = _status_for_ratio(ratio, dead=dead, degraded=degraded)
     detail = (
@@ -250,8 +258,10 @@ def metric_coverage_status(
         if total > 0
         else "sem artigos no período"
     )
+    if label:
+        detail = f"{label}: {detail}"
     metric = {"coveredArticles": covered, "totalArticles": total, "ratio": ratio}
-    return _make(key, status, detail, since=since, metric=metric)
+    return _make(key, status, detail, since=since, metric=metric, hint=hint)
 
 
 # Atraso de indexação (Typesense contra Postgres no mesmo intervalo).

@@ -3,7 +3,9 @@
 A detecção é sempre dinâmica, na própria resposta da API:
 - ``themes``: Σ ``topThemes`` / ``analyticsKpis.total`` dos últimos 7 dias;
 - ``readability``: fração de artigos (das agências mais ativas, últimos 7 dias fechados)
-  em linhas com Flesch — **nulo não é dado** (antes, nulo virava 0.0 e contava como ok);
+  com Flesch **pt-BR** (``readabilityFleschPtbrCount``) — **nulo não é dado**; o detalhe
+  diz a escala e ``metric.englishRatio`` traz a cobertura do Flesch inglês (legado) para
+  comparação. Sem o pt-BR na API (``schema_compat``), mede o inglês e o detalhe avisa;
 - ``sentiment_analytics``: nulidade de ``avgSentimentScore``; ``pctPositive`` é fração
   0..1 e pode vir 0.0 sem dado, então só entra como métrica;
 - ``entity_ranking``: linhas no piso antigo (``volumeRatio/windowCount ≥ 100``), execuções
@@ -44,14 +46,21 @@ from gobus_mcp.data_status import (
     entity_ranking_status,
     failed_status,
     indexing_lag_status,
-    metric_coverage_status,
     notices_for,
     sentiment_analytics_status,
     theme_coverage,
     worst_status,
 )
 from gobus_mcp.payloads.common import DataKey, DataStatus
-from gobus_mcp.readability import period_start, weighted_metric
+from gobus_mcp.readability import (
+    EN_SCALE,
+    PTBR_SCALE,
+    period_start,
+    readability_status,
+    scale_metric,
+    weighted_metric,
+)
+from gobus_mcp.schema_compat import FLESCH_PTBR, execute_compatible
 
 SCHEMA_VERSION = 2
 WINDOW_DAYS = 7
@@ -59,17 +68,25 @@ SAMPLE_AGENCIES = 5  # agências mais ativas amostradas no agencyAnalytics
 ACTIVE_DAYS = 30
 INDEXING_MIN_SAMPLE = 20  # artigos no Postgres em D para medir só o dia D
 
-_ANALYTICS_QUERY = """
-query HealthAnalytics($agencies: [String!]!, $dateFrom: String!, $dateTo: String!) {
+_ANALYTICS_TEMPLATE = """
+query HealthAnalytics__SUFFIX__($agencies: [String!]!, $dateFrom: String!, $dateTo: String!) {
   agencyAnalytics(agencies: $agencies, dateFrom: $dateFrom, dateTo: $dateTo, granularity: MONTH) {
     agencyKey
     articleCount
     avgSentimentScore
     pctPositive
-    avgReadabilityFlesch
+    avgReadabilityFlesch__PTBR__
   }
 }
 """
+
+# Flesch pt-BR (GQL-1); sem ele na API, a antiga responde (schema_compat).
+_ANALYTICS_QUERY = _ANALYTICS_TEMPLATE.replace("__SUFFIX__", "").replace(
+    "__PTBR__", "\n    avgReadabilityFleschPtbr\n    readabilityFleschPtbrCount"
+)
+_ANALYTICS_LEGACY_QUERY = _ANALYTICS_TEMPLATE.replace("__SUFFIX__", "Legacy").replace(
+    "__PTBR__", ""
+)
 
 _RANKING_QUERY = """
 query HealthTrendingEntities {
@@ -111,8 +128,15 @@ def _failed(key: DataKey, exc: BaseException) -> DataStatus:
     return failed_status(key, exc)
 
 
-def _analytics_statuses(rows: list[dict]) -> list[DataStatus]:
-    readability = metric_coverage_status("readability", rows, "avgReadabilityFlesch")
+def _analytics_statuses(rows: list[dict], *, ptbr_in_api: bool = True) -> list[DataStatus]:
+    """``readability`` (pt-BR; o inglês só sem o campo na API) e ``sentiment_analytics``."""
+    if ptbr_in_api:
+        readability = readability_status(rows, PTBR_SCALE)
+    else:
+        readability = readability_status(rows, EN_SCALE)
+        readability.message += " — a API ainda não expõe o Flesch pt-BR"
+    english = scale_metric(rows, EN_SCALE).ratio
+    readability.metric["englishRatio"] = None if english is None else round(english, 4)
     sentiment = sentiment_analytics_status(rows)
     pct = weighted_metric(rows, "pctPositive").value
     sentiment.metric["pctPositive"] = None if pct is None else round(pct, 4)
@@ -200,11 +224,14 @@ async def fetch_health_pipelines(
 
     async def analytics() -> list[DataStatus]:
         agencies = await catalog.active(ACTIVE_DAYS, limit=SAMPLE_AGENCIES)
-        data = await client.execute(
+        data, ptbr_in_api = await execute_compatible(
+            client,
+            FLESCH_PTBR,
             _ANALYTICS_QUERY,
+            _ANALYTICS_LEGACY_QUERY,
             {"agencies": agencies, "dateFrom": date_from, "dateTo": date_to},
         )
-        return _analytics_statuses(data.get("agencyAnalytics") or [])
+        return _analytics_statuses(data.get("agencyAnalytics") or [], ptbr_in_api=ptbr_in_api)
 
     async def ranking() -> DataStatus:
         data = await client.execute(_RANKING_QUERY)

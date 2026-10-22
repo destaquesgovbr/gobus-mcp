@@ -1,12 +1,20 @@
-"""Legibilidade (Flesch): escala, faixas, médias null-aware e janela efetiva.
+"""Legibilidade (Flesch): escalas, faixas, médias null-aware e janela efetiva.
 
 Módulo único para tools, resources e apps (integration.md §1.7). O JS dos apps não
 codifica limiares: as faixas saem daqui no payload.
 
-**Escala:** o pipeline calcula o Flesch com ``textstat`` sem idioma, ou seja, a fórmula
-**inglesa** (F0g). Os valores vão de negativos a >100 em texto em português; aqui o valor
-exibido é sempre limitado a [0, 100] e o bruto aparece quando houve clamp. Uma futura
-chave ``readability_flesch_ptbr`` (Martins/1996) trocaria ``FLESCH_SCALE_ID``.
+**Escala:** o Flesch adaptado ao português (Martins et al., 1996; chave
+``readability_flesch_ptbr`` do feature-worker, exposta pelo GQL-1 como
+``readabilityFleschPtbr``/``avgReadabilityFleschPtbr`` + ``readabilityFleschPtbrCount``).
+Faixas de Martins: 75–100 muito fácil, 50–75 fácil, 25–50 difícil, 0–25 muito difícil; a
+meta de serviço continua 50. Notícia de governo fica tipicamente em "muito difícil"
+(mediana ≈ 15).
+
+**Reserva:** sem o pt-BR (API sem o campo ou valor nulo), vale o Flesch antigo, a fórmula
+**inglesa** do ``textstat`` (``EN_SCALE``), com aviso (``READABILITY_LEGACY_SCALE``). As
+duas escalas nunca se misturam numa média: ``choose_scale`` escolhe uma por resposta.
+Os valores vão de negativos a >100; o exibido é sempre limitado a [0, 100] e o bruto
+aparece quando houve clamp.
 
 **Nulo nunca é zero:** sem dado, as funções devolvem ``None`` e o texto "indisponível".
 """
@@ -20,14 +28,83 @@ from datetime import date, timedelta
 from typing import Final, Literal
 
 from gobus_mcp.calendario import DateRange
+from gobus_mcp.data_status import metric_coverage_status
+from gobus_mcp.payloads.common import DataStatus, Notice
 
-FLESCH_SCALE_ID: Final = "flesch_en_textstat"
+FLESCH_SCALE_PTBR: Final = "flesch_ptbr_martins1996"
+FLESCH_SCALE_EN: Final = "flesch_en_textstat"
+FLESCH_SCALE_ID: Final = FLESCH_SCALE_PTBR  # escala padrão
 FLESCH_MIN: Final = 0.0
 FLESCH_MAX: Final = 100.0
 TARGET_SERVICE: Final = 50.0  # meta para textos de serviço ao cidadão
 TARGET_INSTITUTIONAL: Final = 30.0  # meta para textos institucionais
+PTBR_MIN_SHARE: Final = 0.1  # abaixo disso o pt-BR está "morto" e o inglês, se houver, vale
 
 Granularity = Literal["DAY", "WEEK", "MONTH"]
+
+
+@dataclass(frozen=True)
+class FleschScale:
+    """Uma escala de Flesch e os campos dela na graphql-api.
+
+    ``count_field``: nº de artigos com valor no grupo (base da média); sem ele, a média é
+    ponderada pelo ``articleCount`` das linhas com valor.
+    """
+
+    id: str
+    label: str  # texto completo (rodapé, legenda do painel)
+    short: str  # texto curto ("Flesch pt-BR")
+    article_field: str  # ArticleFeatures
+    avg_field: str  # AgencyPeriodMetrics
+    count_field: str | None
+    legacy: bool
+
+
+PTBR_SCALE: Final = FleschScale(
+    id=FLESCH_SCALE_PTBR,
+    label="Flesch pt-BR (Martins et al., 1996), limitado a 0–100",
+    short="Flesch pt-BR",
+    article_field="readabilityFleschPtbr",
+    avg_field="avgReadabilityFleschPtbr",
+    count_field="readabilityFleschPtbrCount",
+    legacy=False,
+)
+EN_SCALE: Final = FleschScale(
+    id=FLESCH_SCALE_EN,
+    label="Flesch pela fórmula inglesa do textstat (legado), limitado a 0–100",
+    short="Flesch inglês (legado)",
+    article_field="readabilityFlesch",
+    avg_field="avgReadabilityFlesch",
+    count_field=None,
+    legacy=True,
+)
+
+LEGACY_SCALE_MESSAGE: Final = (
+    "Flesch pt-BR indisponível: valores pela fórmula inglesa do textstat (legado, escala "
+    "distorcida para o português); as faixas e a meta são as mesmas."
+)
+
+
+def legacy_scale_notice(scale: FleschScale, affects: list[str] | None = None) -> Notice | None:
+    """Aviso de reserva (``READABILITY_LEGACY_SCALE``) quando a escala é a inglesa."""
+    if not scale.legacy:
+        return None
+    return Notice(
+        code="READABILITY_LEGACY_SCALE",
+        severity="warn",
+        message=LEGACY_SCALE_MESSAGE,
+        affects=affects or ["readability"],
+    )
+
+
+def article_flesch(features: Mapping | None) -> tuple[float | None, FleschScale]:
+    """Flesch de um artigo: o pt-BR; sem ele, o inglês (legado); sem nenhum, ``None``."""
+    features = features or {}
+    for scale in (PTBR_SCALE, EN_SCALE):
+        value = features.get(scale.article_field)
+        if value is not None:
+            return value, scale
+    return None, PTBR_SCALE
 
 
 @dataclass(frozen=True)
@@ -40,11 +117,12 @@ class FleschBand:
     upper: float
 
 
+# Faixas de Martins et al. (1996) para o Flesch em português.
 FLESCH_BANDS: tuple[FleschBand, ...] = (
     FleschBand("very_hard", "muito difícil", 0.0, 25.0),
     FleschBand("hard", "difícil", 25.0, 50.0),
-    FleschBand("medium", "médio", 50.0, 75.0),
-    FleschBand("easy", "fácil", 75.0, 100.0),
+    FleschBand("easy", "fácil", 50.0, 75.0),
+    FleschBand("very_easy", "muito fácil", 75.0, 100.0),
 )
 
 
@@ -125,12 +203,16 @@ def weighted_metric(
     key: str,
     *,
     weight_key: str = "articleCount",
+    count_key: str | None = None,
     clamp: bool = False,
 ) -> Coverage:
     """Média de ``key`` ponderada por ``weight_key``, **ignorando nulos**.
 
-    Sem nenhuma linha com valor, ``value`` é ``None`` (nunca 0.0). Com ``clamp=True``,
-    cada valor é limitado à escala de Flesch antes da média.
+    Com ``count_key`` (ex.: ``readabilityFleschPtbrCount``), o peso de uma linha com valor
+    é o nº de artigos que têm o valor (quando a API o traz), e a cobertura conta esses
+    artigos; o total continua sendo ``weight_key``. Sem nenhuma linha com valor, ``value``
+    é ``None`` (nunca 0.0). Com ``clamp=True``, cada valor é limitado à escala de Flesch
+    antes da média.
     """
     total_articles = covered_articles = total_rows = covered_rows = clamped_rows = 0
     weighted_sum = 0.0
@@ -139,6 +221,8 @@ def weighted_metric(
         weight = row.get(weight_key) or 0
         total_articles += weight
         raw = row.get(key)
+        if count_key is not None and row.get(count_key) is not None:
+            weight = min(row[count_key], weight) if weight else row[count_key]
         if raw is None or weight <= 0:
             continue
         value = raw
@@ -151,6 +235,41 @@ def weighted_metric(
         covered_rows += 1
     value = weighted_sum / covered_articles if covered_articles else None
     return Coverage(value, covered_articles, total_articles, covered_rows, total_rows, clamped_rows)
+
+
+def scale_metric(rows: Iterable[Mapping], scale: FleschScale, *, clamp: bool = False) -> Coverage:
+    """``weighted_metric`` do campo médio de ``scale`` (com a contagem, se houver)."""
+    return weighted_metric(rows, scale.avg_field, count_key=scale.count_field, clamp=clamp)
+
+
+def readability_status(rows: Iterable[Mapping], scale: FleschScale) -> DataStatus:
+    """``DataStatus`` de ``readability`` na escala dada (o detalhe diz qual). A data
+    "desde 30/06" (parada do Flesch inglês) só vale para a escala inglesa."""
+    return metric_coverage_status(
+        "readability",
+        rows,
+        scale.avg_field,
+        count_key=scale.count_field,
+        label=scale.short,
+        hint=scale.legacy,
+    )
+
+
+def choose_scale(rows: Iterable[Mapping]) -> FleschScale:
+    """Escala de uma resposta do ``agencyAnalytics`` (as duas nunca se misturam).
+
+    O pt-BR quando cobre ao menos ``PTBR_MIN_SHARE`` dos artigos ou quando o inglês não
+    tem dado; senão, o inglês (reserva, com aviso). Sem dado nenhum, o pt-BR (o texto diz
+    "indisponível").
+    """
+    rows = list(rows)
+    ptbr = scale_metric(rows, PTBR_SCALE)
+    english = scale_metric(rows, EN_SCALE)
+    if ptbr.covered_articles and (ptbr.ratio or 0.0) >= PTBR_MIN_SHARE:
+        return PTBR_SCALE
+    if english.covered_articles:
+        return EN_SCALE
+    return PTBR_SCALE
 
 
 # ── períodos e janela efetiva ───────────────────────────────────────────────

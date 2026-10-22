@@ -5,6 +5,10 @@ Dois modos:
 - **agência**: média da agência, benchmark da Agência Brasil na mesma janela, pior e
   melhor artigo de uma amostra (``articles``, escolhidos no cliente) e 3 recomendações.
 
+Escala: Flesch pt-BR (Martins et al., 1996) com as faixas de Martins e meta de serviço 50;
+sem o pt-BR, a fórmula inglesa (legado) com aviso ``READABILITY_LEGACY_SCALE`` — a escala é
+a da janela (``readability_data``) e a amostra de artigos usa o mesmo campo.
+
 Null nunca vira 0.0; se o dado parou, a análise usa a **janela efetiva** (último mês com
 dado) e avisa. ``build_readability_payload`` faz o I/O e devolve o payload pydantic;
 ``render_readability_markdown`` é puro (o Markdown também vai em ``summary``).
@@ -26,6 +30,7 @@ from gobus_mcp.calendario import (
 )
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import notices_for
+from gobus_mcp.formatting import md_link
 from gobus_mcp.payloads.readability import (
     AgencyReadabilityRow,
     ArticleReadability,
@@ -36,12 +41,16 @@ from gobus_mcp.payloads.readability import (
     flesch_bands,
 )
 from gobus_mcp.readability import (
+    LEGACY_SCALE_MESSAGE,
+    PTBR_SCALE,
     TARGET_INSTITUTIONAL,
     TARGET_SERVICE,
+    FleschScale,
     FleschValue,
     clamp_flesch,
     describe_flesch,
     flesch_band,
+    legacy_scale_notice,
 )
 from gobus_mcp.readability_data import (
     AgencyReadability,
@@ -49,14 +58,15 @@ from gobus_mcp.readability_data import (
     load_agency_readability,
     rank_agencies,
 )
+from gobus_mcp.schema_compat import FLESCH_PTBR, execute_compatible
 
 BENCHMARK_AGENCY = "agencia_brasil"
 ACTIVE_LIMIT = 40  # agências ativas consideradas no ranking
 SAMPLE_LIMIT = 100  # artigos mais recentes da janela efetiva (modo agência)
 MAX_DAYS = 730
 
-_ARTICLES_QUERY = """
-query ReadabilityArticles(
+_ARTICLES_TEMPLATE = """
+query ReadabilityArticles__SUFFIX__(
   $agencies: [String!]!, $startDate: String!, $endDate: String!, $limit: Int!
 ) {
   articles(
@@ -71,12 +81,19 @@ query ReadabilityArticles(
       title
       url
       publishedAt
-      features { readabilityFlesch wordCount }
+      features { readabilityFlesch__PTBR__ wordCount }
     }
   }
 }
 """
 
+# Flesch pt-BR (GQL-1); sem ele na API, a antiga responde (schema_compat).
+_ARTICLES_QUERY = _ARTICLES_TEMPLATE.replace("__SUFFIX__", "").replace(
+    "__PTBR__", " readabilityFleschPtbr"
+)
+_ARTICLES_LEGACY_QUERY = _ARTICLES_TEMPLATE.replace("__SUFFIX__", "Legacy").replace("__PTBR__", "")
+
+# Por faixa de Martins (as chaves de ``readability.FLESCH_BANDS``).
 _RECOMMENDATIONS: dict[str, list[str]] = {
     "very_hard": [
         "1. **Frases curtas:** meta de no máximo 20 palavras por frase; cada ponto final "
@@ -94,15 +111,15 @@ _RECOMMENDATIONS: dict[str, list[str]] = {
         "3. **Teste com o cidadão:** peça a um leitor sem formação técnica para ler antes "
         "de publicar.",
     ],
-    "medium": [
+    "easy": [
         "1. **Mantenha o padrão:** o índice já atinge a meta de serviço (≥50); continue "
         "priorizando frases curtas.",
         "2. **Consistência:** garanta que toda a equipe siga o mesmo guia de estilo.",
         "3. **Monitore regressões:** textos técnicos tendem a puxar o índice para baixo.",
     ],
-    "easy": [
-        "1. **Referência interna:** o texto é fácil de ler; compartilhe o padrão com outras "
-        "equipes.",
+    "very_easy": [
+        "1. **Referência interna:** o texto é muito fácil de ler; compartilhe o padrão com "
+        "outras equipes.",
         "2. **Precisão:** confira se a simplificação não omitiu prazos, valores ou condições.",
         "3. **Monitore regressões:** acompanhe o índice mês a mês.",
     ],
@@ -130,9 +147,9 @@ def _agency_row(item: AgencyReadability) -> AgencyReadabilityRow:
     )
 
 
-def _article_row(article: dict) -> ArticleReadability:
+def _article_row(article: dict, scale: FleschScale = PTBR_SCALE) -> ArticleReadability:
     features = article.get("features") or {}
-    fv = clamp_flesch(features.get("readabilityFlesch"))
+    fv = clamp_flesch(features.get(scale.article_field))
     band = flesch_band(fv)
     return ArticleReadability(
         unique_id=article.get("uniqueId") or "",
@@ -257,6 +274,7 @@ async def build_readability_payload(
             agencies = [*agencies, BENCHMARK_AGENCY]
 
     window, items = await load_agency_readability(client, catalog, agencies, requested)
+    scale = window.scale
     by_code = {a.code: a for a in items}
     benchmark_item = by_code.get(BENCHMARK_AGENCY)
     benchmark = _agency_row(benchmark_item) if benchmark_item and benchmark_item.has_data else None
@@ -275,28 +293,36 @@ async def build_readability_payload(
         fields["recommendations"] = list(_RECOMMENDATIONS[band.key]) if band else []
         if has_data and window.effective.effective is not None:
             start, stop = brt_bounds(window.effective.effective)
-            data = await client.execute(
+            data, _ = await execute_compatible(
+                client,
+                FLESCH_PTBR,
                 _ARTICLES_QUERY,
+                _ARTICLES_LEGACY_QUERY,
                 {"agencies": [code], "startDate": start, "endDate": stop, "limit": SAMPLE_LIMIT},
             )
             result = data.get("articles") or {}
+            field = scale.article_field  # a mesma escala da média da agência
             sample = [
                 a
                 for a in result.get("articles") or []
-                if (a.get("features") or {}).get("readabilityFlesch") is not None
+                if (a.get("features") or {}).get(field) is not None
             ]
             fields["sample_found"] = result.get("found")
             fields["sample_size"] = len(sample)
             if sample:
 
                 def key(a: dict) -> tuple[float, float]:
-                    fv = clamp_flesch(a["features"]["readabilityFlesch"])
+                    fv = clamp_flesch(a["features"][field])
                     return fv.value, fv.raw
 
-                fields["worst_article"] = _article_row(min(sample, key=key))
-                fields["best_article"] = _article_row(max(sample, key=key))
+                fields["worst_article"] = _article_row(min(sample, key=key), scale)
+                fields["best_article"] = _article_row(max(sample, key=key), scale)
 
     data_status = [window.data_status]
+    notices = notices_for(data_status)
+    legacy = legacy_scale_notice(scale)
+    if legacy is not None:
+        notices.append(legacy)
     effective = window.effective.effective
     report = ReadabilityReport(
         summary="",
@@ -306,8 +332,11 @@ async def build_readability_payload(
         params=params,
         calendar=calendar_context(today),
         data_status=data_status,
-        notices=notices_for(data_status),
+        notices=notices,
         mode=mode,
+        scale=scale.id,
+        scale_label=scale.label,
+        scale_fallback=scale.legacy,
         bands=flesch_bands(),
         requested_window=DayRange.of(requested),
         effective_window=DayRange.of(effective) if effective else None,
@@ -358,6 +387,8 @@ def _window_lines(report: ReadabilityReport) -> list[str]:
     for status in report.data_status:
         if status.status != "ok":
             lines.append(f"> {status.message}")
+    if report.scale_fallback:
+        lines.append(f"> {LEGACY_SCALE_MESSAGE}")
     return lines
 
 
@@ -368,12 +399,13 @@ def _benchmark_line(report: ReadabilityReport) -> str | None:
     return f"**Benchmark interno (Agência Brasil, mesma janela):** {flesch}"
 
 
-def _footer() -> list[str]:
+def _footer(report: ReadabilityReport) -> list[str]:
+    bands = ", ".join(f"{b.lower:.0f}–{b.upper:.0f} {b.label}" for b in report.bands)
     return [
         f"**Meta:** ≥{TARGET_SERVICE:.0f} para serviço ao cidadão · "
         f"≥{TARGET_INSTITUTIONAL:.0f} para institucional",
-        "_Escala: Flesch com a fórmula inglesa do textstat, limitado a 0–100 (o valor bruto "
-        "aparece quando foi limitado)._",
+        f"_Escala: {report.scale_label} (o valor bruto aparece quando foi limitado). "
+        f"Faixas: {bands}._",
     ]
 
 
@@ -409,13 +441,13 @@ def _render_ranking(report: ReadabilityReport) -> list[str]:
     benchmark = _benchmark_line(report)
     if benchmark:
         lines.append(benchmark)
-    lines.extend(_footer())
+    lines.extend(_footer(report))
     return lines
 
 
 def _article_line(label: str, art: ArticleReadability) -> str:
     when = (art.published_at or "")[:10]
-    title = f"[{art.title}]({art.url})" if art.url else art.title
+    title = md_link(art.title, art.url)
     words = f" · {art.word_count} palavras" if art.word_count is not None else ""
     flesch = describe_flesch(_flesch_of(art))
     return f"- **{label}:** {title} — {when} · Flesch {flesch}{words} · `{art.unique_id}`"
@@ -454,7 +486,7 @@ def _render_agency(report: ReadabilityReport) -> list[str]:
     elif row.flesch is None:
         lines.append("\nSem dado de legibilidade para esta agência — recomendações indisponíveis.")
     lines.append("")
-    lines.extend(_footer())
+    lines.extend(_footer(report))
     return lines
 
 

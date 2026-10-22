@@ -1,13 +1,27 @@
+"""Métricas de publicação por agência e período (``agencyAnalytics``).
+
+Legibilidade: Flesch pt-BR (``avgReadabilityFleschPtbr``); sem ele (API sem o campo ou sem
+dado), o inglês (legado), com aviso — uma escala por resposta (``readability.choose_scale``).
+"""
+
 from datetime import date
 
 from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.calendario import agency_analytics_date_to
 from gobus_mcp.client import GobusGraphQLClient
-from gobus_mcp.data_status import metric_coverage_status, sentiment_analytics_status
-from gobus_mcp.readability import describe_flesch
+from gobus_mcp.data_status import sentiment_analytics_status
+from gobus_mcp.readability import (
+    LEGACY_SCALE_MESSAGE,
+    PTBR_SCALE,
+    FleschScale,
+    choose_scale,
+    describe_flesch,
+    readability_status,
+)
+from gobus_mcp.schema_compat import FLESCH_PTBR, execute_compatible
 
-_ANALYTICS_QUERY = """
-query AgencyAnalytics(
+_ANALYTICS_TEMPLATE = """
+query AgencyAnalytics__SUFFIX__(
     $agencies: [String!]!
     $dateFrom: String!
     $dateTo: String!
@@ -26,11 +40,19 @@ query AgencyAnalytics(
         avgSentimentScore
         pctPositive
         pctNegative
-        avgReadabilityFlesch
+        avgReadabilityFlesch__PTBR__
         avgWordCount
     }
 }
 """
+
+# Flesch pt-BR (GQL-1); sem ele na API, a antiga responde (schema_compat).
+_ANALYTICS_QUERY = _ANALYTICS_TEMPLATE.replace("__SUFFIX__", "").replace(
+    "__PTBR__", "\n        avgReadabilityFleschPtbr\n        readabilityFleschPtbrCount"
+)
+_ANALYTICS_LEGACY_QUERY = _ANALYTICS_TEMPLATE.replace("__SUFFIX__", "Legacy").replace(
+    "__PTBR__", ""
+)
 
 
 def _period(raw: str | None) -> str:
@@ -38,13 +60,13 @@ def _period(raw: str | None) -> str:
     return (raw or "")[:10]
 
 
-def _row_metrics(row: dict) -> list[str]:
+def _row_metrics(row: dict, scale: FleschScale = PTBR_SCALE) -> list[str]:
     """Métricas de uma linha; nulo vira "indisponível", nunca 0."""
     count = row.get("articleCount") or 0
     sent = row.get("avgSentimentScore")
     pct_pos = row.get("pctPositive")
     pct_neg = row.get("pctNegative")
-    flesch = row.get("avgReadabilityFlesch")
+    flesch = row.get(scale.avg_field)
     avg_wc = row.get("avgWordCount")
 
     metrics = [f"**{count}** artigos"]
@@ -112,11 +134,15 @@ async def get_agency_analytics(
 
     Returns:
         Markdown com tabela de métricas por agência e período. Métrica nula aparece como
-        "indisponível" (nunca 0); Flesch na faixa única (0/25/50/75), limitado a 0–100.
+        "indisponível" (nunca 0); Flesch pt-BR nas faixas de Martins (0/25/50/75), limitado
+        a 0–100.
     """
     catalog = catalog or AgencyCatalog(client)
-    data = await client.execute(
+    data, _ = await execute_compatible(
+        client,
+        FLESCH_PTBR,
         _ANALYTICS_QUERY,
+        _ANALYTICS_LEGACY_QUERY,
         {
             "agencies": agencies,
             "dateFrom": date_from,
@@ -131,16 +157,17 @@ async def get_agency_analytics(
         lines.extend(await _unknown_agencies(agencies, catalog))
         return "\n".join(lines)
 
+    scale = choose_scale(rows)
     lines = [
         f"# Analytics: {', '.join(agencies)}\n**{date_from} → {date_to}** "
-        f"(granularity: {granularity})\n"
+        f"(granularity: {granularity})\n",
+        f"Legibilidade: {scale.label}.",
     ]
-    for status in (
-        metric_coverage_status("readability", rows, "avgReadabilityFlesch"),
-        sentiment_analytics_status(rows),
-    ):
+    for status in (readability_status(rows, scale), sentiment_analytics_status(rows)):
         if status.status != "ok":
             lines.append(f"> {status.message}")
+    if scale.legacy:
+        lines.append(f"> {LEGACY_SCALE_MESSAGE}")
 
     names = await catalog.display_names()  # uma vez: a falha do catálogo não é cacheada
     current_period = None
@@ -151,6 +178,6 @@ async def get_agency_analytics(
             lines.append(f"\n## {current_period}")
         key = row.get("agencyKey") or ""
         agency = names.get(key) or row.get("agencyName") or key
-        lines.append(f"- **{agency}**: {' · '.join(_row_metrics(row))}")
+        lines.append(f"- **{agency}**: {' · '.join(_row_metrics(row, scale))}")
 
     return "\n".join(lines)

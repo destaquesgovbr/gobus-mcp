@@ -10,11 +10,11 @@
     "content": [
       {
         "type": "text",
-        "text": "# Score Editorial: PF divulga balanço das operações do semestre\n**Polícia Federal** (`pf`) · 20/06/2026 · `pf-balanco-semestral`\n\n## Nota Geral: 2.4/10 (parcial)\n\n> Concisão sem benchmark: a amostra da agência nos 90 dias antes da publicação tem menos de 10 artigos com contagem de palavras. A nota é a média renormalizada de legibilidade e densidade de entidades.\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 2.5/10 — Flesch 12.4 (muito difícil)\n- **Concisão (peso 30%):** indisponível — 980 palavras (sem benchmark da agência)\n- **Densidade de entidades (peso 20%):** 2.0/10 — 3 entidades (0.3 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 6 artigos com palavras, 6 com Flesch (01/05–06/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | — | 39.9 (difícil) |\n| Palavras (mediana) | — | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-05` — Notícia 6 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)"
+        "text": "# Score Editorial: PF divulga balanço das operações do semestre\n**Polícia Federal** (`pf`) · 20/06/2026 · `pf-balanco-semestral`\n\n## Nota Geral: 2.4/10 (parcial)\n\n> Concisão sem benchmark: a amostra da agência nos 90 dias antes da publicação tem menos de 10 artigos com contagem de palavras. A nota é a média renormalizada de legibilidade e densidade de entidades.\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 2.5/10 — Flesch pt-BR 12.4 (muito difícil)\n- **Concisão (peso 30%):** indisponível — 980 palavras (sem benchmark da agência)\n- **Densidade de entidades (peso 20%):** 2.0/10 — 3 entidades (0.3 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 6 artigos com palavras, 6 com Flesch (01/05–06/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | — | 39.9 (difícil) |\n| Palavras (mediana) | — | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-05` — Notícia 6 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)"
       }
     ],
     "structuredContent": {
-      "summary": "# Score Editorial: PF divulga balanço das operações do semestre\n**Polícia Federal** (`pf`) · 20/06/2026 · `pf-balanco-semestral`\n\n## Nota Geral: 2.4/10 (parcial)\n\n> Concisão sem benchmark: a amostra da agência nos 90 dias antes da publicação tem menos de 10 artigos com contagem de palavras. A nota é a média renormalizada de legibilidade e densidade de entidades.\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 2.5/10 — Flesch 12.4 (muito difícil)\n- **Concisão (peso 30%):** indisponível — 980 palavras (sem benchmark da agência)\n- **Densidade de entidades (peso 20%):** 2.0/10 — 3 entidades (0.3 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 6 artigos com palavras, 6 com Flesch (01/05–06/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | — | 39.9 (difícil) |\n| Palavras (mediana) | — | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-05` — Notícia 6 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)",
+      "summary": "# Score Editorial: PF divulga balanço das operações do semestre\n**Polícia Federal** (`pf`) · 20/06/2026 · `pf-balanco-semestral`\n\n## Nota Geral: 2.4/10 (parcial)\n\n> Concisão sem benchmark: a amostra da agência nos 90 dias antes da publicação tem menos de 10 artigos com contagem de palavras. A nota é a média renormalizada de legibilidade e densidade de entidades.\n\n## Notas por Dimensão\n- **Legibilidade (peso 50%):** 2.5/10 — Flesch pt-BR 12.4 (muito difícil)\n- **Concisão (peso 30%):** indisponível — 980 palavras (sem benchmark da agência)\n- **Densidade de entidades (peso 20%):** 2.0/10 — 3 entidades (0.3 por 100 palavras)\n\n## Benchmark (90 dias antes da publicação)\n| | Polícia Federal | Agência Brasil |\n|---|---|---|\n| Amostra | 6 artigos com palavras, 6 com Flesch (01/05–06/05/2026) | 60 artigos com palavras, 60 com Flesch (01/05–28/05/2026) |\n| Flesch mediano | — | 39.9 (difícil) |\n| Palavras (mediana) | — | 472 |\n\n_Medianas com no mínimo 10 artigos; abaixo disso, \"—\"._\n\n## Sugestões de comparação (`compare_with`)\n- `pf-amostra-05` — Notícia 6 da amostra de pf (maior Flesch da amostra de Polícia Federal nos 90 dias antes)\n- `agencia_brasil-amostra-49` — Notícia 50 da amostra de agencia_brasil (maior Flesch de Agência Brasil (referência) na mesma janela)",
       "schemaVersion": 1,
       "kind": "gobus.scorecard",
       "tool": "gobus_score_article",
@@ -63,7 +63,9 @@
       "scoreStatus": "partial",
       "overall": 2.4,
       "refusalReason": null,
-      "scale": "flesch_en_textstat",
+      "scale": "flesch_ptbr_martins1996",
+      "scaleLabel": "Flesch pt-BR (Martins et al., 1996), limitado a 0–100",
+      "scaleFallback": false,
       "bands": [
         {
           "key": "very_hard",
@@ -78,14 +80,14 @@
           "upper": 50.0
         },
         {
-          "key": "medium",
-          "label": "médio",
+          "key": "easy",
+          "label": "fácil",
           "lower": 50.0,
           "upper": 75.0
         },
         {
-          "key": "easy",
-          "label": "fácil",
+          "key": "very_easy",
+          "label": "muito fácil",
           "lower": 75.0,
           "upper": 100.0
         }
@@ -113,7 +115,7 @@
           "score": 2.5,
           "value": 12.4,
           "reference": null,
-          "detail": "Flesch 12.4 (muito difícil)",
+          "detail": "Flesch pt-BR 12.4 (muito difícil)",
           "light": "red"
         },
         {

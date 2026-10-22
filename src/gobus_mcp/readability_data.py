@@ -4,6 +4,11 @@ e agregação null-aware.
 Compartilhado pela tool ``gobus_get_readability_recommendations`` e pelos resources
 ``gobus://readability-report`` e ``ui://readability-dashboard`` (integration.md §1.7).
 
+**Escala:** o Flesch pt-BR (``avgReadabilityFleschPtbr``, média dos
+``readabilityFleschPtbrCount`` artigos que o têm). Sem o campo na API (``schema_compat``,
+query antiga por 1 h) ou sem dado, o inglês (legado), com aviso; ``readability.choose_scale``
+decide uma escala por resposta, olhando a janela pedida e o histórico.
+
 **Janela efetiva:** o Flesch pode parar de ser calculado (F0b). Quando a janela pedida
 não tem dado até o fim, a análise usa uma janela do mesmo tamanho terminando no último
 período (mês) com dado, com a nota "dados até MM/AAAA" — em vez de mostrar 0.0.
@@ -20,37 +25,47 @@ from datetime import timedelta
 from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.calendario import DateRange, agency_analytics_bounds
 from gobus_mcp.client import GobusGraphQLClient
-from gobus_mcp.data_status import metric_coverage_status
 from gobus_mcp.payloads.common import DataStatus
 from gobus_mcp.readability import (
+    PTBR_SCALE,
     EffectiveWindow,
+    FleschScale,
     FleschValue,
     ReadabilityCoverage,
+    choose_scale,
     effective_window,
     last_period_with_data,
     period_start,
     readability_coverage,
+    readability_status,
+    scale_metric,
     weighted_metric,
 )
+from gobus_mcp.schema_compat import FLESCH_PTBR, execute_compatible
 
-FLESCH_KEY = "avgReadabilityFlesch"
 LOOKBACK_DAYS = 365  # histórico consultado para achar o último mês com dado
 # O Flesch é calculado por um pipeline único: se parou, parou para todos. Basta sondar o
 # histórico com as agências mais ativas (365 dias × 41 agências levava ~2 s; × 5, ~0,9 s).
 PROBE_AGENCIES = 5
 
-_WINDOW_QUERY = """
-query ReadabilityWindow($agencies: [String!]!, $dateFrom: String!, $dateTo: String!) {
+_WINDOW_TEMPLATE = """
+query ReadabilityWindow__SUFFIX__($agencies: [String!]!, $dateFrom: String!, $dateTo: String!) {
   agencyAnalytics(agencies: $agencies, dateFrom: $dateFrom, dateTo: $dateTo, granularity: MONTH) {
     period
     agencyKey
     agencyName
     articleCount
-    avgReadabilityFlesch
+    avgReadabilityFlesch__PTBR__
     avgWordCount
   }
 }
 """
+
+# Flesch pt-BR (GQL-1); sem ele na API, a antiga responde (schema_compat).
+_WINDOW_QUERY = _WINDOW_TEMPLATE.replace("__SUFFIX__", "").replace(
+    "__PTBR__", "\n    avgReadabilityFleschPtbr\n    readabilityFleschPtbrCount"
+)
+_WINDOW_LEGACY_QUERY = _WINDOW_TEMPLATE.replace("__SUFFIX__", "Legacy").replace("__PTBR__", "")
 
 
 @dataclass(frozen=True)
@@ -59,7 +74,8 @@ class ReadabilityWindow:
 
     - ``rows``: linhas da janela efetiva (vazio se não há dado no histórico);
     - ``requested_rows``: linhas da janela pedida (base de ``coverage`` e ``data_status``);
-    - ``coverage.last_period_with_data`` olha o histórico inteiro consultado.
+    - ``coverage.last_period_with_data`` olha o histórico inteiro consultado;
+    - ``scale``: a escala de Flesch da resposta (pt-BR ou a inglesa, de reserva).
     """
 
     requested: DateRange
@@ -68,14 +84,18 @@ class ReadabilityWindow:
     requested_rows: list[dict]
     coverage: ReadabilityCoverage
     data_status: DataStatus
+    scale: FleschScale = PTBR_SCALE
 
 
 async def _fetch(client: GobusGraphQLClient, agencies: list[str], r: DateRange) -> list[dict]:
     # agencyAnalytics MONTH: dateTo exclusivo na prática (00:00) → manda r.end + 1 para
     # incluir o último dia (dias UTC da API)
     date_from, date_to = agency_analytics_bounds(r, "MONTH")
-    data = await client.execute(
+    data, _ = await execute_compatible(
+        client,
+        FLESCH_PTBR,
         _WINDOW_QUERY,
+        _WINDOW_LEGACY_QUERY,
         {"agencies": agencies, "dateFrom": date_from, "dateTo": date_to},
     )
     return data.get("agencyAnalytics") or []
@@ -104,9 +124,11 @@ async def load_readability_window(
         _fetch(client, agencies, requested),
         _fetch(client, agencies[:PROBE_AGENCIES], lookback),
     )
+    scale = choose_scale([*requested_rows, *history])
+    key = scale.avg_field
     last = _latest(
-        last_period_with_data(requested_rows, FLESCH_KEY),
-        last_period_with_data(history, FLESCH_KEY),
+        last_period_with_data(requested_rows, key),
+        last_period_with_data(history, key),
     )
     window = effective_window(requested, last, granularity="MONTH")
     if window.effective is None:
@@ -117,10 +139,10 @@ async def load_readability_window(
         rows = requested_rows
 
     coverage = dataclasses.replace(
-        readability_coverage(requested_rows, FLESCH_KEY), last_period_with_data=last
+        readability_coverage(requested_rows, key), last_period_with_data=last
     )
-    status = metric_coverage_status("readability", requested_rows, FLESCH_KEY)
-    return ReadabilityWindow(requested, window, rows, requested_rows, coverage, status)
+    status = readability_status(requested_rows, scale)
+    return ReadabilityWindow(requested, window, rows, requested_rows, coverage, status, scale)
 
 
 # ── agregação por agência ───────────────────────────────────────────────────
@@ -153,8 +175,9 @@ def aggregate_agencies(
     names: Mapping[str, str] | None = None,
     republishers: frozenset[str] = frozenset(),
     codes: Iterable[str] = (),
+    scale: FleschScale = PTBR_SCALE,
 ) -> list[AgencyReadability]:
-    """Agrega as linhas por agência, ignorando nulos.
+    """Agrega as linhas por agência, ignorando nulos, na escala ``scale``.
 
     ``codes`` garante uma entrada (sem dado) para agências pedidas que não vieram nas
     linhas. O nome vem de ``names`` (catálogo); sem ele, fica o código.
@@ -168,8 +191,8 @@ def aggregate_agencies(
 
     result = []
     for code, agency_rows in by_code.items():
-        clamped = weighted_metric(agency_rows, FLESCH_KEY, clamp=True)
-        raw = weighted_metric(agency_rows, FLESCH_KEY)
+        clamped = scale_metric(agency_rows, scale, clamp=True)
+        raw = scale_metric(agency_rows, scale)
         word_count = weighted_metric(agency_rows, "avgWordCount")
         flesch = FleschValue(
             raw=raw.value,
@@ -223,5 +246,7 @@ async def load_agency_readability(
     )
     names = {a.code: a.name for a in all_agencies}
     rows = window.rows if window.effective.effective else window.requested_rows
-    items = aggregate_agencies(rows, names=names, republishers=republishers, codes=agencies)
+    items = aggregate_agencies(
+        rows, names=names, republishers=republishers, codes=agencies, scale=window.scale
+    )
     return window, items
