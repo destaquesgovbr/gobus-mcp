@@ -69,7 +69,8 @@ READABILITY_AGENCIES: list[tuple[str, bool, str]] = [
     ("mma", False, "Ministério do Meio Ambiente e Mudança do Clima"),
     ("mcti", False, "Ministério da Ciência, Tecnologia e Inovação"),
 ]
-# (agência, mês) → (artigos, Flesch bruto | None, palavras | None). Abr–jun com dado.
+# (agência, mês) → (artigos, Flesch pt-BR bruto | None, palavras | None). Abr–jun com dado.
+# O Flesch inglês (legado) vem ≈ 2 pontos abaixo (como medido em 29 artigos).
 READABILITY_MONTHS = ("2026-04", "2026-05", "2026-06")
 READABILITY_BASE: dict[str, tuple[int, float | None, float | None]] = {
     "agencia_brasil": (310, 33.6, 434.0),
@@ -92,22 +93,30 @@ def readability_rows(
     months: tuple[str, ...] = READABILITY_MONTHS,
     *,
     names: dict[str, str] | None = None,
+    ptbr: bool = True,
 ) -> list[dict]:
+    """Linhas MONTH do ``agencyAnalytics``. ``ptbr=False`` = API antiga/sem o pt-BR (só o
+    inglês, legado)."""
     names = names or {code: name for code, _, name in READABILITY_AGENCIES}
     rows = []
     for i, month in enumerate(months):
         for code, (count, flesch, words) in base.items():
             drift = (i - 1) * 1.5  # mês a mês, para o histórico não ser constante
-            rows.append(
-                {
-                    "period": f"{month}-01 00:00:00+00",
-                    "agencyKey": code,
-                    "agencyName": names.get(code, code),
-                    "articleCount": count + 3 * i,
-                    "avgReadabilityFlesch": None if flesch is None else round(flesch + drift, 1),
-                    "avgWordCount": words,
-                }
-            )
+            value = None if flesch is None else round(flesch + drift, 1)
+            row = {
+                "period": f"{month}-01 00:00:00+00",
+                "agencyKey": code,
+                "agencyName": names.get(code, code),
+                "articleCount": count + 3 * i,
+                "avgReadabilityFlesch": None if value is None else round(value - 2.0, 1),
+                "avgWordCount": words,
+            }
+            if ptbr:
+                row["avgReadabilityFleschPtbr"] = value
+                row["readabilityFleschPtbrCount"] = 0 if value is None else count + 3 * i
+            else:
+                row["avgReadabilityFlesch"] = value
+            rows.append(row)
     return rows
 
 
@@ -156,7 +165,11 @@ def readability_articles(code: str = "saude") -> list[dict]:
             "title": title,
             "url": f"https://www.gov.br/{code}/pt-br/assuntos/noticias/2026/06/artigo-{i}",
             "publishedAt": f"2026-06-{28 - i:02d}T13:00:00+00:00",
-            "features": {"readabilityFlesch": flesch, "wordCount": words},
+            "features": {
+                "readabilityFleschPtbr": flesch,
+                "readabilityFlesch": None if flesch is None else round(flesch - 2.0, 1),
+                "wordCount": words,
+            },
         }
         for i, (title, flesch, words) in enumerate(titles)
     ]
@@ -192,8 +205,20 @@ async def readability_fixtures() -> dict[str, dict]:
         date_to="2026-06-30",
     )
     shifted = await _readability(fresh(), days=90)
-    nothing = [{**r, "avgReadabilityFlesch": None, "avgWordCount": None} for r in rows]
+    nothing = [
+        {
+            **r,
+            "avgReadabilityFlesch": None,
+            "avgReadabilityFleschPtbr": None,
+            "readabilityFleschPtbrCount": 0,
+            "avgWordCount": None,
+        }
+        for r in rows
+    ]
     unavailable = await _readability(fresh(nothing), days=90)
+    legacy = await _readability(
+        fresh(readability_rows(READABILITY_BASE, ptbr=False)), days=90, date_to="2026-06-30"
+    )
     error = await _readability(fresh(), agency_key="tcu", days=90)
 
     xss_agencies = [
@@ -252,6 +277,12 @@ async def readability_fixtures() -> dict[str, dict]:
         ),
         "unavailable": fixture(
             "unavailable", "nenhum Flesch no histórico consultado", readability_args(), unavailable
+        ),
+        "legacy": fixture(
+            "legacy",
+            "sem Flesch pt-BR: reserva na fórmula inglesa (legado), com aviso",
+            ok_args,
+            legacy,
         ),
         "error": fixture(
             "error",
@@ -326,7 +357,8 @@ def score_article_node(uid: str) -> dict | None:
         "agencyName": art["agencyName"],
         "publishedAt": art["publishedAt"],
         "features": {
-            "readabilityFlesch": art["flesch"],
+            "readabilityFleschPtbr": art["flesch"],
+            "readabilityFlesch": None,
             "wordCount": art["wordCount"],
             "entities": [{"type": "ORG"}] * art["entities"],
         },
@@ -343,7 +375,7 @@ def score_sample(code: str, n: int, *, flesch0: float, words0: int, month: str =
                 "title": f"Notícia {i + 1} da amostra de {code}",
                 "publishedAt": f"{month}-{1 + i % 28:02d}T12:00:00+00:00",
                 "features": {
-                    "readabilityFlesch": round(flesch0 + (i * 7.3) % 40 - 15, 1),
+                    "readabilityFleschPtbr": round(flesch0 + (i * 7.3) % 40 - 15, 1),
                     "wordCount": words0 + (i * 37) % 300 - 120,
                 },
             }

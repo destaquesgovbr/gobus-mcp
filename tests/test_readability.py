@@ -1,4 +1,5 @@
-"""Legibilidade: escala Flesch (inglesa, textstat) com clamp, faixas únicas e cobertura."""
+"""Legibilidade: Flesch pt-BR (Martins) com o inglês de reserva, clamp, faixas de Martins,
+médias null-aware (com a contagem de artigos com valor) e cobertura."""
 
 from datetime import date
 
@@ -25,18 +26,23 @@ D = date
 
 
 def test_escala_e_metas():
-    assert FLESCH_SCALE_ID == "flesch_en_textstat"
+    assert FLESCH_SCALE_ID == "flesch_ptbr_martins1996"
     assert (TARGET_SERVICE, TARGET_INSTITUTIONAL) == (50.0, 30.0)
 
 
-def test_faixas_unicas_0_25_50_75():
+def test_faixas_de_martins_0_25_50_75():
     assert [(b.key, b.lower, b.upper) for b in FLESCH_BANDS] == [
         ("very_hard", 0.0, 25.0),
         ("hard", 25.0, 50.0),
-        ("medium", 50.0, 75.0),
-        ("easy", 75.0, 100.0),
+        ("easy", 50.0, 75.0),
+        ("very_easy", 75.0, 100.0),
     ]
-    assert [b.label for b in FLESCH_BANDS] == ["muito difícil", "difícil", "médio", "fácil"]
+    assert [b.label for b in FLESCH_BANDS] == [
+        "muito difícil",
+        "difícil",
+        "fácil",
+        "muito fácil",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -51,8 +57,9 @@ def test_clamp_flesch(raw, value, clamped):
 
 @pytest.mark.parametrize(
     ("value", "key"),
-    [(0, "very_hard"), (24.99, "very_hard"), (25, "hard"), (49.99, "hard"), (50, "medium"),
-     (74.99, "medium"), (75, "easy"), (100, "easy"), (-22.9, "very_hard"), (130, "easy")],
+    [(0, "very_hard"), (24.99, "very_hard"), (25, "hard"), (49.99, "hard"), (50, "easy"),
+     (74.99, "easy"), (75, "very_easy"), (100, "very_easy"), (-22.9, "very_hard"),
+     (130, "very_easy")],
 )  # fmt: skip
 def test_flesch_band_nas_bordas(value, key):
     assert flesch_band(value).key == key
@@ -68,7 +75,8 @@ def test_describe_flesch():
     assert describe_flesch(33.5) == "33.5 (difícil)"
     assert describe_flesch(0.0) == "0.0 (muito difícil)"
     assert describe_flesch(-22.9) == "0.0 (muito difícil; valor bruto -22.9)"
-    assert describe_flesch(clamp_flesch(101.0)) == "100.0 (fácil; valor bruto 101.0)"
+    assert describe_flesch(clamp_flesch(101.0)) == "100.0 (muito fácil; valor bruto 101.0)"
+    assert describe_flesch(62.0) == "62.0 (fácil)"
 
 
 def test_readability_score_linear_ate_a_meta_de_servico():

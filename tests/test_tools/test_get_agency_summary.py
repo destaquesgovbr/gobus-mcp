@@ -11,7 +11,17 @@ from tests.conftest import route_catalog
 TODAY = date(2026, 10, 5)
 
 
-def _row(period="2026-09-01 00:00:00+00", count=42, flesch=55.0, sentiment=0.12, pct=0.3):
+def _row(
+    period="2026-09-01 00:00:00+00",
+    count=42,
+    flesch=55.0,
+    sentiment=0.12,
+    pct=0.3,
+    *,
+    with_flesch=None,
+    english=None,
+):
+    """Linha com o Flesch pt-BR (``with_flesch`` = artigos com o valor; padrão: todos)."""
     return {
         "period": period,
         "agencyKey": "saude",
@@ -19,7 +29,11 @@ def _row(period="2026-09-01 00:00:00+00", count=42, flesch=55.0, sentiment=0.12,
         "articleCount": count,
         "avgSentimentScore": sentiment,
         "pctPositive": pct,
-        "avgReadabilityFlesch": flesch,
+        "avgReadabilityFlesch": english,
+        "avgReadabilityFleschPtbr": flesch,
+        "readabilityFleschPtbrCount": (
+            0 if flesch is None else (count if with_flesch is None else with_flesch)
+        ),
     }
 
 
@@ -59,7 +73,7 @@ async def test_combina_analytics_e_temas_com_nome_do_catalogo(fake_client):
 
     assert "Ministério da Saúde" in result
     assert "42 artigos" in result
-    assert "55.0 (médio)" in result
+    assert "**Legibilidade (Flesch pt-BR):** 55.0 (fácil)" in result
     assert "Vacinação" in result and "Novo imunizante aprovado" in result
     theme_line = next(line for line in result.splitlines() if "Vacinação" in line)
     assert "3.0×" in theme_line  # razão sem sobreposição
@@ -78,6 +92,25 @@ async def test_janela_fechada_e_limiar_convertido(fake_client):
     (trends,) = fake_client.calls("AgencySummaryTrends")
     assert trends["agencyKey"] == "saude"
     assert trends["growthThreshold"] == pytest.approx(1.3333, abs=1e-4)
+
+
+async def test_flesch_media_ponderada_pela_contagem_com_valor(fake_client):
+    rows = [_row(count=30, flesch=40.0, with_flesch=10), _row(count=10, flesch=10.0)]
+    _route(fake_client, rows, [THEME])
+
+    result = await _summary(fake_client)
+
+    assert "25.0 (difícil)" in result  # (40×10 + 10×10) / 20, não ponderado por artigos
+    assert "20 de 40 artigos com Flesch" in result
+
+
+async def test_sem_ptbr_usa_o_ingles_e_avisa(fake_client):
+    _route(fake_client, [_row(flesch=None, english=33.0)], [THEME])
+
+    result = await _summary(fake_client)
+
+    assert "**Legibilidade (Flesch inglês (legado)):** 33.0 (difícil)" in result
+    assert "Flesch pt-BR indisponível" in result
 
 
 async def test_flesch_media_ponderada_ignora_nulo(fake_client):

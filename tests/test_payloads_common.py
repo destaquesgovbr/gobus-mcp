@@ -56,6 +56,7 @@ def test_vocabularios_de_status_e_codigos():
         "THEMES_UNCLASSIFIED",
         "SENTIMENT_UNAVAILABLE",
         "READABILITY_UNAVAILABLE",
+        "READABILITY_LEGACY_SCALE",
         "TRENDING_ENTITIES_STALE",
         "BASELINE_ZERO_SUPPRESSED",
         "CLASSIFIER_CHANGED",

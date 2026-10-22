@@ -15,7 +15,10 @@ from tests.conftest import route_catalog
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=BRT)
 
 
-def _article(flesch=65.0, word_count=400, entities=None, agency="pf", agency_name="pf"):
+def _article(
+    flesch=65.0, word_count=400, entities=None, agency="pf", agency_name="pf", *, english=None
+):
+    """Artigo com o Flesch pt-BR (``flesch``) e o inglês legado (``english``)."""
     return {
         "article": {
             "uniqueId": "a1",
@@ -25,7 +28,8 @@ def _article(flesch=65.0, word_count=400, entities=None, agency="pf", agency_nam
             "agencyName": agency_name,
             "publishedAt": "2026-06-01T10:00:00Z",
             "features": {
-                "readabilityFlesch": flesch,
+                "readabilityFleschPtbr": flesch,
+                "readabilityFlesch": english,
                 "wordCount": word_count,
                 "entities": entities if entities is not None else [{"type": "ORG"}] * 2,
             },
@@ -33,14 +37,18 @@ def _article(flesch=65.0, word_count=400, entities=None, agency="pf", agency_nam
     }
 
 
-def _sample(n, *, wc=420, flesch=30.0, start_day=3):
+def _sample(n, *, wc=420, flesch=30.0, start_day=3, english=None):
     return {
         "found": n,
         "articles": [
             {
                 "uniqueId": f"s{i}",
                 "publishedAt": f"2026-05-{start_day + i:02d}T12:00:00Z",
-                "features": {"readabilityFlesch": flesch, "wordCount": wc},
+                "features": {
+                    "readabilityFleschPtbr": flesch,
+                    "readabilityFlesch": english,
+                    "wordCount": wc,
+                },
             }
             for i in range(n)
         ],
@@ -137,7 +145,7 @@ async def test_benchmark_usa_mediana_janela_real_e_agencia_brasil(fake_client):
         {
             "uniqueId": "a1",
             "publishedAt": "2026-05-30T12:00:00Z",
-            "features": {"readabilityFlesch": 1.0, "wordCount": 1},
+            "features": {"readabilityFleschPtbr": 1.0, "wordCount": 1},
         }
     )
     _route(fake_client, _article(), ag=ag, ab=_sample(15, wc=473, flesch=35.0))
@@ -208,7 +216,7 @@ def _titled(sample: dict, prefix: str, flesch: list[float | None]) -> dict:
         art["uniqueId"] = f"{prefix}{i}"
         art["title"] = f"Título {prefix}{i}"
         if i < len(flesch):
-            art["features"]["readabilityFlesch"] = flesch[i]
+            art["features"]["readabilityFleschPtbr"] = flesch[i]
     return sample
 
 
@@ -262,7 +270,7 @@ async def test_sugere_ate_2_comparacoes_com_o_maior_flesch_de_cada_amostra(fake_
     ab = _titled(_sample(15, flesch=35.0), "ab", [40.0, 72.0])
     ag["articles"].append(  # o próprio artigo nunca é sugerido
         {"uniqueId": "a1", "title": "Ele mesmo", "publishedAt": "2026-05-30T12:00:00Z",
-         "features": {"readabilityFlesch": 99.0, "wordCount": 300}}
+         "features": {"readabilityFleschPtbr": 99.0, "wordCount": 300}}
     )  # fmt: skip
     _route(fake_client, _article(), ag=ag, ab=ab)
 
@@ -336,3 +344,64 @@ async def test_compare_with_igual_ao_artigo_e_ignorado(fake_client):
     assert report.comparison is None
     assert report.comparison_error
     assert len(fake_client.calls("ScoreArticle")) == 1
+
+
+# ── Flesch pt-BR e a reserva inglesa ───────────────────────────────────────
+
+
+async def test_usa_o_flesch_ptbr_do_artigo_e_do_benchmark(fake_client):
+    _route(
+        fake_client,
+        _article(flesch=15.0, english=13.0),
+        ag=_sample(12, flesch=18.0, english=99.0),
+    )
+
+    report = await build_score_payload(fake_client, "a1", now=NOW)
+
+    assert report.scale == "flesch_ptbr_martins1996"
+    assert report.scale_fallback is False
+    assert report.article.flesch == 15.0
+    assert report.benchmark.median_flesch == 18.0  # o inglês da amostra não entra
+    readability = next(d for d in report.dimensions if d.key == "readability")
+    assert readability.score == 3.0  # 15 / 50 × 10: meta de serviço 50
+    assert readability.detail == "Flesch pt-BR 15.0 (muito difícil)"
+    assert "READABILITY_LEGACY_SCALE" not in [n.code for n in report.notices]
+
+
+async def test_sem_ptbr_usa_o_ingles_do_artigo_e_do_benchmark_com_aviso(fake_client):
+    _route(
+        fake_client,
+        _article(flesch=None, english=40.0),
+        ag=_sample(12, flesch=5.0, english=30.0),
+    )
+
+    report = await build_score_payload(fake_client, "a1", now=NOW)
+
+    assert report.scale == "flesch_en_textstat"
+    assert report.scale_fallback is True
+    assert report.article.flesch == 40.0
+    assert report.benchmark.median_flesch == 30.0  # mesma escala do artigo
+    assert "READABILITY_LEGACY_SCALE" in [n.code for n in report.notices]
+    assert "Flesch pt-BR indisponível" in render_score_markdown(report)
+    assert report.score_status == "scored"
+
+
+async def test_api_sem_ptbr_usa_as_queries_antigas(fake_client):
+    from gobus_mcp.client import GobusGraphQLError
+
+    route_catalog(fake_client)
+    missing = GobusGraphQLError(
+        [{"message": "Cannot query field 'readabilityFleschPtbr' on type 'ArticleFeatures'."}]
+    )
+    fake_client.route("ScoreArticle", missing)
+    fake_client.route("ScoreArticleLegacy", _article(flesch=None, english=40.0))
+    fake_client.route(
+        "ScoreArticleBenchmarkLegacy",
+        {"ag": _sample(12, flesch=None, english=30.0), "ab": _sample(0)},
+    )
+
+    report = await build_score_payload(fake_client, "a1", now=NOW)
+
+    assert report.article.flesch == 40.0
+    assert report.benchmark.median_flesch == 30.0
+    assert fake_client.calls("ScoreArticleBenchmark") == []

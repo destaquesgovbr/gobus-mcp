@@ -19,15 +19,22 @@ REQ_FROM, REQ_TO = "2026-07-07", "2026-10-04"  # closed_window(90) em 05/10
 LOOKBACK_FROM = "2025-10-04"
 
 
-def _row(period, key, count, flesch, wc=450.0, name=None):
-    return {
+def _row(period, key, count, flesch, wc=450.0, name=None, *, legacy=False):
+    """Linha com o Flesch pt-BR (ou só o inglês, legado, com ``legacy=True``)."""
+    row = {
         "period": f"{period}-01 00:00:00+00",
         "agencyKey": key,
         "agencyName": name or key.upper(),
         "articleCount": count,
-        "avgReadabilityFlesch": flesch,
         "avgWordCount": wc if flesch is not None else None,
     }
+    if legacy:
+        row["avgReadabilityFlesch"] = flesch
+    else:
+        row["avgReadabilityFlesch"] = None
+        row["avgReadabilityFleschPtbr"] = flesch
+        row["readabilityFleschPtbrCount"] = count if flesch is not None else 0
+    return row
 
 
 RANKING_ROWS = [
@@ -50,13 +57,18 @@ def _route_window(client, by_from):
     )
 
 
-def _article(uid, flesch, wc=500, title=None):
+def _article(uid, flesch, wc=500, title=None, *, legacy=False):
+    features = (
+        {"readabilityFlesch": flesch, "wordCount": wc}
+        if legacy
+        else {"readabilityFleschPtbr": flesch, "readabilityFlesch": None, "wordCount": wc}
+    )
     return {
         "uniqueId": uid,
         "title": title or f"Artigo {uid}",
         "url": f"https://www.gov.br/{uid}",
         "publishedAt": "2026-09-20T10:00:00-03:00",
-        "features": {"readabilityFlesch": flesch, "wordCount": wc},
+        "features": features,
     }
 
 
@@ -260,8 +272,16 @@ async def test_payload_serializa_em_camel_case_e_summary_e_o_markdown(fake_clien
     for key in ("schemaVersion", "effectiveWindow", "worstArticle", "dataStatus", "coverage"):
         assert key in data
     assert data["kind"] == "gobus.readability"
-    assert data["scale"] == "flesch_en_textstat"
-    assert [b["key"] for b in data["bands"]] == ["very_hard", "hard", "medium", "easy"]
+    assert data["scale"] == "flesch_ptbr_martins1996"
+    assert data["scaleLabel"].startswith("Flesch pt-BR (Martins")
+    assert data["scaleFallback"] is False
+    assert [b["key"] for b in data["bands"]] == ["very_hard", "hard", "easy", "very_easy"]
+    assert [b["label"] for b in data["bands"]] == [
+        "muito difícil",
+        "difícil",
+        "fácil",
+        "muito fácil",
+    ]
     assert ReadabilityReport.model_validate(data) == report
 
 
@@ -292,3 +312,78 @@ async def test_pior_caso_cabe_no_orcamento_do_payload_e_conta_as_omitidas(fake_c
     assert kept + report.omitted_with_data + report.omitted_without_data == 50
     flesch = [row.flesch for row in report.agencies]
     assert flesch == sorted(flesch, reverse=True)  # o corte é pela cauda do ranking
+
+
+# ── Flesch pt-BR e a reserva inglesa ───────────────────────────────────────
+
+
+async def test_rodape_diz_a_escala_ptbr_e_as_faixas_de_martins(fake_client):
+    route_catalog(fake_client)
+    _route_window(fake_client, {REQ_FROM: RANKING_ROWS, LOOKBACK_FROM: RANKING_ROWS})
+
+    result = await _md(fake_client, agency_key=None)
+
+    assert "Flesch pt-BR (Martins et al., 1996)" in result
+    assert "0–25 muito difícil, 25–50 difícil, 50–75 fácil, 75–100 muito fácil" in result
+    assert "fórmula inglesa" not in result
+
+
+async def test_sem_ptbr_usa_o_ingles_com_aviso_e_amostra_na_mesma_escala(fake_client):
+    rows = [_row("2026-10", "saude", 100, 20.0, legacy=True)]
+    route_catalog(fake_client)
+    _route_window(fake_client, {REQ_FROM: rows, LOOKBACK_FROM: rows})
+    _route_articles(
+        fake_client, [_article("a1", 10.0, legacy=True), _article("a2", 40.0, legacy=True)]
+    )
+
+    report = await build_readability_payload(fake_client, agency_key="saude", now=NOW)
+
+    assert report.scale == "flesch_en_textstat"
+    assert report.scale_fallback is True
+    assert "READABILITY_LEGACY_SCALE" in [n.code for n in report.notices]
+    assert report.agency.flesch == 20.0
+    assert (report.worst_article.unique_id, report.best_article.unique_id) == ("a1", "a2")
+    assert "Flesch pt-BR indisponível" in report.summary
+
+
+async def test_api_sem_ptbr_usa_as_queries_antigas(fake_client):
+    from gobus_mcp.client import GobusGraphQLError
+
+    rows = [_row("2026-10", "saude", 100, 20.0, legacy=True)]
+    route_catalog(fake_client)
+    missing = GobusGraphQLError(
+        [
+            {
+                "message": "Cannot query field 'avgReadabilityFleschPtbr' on type 'AgencyPeriodMetrics'."
+            }
+        ]
+    )
+    fake_client.route("ReadabilityWindow", missing)
+    fake_client.route(
+        "ReadabilityWindowLegacy",
+        lambda v: {"agencyAnalytics": [r for r in rows if r["agencyKey"] in v["agencies"]]},
+    )
+    fake_client.route(
+        "ReadabilityArticlesLegacy",
+        {"articles": {"found": 1, "articles": [_article("a1", 10.0, legacy=True)]}},
+    )
+
+    report = await build_readability_payload(fake_client, agency_key="saude", now=NOW)
+
+    assert report.scale == "flesch_en_textstat"
+    assert report.worst_article.unique_id == "a1"
+    assert fake_client.calls("ReadabilityArticles") == []  # a feature ficou marcada ausente
+
+
+async def test_amostra_ignora_artigo_sem_o_campo_da_escala(fake_client):
+    route_catalog(fake_client)
+    _route_window(fake_client, {REQ_FROM: AGENCY_ROWS, LOOKBACK_FROM: AGENCY_ROWS})
+    _route_articles(
+        fake_client,
+        [_article("pt", 12.0), _article("en", 90.0, legacy=True)],  # o inglês não entra
+    )
+
+    report = await build_readability_payload(fake_client, agency_key="saude", now=NOW)
+
+    assert report.sample_size == 1
+    assert report.best_article.unique_id == "pt"

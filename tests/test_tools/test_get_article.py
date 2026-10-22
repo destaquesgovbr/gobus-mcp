@@ -24,7 +24,8 @@ class TestGetArticle:
                         "uniqueSessions": 900,
                         "trendingScore": 2.1,
                         "wordCount": 400,
-                        "readabilityFlesch": 65.0,
+                        "readabilityFlesch": 61.0,
+                        "readabilityFleschPtbr": 65.0,
                         "entities": [
                             {"text": "MEC", "type": "ORG", "count": 3, "canonicalId": "Q4294522"}
                         ],
@@ -36,7 +37,7 @@ class TestGetArticle:
         assert "Título do Artigo" in result
         assert "Conteúdo completo" in result
         assert "MEC" in result
-        assert "fácil" in result.lower() or "médio" in result.lower()
+        assert "Legibilidade (Flesch pt-BR): 65.0 (fácil)" in result
         assert "Instituições" in result
 
     @pytest.mark.asyncio
@@ -71,7 +72,7 @@ async def test_exibe_agency_code():
     assert "[saude]" in result
 
 
-# ── null ≠ 0, faixa única de Flesch e nome do catálogo ──────────────────────
+# ── null ≠ 0, Flesch pt-BR nas faixas de Martins e nome do catálogo ─────────
 
 
 def _art(features, agency="pf", agency_name="pf"):
@@ -96,14 +97,17 @@ def _art(features, agency="pf", agency_name="pf"):
     [
         (0.0, "0.0 (muito difícil)"),
         (-12.3, "0.0 (muito difícil; valor bruto -12.3)"),
-        (65.0, "65.0 (médio)"),
-        (72.5, "72.5 (médio)"),
-        (80.0, "80.0 (fácil)"),
+        (65.0, "65.0 (fácil)"),
+        (72.5, "72.5 (fácil)"),
+        (80.0, "80.0 (muito fácil)"),
     ],
 )
-async def test_flesch_zero_e_negativo_aparecem_na_faixa_unica(fake_client, flesch, expected):
+async def test_flesch_ptbr_zero_e_negativo_nas_faixas_de_martins(fake_client, flesch, expected):
     route_catalog(fake_client)
-    fake_client.route("GetArticle", _art({"readabilityFlesch": flesch, "wordCount": 400}))
+    fake_client.route(
+        "GetArticle",
+        _art({"readabilityFleschPtbr": flesch, "readabilityFlesch": 1.0, "wordCount": 400}),
+    )
 
     result = await get_article("x1", fake_client)
 
@@ -112,12 +116,45 @@ async def test_flesch_zero_e_negativo_aparecem_na_faixa_unica(fake_client, flesc
 
 async def test_flesch_e_word_count_nulos_aparecem_como_indisponiveis(fake_client):
     route_catalog(fake_client)
-    fake_client.route("GetArticle", _art({"readabilityFlesch": None, "wordCount": None}))
+    fake_client.route(
+        "GetArticle",
+        _art({"readabilityFleschPtbr": None, "readabilityFlesch": None, "wordCount": None}),
+    )
 
     result = await get_article("x1", fake_client)
 
     assert "Legibilidade: indisponível" in result
     assert "0.0" not in result
+
+
+async def test_sem_ptbr_mostra_o_ingles_identificado(fake_client):
+    route_catalog(fake_client)
+    fake_client.route(
+        "GetArticle",
+        _art({"readabilityFleschPtbr": None, "readabilityFlesch": 30.0, "wordCount": 400}),
+    )
+
+    result = await get_article("x1", fake_client)
+
+    assert "Legibilidade (Flesch inglês (legado)): 30.0 (difícil)" in result
+
+
+async def test_api_sem_ptbr_usa_a_query_antiga(fake_client):
+    from gobus_mcp.client import GobusGraphQLError
+
+    route_catalog(fake_client)
+    fake_client.route(
+        "GetArticle",
+        GobusGraphQLError(
+            [{"message": "Cannot query field 'readabilityFleschPtbr' on type 'ArticleFeatures'."}]
+        ),
+    )
+    fake_client.route("GetArticleLegacy", _art({"readabilityFlesch": 30.0, "wordCount": 400}))
+
+    result = await get_article("x1", fake_client)
+
+    assert "30.0 (difícil)" in result
+    assert fake_client.calls("GetArticleLegacy") == [{"uniqueId": "x1"}]
 
 
 async def test_nome_da_agencia_vem_do_catalogo(fake_client):
