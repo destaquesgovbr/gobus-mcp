@@ -131,7 +131,8 @@ async def gobus_search_news(
     - agency_key: Chave da agência para filtrar (ex: "saude", "mec") — ver gobus://agencies
     - date_from: Data de início AAAA-MM-DD, inclusiva (dia inteiro em Brasília) — opcional
     - date_to: Data de fim AAAA-MM-DD, inclusiva (dia inteiro em Brasília) — opcional;
-      date_from == date_to = um único dia
+      date_from == date_to = um único dia. AAAAMMDD também vale; com hora, ISO com fuso
+      (ex: "2026-10-20T09:00:00-03:00"). Início depois do fim devolve "Período inválido"
     - page: Página de resultados (default 1)
     - limit: Artigos por página (default 10, máx 50)
 
@@ -208,7 +209,7 @@ async def gobus_get_entity_profile(
     anos anteriores somados), as agências que mais publicaram, uma linha com as
     cópias idênticas entre agências só quando houver (índice de busca, desde 20/05/2026) e
     as entidades relacionadas por co-menção em todo o acervo, sem as genéricas (Brasil,
-    Brasília, Governo Federal, Portal Gov.br).
+    Brasília, Governo Federal, Portal Gov.br, Diário Oficial da União).
 
     Dica: execute em paralelo com gobus_get_entity_network. Use summary_only=True para um
     overview rápido.
@@ -247,7 +248,8 @@ async def gobus_get_entity_network(
     - node_types: tipos separados por vírgula (ex: "PER,ORG"); com LOC, os lugares entram
       na lista em vez da linha "Lugares" (máx 5)
     - include_generic: mostra as entidades genéricas, ocultas por padrão (Brasil, Brasília,
-      Governo Federal e Portal Gov.br); ministérios e secretarias sempre aparecem
+      Governo Federal, Portal Gov.br e Diário Oficial da União); ministérios e secretarias
+      sempre aparecem
 
     Retorna: Markdown com os vizinhos ranqueados por peso (artigos em co-menção com o foco em
     todo o acervo, inclui republicações), cabeçalho "Mostrando X de Y vizinhos diretos", a
@@ -461,8 +463,8 @@ async def gobus_detect_anomalies(
     faixa (normal/atenção/alerta) e confiança.
 
     MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o radar
-    ui://anomaly-radar (8 gauges por domínio; no fullscreen, a lista de sinais com
-    sensibilidade e domínio); o texto devolvido é o Markdown completo.
+    ui://anomaly-radar (8 gauges por domínio e a sensibilidade no próprio card; no
+    fullscreen, a lista de sinais e o domínio); o texto devolvido é o Markdown completo.
     """
     invalid = invalid_params(sensitivity, domain_filter)
     if invalid is not None:
@@ -500,8 +502,8 @@ async def gobus_forecast_trends(horizon_days: int = 21, limit: int = 5) -> ToolR
     de cobertura de classificação e de calendário.
 
     MCP App: em hosts com suporte (Claude Desktop, claude.ai) abre o radar
-    ui://forecast-radar (ritmo semanal em escala log2 com o anel 1× e o top-3 com
-    momentum; no fullscreen, o horizonte 7/14/21/28); o texto devolvido é o Markdown
+    ui://forecast-radar (ritmo semanal em escala log2 com o anel 1×, o top-3 com
+    momentum e o horizonte 7/14/21/28 no próprio card); o texto devolvido é o Markdown
     completo.
     """
     deps = get_deps()
@@ -586,6 +588,9 @@ async def gobus_get_message_coherence(
     publicação, atraso, enquadramento dominante, âncoras exclusivas), âncoras
     compartilhadas, pares mais divergentes, republicadoras e avisos de dados (defeso,
     classificação de temas, amostra truncada acima de 1000 artigos, início truncado).
+    Se a janela cruza o defeso eleitoral, o aviso traz date_from/date_to concretos de uma
+    janela antes dele e, quando já houver dias fechados, de uma depois (a partir de 26/10):
+    repita a chamada com eles para comparar sem o defeso.
     """
     deps = get_deps()
     return await get_message_coherence(

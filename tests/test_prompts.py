@@ -109,6 +109,27 @@ async def test_monitor_agency_sem_days_usa_1_dia(days):
 async def test_draft_press_release_com_limit_vazio_usa_o_padrao():
     text = await render("prompt_draft_press_release", {"topic": "vacinação", "limit": ""})
     assert "os 5 artigos" in text
+    assert "limit=5" in text
+
+
+async def test_draft_press_release_passa_o_limit_para_a_busca():
+    # pós-merge do #12: o limit só aparecia no texto, a chamada usava o padrão da tool (10)
+    text = await render(
+        "prompt_draft_press_release", {"topic": "vacinação", "agency_key": "saude", "limit": "12"}
+    )
+    assert 'gobus_search_news(query="vacinação", agency_key="saude", limit=12)' in text
+    assert "Para os 3 artigos mais relevantes" in text
+
+
+@pytest.mark.parametrize(
+    ("limit", "step2"),
+    [("1", "Para o artigo encontrado"), ("2", "Para os 2 artigos encontrados")],
+)
+async def test_draft_press_release_passo_2_acompanha_o_limit(limit, step2):
+    text = await render("prompt_draft_press_release", {"topic": "vacinação", "limit": limit})
+    assert f'gobus_search_news(query="vacinação", limit={limit})' in text
+    assert step2 in text
+    assert "os 3 artigos" not in text
 
 
 @pytest.mark.parametrize(

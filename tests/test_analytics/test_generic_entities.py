@@ -14,11 +14,23 @@ from gobus_mcp.analytics.generic_entities import (
 
 def test_lista_curada_cobre_pais_dateline_emissor_e_boilerplate():
     by_id = {g.entity_id: g for g in GENERIC_ENTITIES}
-    assert set(by_id) == {"Q155", "Q2844", "Q5440531", "dgb_portal-gov-br"}
+    assert set(by_id) == {"Q155", "Q2844", "Q5440531", "dgb_portal-gov-br", "Q3712237"}
     assert by_id["Q155"].kind == "country"
     assert by_id["Q2844"].kind == "dateline"
     assert by_id["Q5440531"].kind == "issuer"
     assert by_id["dgb_portal-gov-br"].kind == "boilerplate"
+    assert by_id["Q3712237"].kind == "boilerplate"
+
+
+def test_dou_e_generica_pelo_lift_abaixo_de_1():
+    """Diário Oficial da União: boilerplate "publicado no DOU" em 11.824 artigos. Conferido
+    em 21/10/2026 contra a produção: co-menção abaixo do esperado ao acaso (lift < 1) com
+    Bolsa Família, INSS e MEC, e fora dos 60 vizinhos do Pé-de-Meia."""
+    (dou,) = [g for g in GENERIC_ENTITIES if g.entity_id == "Q3712237"]
+    assert dou.name == "Diário Oficial da União (DOU)"
+    assert "11.824" in dou.reason
+    assert "lift" in dou.reason
+    assert not dou.review
 
 
 def test_motivo_traz_contagem_e_data_da_conferencia():
@@ -43,7 +55,9 @@ def test_generic_entity_e_imutavel():
 
 
 def test_generic_ids_e_so_a_lista_curada():
-    assert generic_ids() == frozenset({"Q155", "Q2844", "Q5440531", "dgb_portal-gov-br"})
+    assert generic_ids() == frozenset(
+        {"Q155", "Q2844", "Q5440531", "dgb_portal-gov-br", "Q3712237"}
+    )
 
 
 def test_entidades_das_agencias_nao_sao_genericas():

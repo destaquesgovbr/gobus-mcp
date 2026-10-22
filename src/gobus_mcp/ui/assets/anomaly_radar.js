@@ -1,8 +1,9 @@
 // ── anomaly_radar.js ── ui://anomaly-radar ← gobus_detect_anomalies(sensitivity, domain_filter)
 // Card: 8 gauges por domínio (arco externo = pico, interno = silêncio; marcas nos limiares
-// que vêm do payload), chips do defeso e dos temas e o total de sinais. Fullscreen (ou host
-// sem fullscreen): lista com toggle local pico/silêncio/outros, sensibilidade e domínio
-// pela mesma tool, "investigar" por ui/message e seleção por ui/update-model-context.
+// que vêm do payload), chips do defeso e dos temas, a sensibilidade compacta (mesma tool;
+// sem serverTools, o chip manda pedir no chat) e o total de sinais. Fullscreen (ou host sem
+// fullscreen): lista com toggle local pico/silêncio/outros, sensibilidade e domínio pela
+// mesma tool, "investigar" por ui/message e seleção por ui/update-model-context.
 const APP_TOOL = "gobus_detect_anomalies";
 const APP_KIND = {
   sustained_spike: "Pico sustentado",
@@ -202,7 +203,7 @@ function appHeader(sc) {
     chips.push(domChip("Temas " + APP_STATUS[sc.themes.status] + (since ? " desde " + domDate(since) : ""), sc.themes.status === "unavailable" ? "error" : "warn", "chip-themes"));
   }
   if (sc.entities.status !== "ok") chips.push(domChip("Entidades: dados " + APP_STATUS[sc.entities.status], sc.entities.status === "unavailable" ? "error" : "warn", "chip-entities"));
-  chips.push(domChip("Sensibilidade " + (APP_SENSITIVITY[sc.params.sensitivity] || sc.params.sensitivity).toLowerCase(), null, "chip-sensitivity"));
+  chips.push(domChip("Sensibilidade " + (APP_SENSITIVITY[sc.params.sensitivity] || sc.params.sensitivity).toLowerCase() + (bridgeCan("serverTools") ? "" : " · peça no chat para trocar"), null, "chip-sensitivity"));
   if (sc.params.domain_filter) chips.push(domChip("Domínio: " + appDomainLabel(sc, sc.params.domain_filter), "info", "chip-domain"));
   const tw = sc.themes.windows;
   return h("header", { class: "gb-head" },
@@ -316,15 +317,16 @@ function appCall(view, sc, overrides) {
   return view.call(APP_TOOL, args, "Recalculando o radar (sensibilidade " + (APP_SENSITIVITY[args.sensitivity] || args.sensitivity).toLowerCase() + ")…");
 }
 
-function appControls(sc, view) {
+// compacto (card): só a sensibilidade; completo: sensibilidade e domínio
+function appControls(sc, view, compact) {
   if (!bridgeCan("serverTools")) return null;
   const options = (sc.sensitivityOptions || []).map((v) => ({ value: v, label: APP_SENSITIVITY[v] || v }));
   const current = sc.params.domain_filter || "ALL";
   const domains = [{ domain: "ALL", label: "Todos" }].concat(sc.domains);
-  return h("section", { class: "ar-controls", "data-testid": "controls" },
+  return h("section", { class: "ar-controls", "data-testid": "controls", "data-compact": String(compact) },
     h("div", { class: "gb-row" }, h("span", { class: "gb-small gb-muted" }, "Sensibilidade"),
       domSegment(options, sc.params.sensitivity, (v) => appCall(view, sc, { sensitivity: v }), "sens-", "Sensibilidade")),
-    h("div", { class: "ar-domains", role: "group", "aria-label": "Domínio" }, domains.map((d) => h("button", {
+    compact ? null : h("div", { class: "ar-domains", role: "group", "aria-label": "Domínio" }, domains.map((d) => h("button", {
       type: "button", class: "gb-btn", "data-testid": "domain-" + d.domain, "aria-pressed": String(d.domain === current),
       onclick: () => { if (d.domain !== current) appCall(view, sc, { domain_filter: d.domain === "ALL" ? "" : d.domain }); },
     }, d.label))));
@@ -353,12 +355,12 @@ function appRender(sc, view) {
   if (sc.status === "unavailable") {
     const why = [sc.themes.note, sc.entities.note].filter(Boolean).join("\n");
     nodes.push(domState("unavailable", "Radar indisponível", why || "Sem dados de temas nem de entidades."), domNotices(sc.notices));
-    if (rich) nodes.push(appControls(sc, view));
+    if (rich) nodes.push(appControls(sc, view, false));
     return nodes;
   }
   const items = appItems(sc);
   const notable = appNotable(items);
-  if (rich) nodes.push(appControls(sc, view));
+  nodes.push(appControls(sc, view, !rich));
   nodes.push(appGauges(sc, view, rich), appTotals(sc, items));
   if (sc.status === "empty") {
     nodes.push(domState("empty", "Nenhum sinal" + (sc.params.domain_filter ? " em " + appDomainLabel(sc, sc.params.domain_filter) : ""), "Nada fora do padrão nesta sensibilidade e neste domínio. Os gauges resumem todos os domínios."));

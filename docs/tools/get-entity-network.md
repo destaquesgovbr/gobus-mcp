@@ -31,6 +31,20 @@ Lista curada em `analytics/generic_entities.py` (contagens do `entitySearch.arti
 | Brasília | `Q2844` | dateline e sede do governo ("brasilia - df"; 33.284) |
 | Governo Federal | `Q5440531` | o próprio emissor (aliases União, Governo do Brasil; 12.952) |
 | Portal Gov.br | `dgb_portal-gov-br` | boilerplate de serviço (2.099); **em revisão**, às vezes é o serviço de fato |
+| Diário Oficial da União (DOU) | `Q3712237` | boilerplate de ato publicado ("publicado no DOU"; 11.824); lift < 1 com os focos conferidos |
+
+**Critério:** volume alto e **lift ≤ 1** nas entidades conferidas, isto é, a co-menção não passa do esperado ao acaso (`weight / (n_foco × n_genérica / 202.608)`, com o total de artigos do grafo). Ocultar não apaga a informação: a linha "Ocultas como genéricas" mostra cada uma com o peso, e `include_generic=true` traz todas de volta.
+
+**Avaliação do DOU (21/10/2026, produção, só leitura):** o DOU estava fora da lista do PR-B e aparecia como vizinho e como "ponte" de quase tudo. Com `relatedEntities(limit: 60)` e as genéricas de então já ocultas:
+
+| Foco (artigos) | Posição do DOU | Peso | Esperado ao acaso | Lift | Quem entra no top-20 |
+|---|---|---|---|---|---|
+| Pé-de-Meia (837) | fora dos 60 | — | 48,8 | — | nada muda |
+| Bolsa Família (2.674) | 44º | 76 | 156,1 | 0,49 | nada muda |
+| INSS (3.733) | 10º | 195 | 217,9 | 0,90 | Secretaria-Geral da Presidência (131) |
+| MEC (10.794) | 15º | 577 | 629,9 | 0,92 | São Paulo (421) |
+
+Em nenhum foco o DOU co-ocorre acima do acaso: ele marca o tipo de notícia (ato normativo publicado), não um assunto. Ocultá-lo libera uma vaga no top-20 do INSS e do MEC e tira o DOU das pontes do `depth=2`, onde ele ligava MEC, Enem, Inep e Camilo Santana só por ser onipresente; a contagem continua na linha das ocultas.
 
 Continuam visíveis: as UFs (inclusive o Distrito Federal, `Q119158`), as demais capitais, as pessoas e os ministérios, tanto pelo QID (ex.: MEC, `Q4294522`) quanto pela entidade da própria agência (`dgb_{código}`: Secretaria-Geral, Fazenda, Casa Civil, Saúde…), que são vizinhos com sentido. A exclusão das `dgb_{código}` só vale na [coerência de mensagem](get-message-coherence.md). O foco nunca aparece na própria lista.
 
@@ -68,10 +82,10 @@ Ocultas como genéricas: República Federativa do Brasil (341), Portal Gov.br (1
 > O limite de 50 vizinhos foi atingido: há mais vizinhos, todos com peso ≤ 18. Aumente `limit` (máx 200).
 
 ## Segundo grau (via os 5 vizinhos mais fortes)
-- via **Ministério da Educação (MEC)** (650): Fundo Nacional de Desenvolvimento da Educação (FNDE) (1.300, `Q10286468`), Coordenação de Aperfeiçoamento de Pessoal de Nível Superior (CAPES) (1.030, `Q5167991`), …, Ministério da Saúde (617, `dgb_saude`), Diário Oficial da União (DOU) (577, `Q3712237`)
+- via **Ministério da Educação (MEC)** (650): Fundo Nacional de Desenvolvimento da Educação (FNDE) (1.300, `Q10286468`), Coordenação de Aperfeiçoamento de Pessoal de Nível Superior (CAPES) (1.030, `Q5167991`), …, Ministério da Saúde (617, `dgb_saude`), …
 - via **Camilo Sobreira de Santana** (170): Fundo Nacional de Desenvolvimento da Educação (FNDE) (213, `Q10286468`), Fortaleza (106, `dgb_fortaleza`), …
 
-**Pontes** (alcançadas por 2+ vizinhos): Diário Oficial da União (DOU) (via Ministério da Educação (MEC), Exame Nacional do Ensino Médio (Enem), Instituto Nacional de Estudos e Pesquisas Educacionais Anísio Teixeira (Inep), Camilo Sobreira de Santana), Fundo Nacional de Desenvolvimento da Educação (FNDE) (via …), …
+**Pontes** (alcançadas por 2+ vizinhos): Fundo Nacional de Desenvolvimento da Educação (FNDE) (via …), …
 ```
 
 Em produção (21/10/2026), `depth=2` leva ≤ 0,8 s e ~5–6,5 KB (uma rodada para o foco e uma rodada paralela para os 5 vizinhos).

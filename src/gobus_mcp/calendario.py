@@ -400,6 +400,72 @@ def baseline_for(
     return Baseline(rng, overlaps_blackout(rng, periods), pre_blackout)
 
 
+MIN_ALTERNATIVE_DAYS = 7  # janela alternativa mais curta que vale sugerir (ou a da própria janela)
+
+
+@dataclass(frozen=True)
+class BlackoutAlternatives:
+    """Janelas sem o defeso para repetir uma análise cuja janela cruza ``period``.
+
+    - ``pre``: a mesma duração terminando na véspera do defeso, sem começar antes do
+      ``earliest`` pedido (``pre_clamped`` diz se ele cortou o início); ``None`` se sobrar
+      menos que o mínimo;
+    - ``post``: a partir do dia seguinte ao fim do defeso até ontem, no máximo com a mesma
+      duração; ``None`` enquanto não houver o mínimo de dias fechados, o que acontece em
+      ``post_ready_on``. Fica na recuperação pós-defeso (agências retomando).
+    """
+
+    period: BlackoutPeriod
+    pre: DateRange | None
+    pre_clamped: bool
+    post: DateRange | None
+    post_from: date
+    post_ready_on: date
+
+
+def blackout_alternatives(
+    window: DateRange,
+    today: date,
+    earliest: date | None = None,
+    periods: tuple[BlackoutPeriod, ...] = BLACKOUTS,
+) -> BlackoutAlternatives | None:
+    """Alternativas concretas, antes e depois do defeso, para ``window``; ``None`` se a
+    janela não toca nenhum defeso. O mínimo é ``MIN_ALTERNATIVE_DAYS`` dias (ou a duração
+    da janela, se for menor). ``earliest`` corta o início da janela pré-defeso (ex.: o
+    índice de busca só marca entidades desde ``ENTITY_CANONICAL_INDEX_SINCE``)."""
+    for period in periods:
+        if not (window.start <= period.end and period.start <= window.end):
+            continue
+        need = min(window.days, MIN_ALTERNATIVE_DAYS)
+        span = timedelta(days=window.days - 1)
+        pre_end = period.start - timedelta(days=1)
+        pre_start = pre_end - span
+        clamped = earliest is not None and earliest > pre_start
+        if clamped:
+            pre_start = earliest
+        pre = (
+            DateRange(pre_start, pre_end)
+            if pre_start <= pre_end and (pre_end - pre_start).days + 1 >= need
+            else None
+        )
+        post_from = period.end + timedelta(days=1)
+        post_end = min(post_from + span, today - timedelta(days=1))
+        post = (
+            DateRange(post_from, post_end)
+            if post_end >= post_from and (post_end - post_from).days + 1 >= need
+            else None
+        )
+        return BlackoutAlternatives(
+            period=period,
+            pre=pre,
+            pre_clamped=bool(clamped and pre is not None),
+            post=post,
+            post_from=post_from,
+            post_ready_on=post_from + timedelta(days=need),
+        )
+    return None
+
+
 def classifier_changed_within(r: DateRange, cutoff: date | None = CLASSIFIER_CUTOFF) -> bool:
     """O intervalo cruza a troca de classificador (dias antes e depois do corte)?"""
     return cutoff is not None and r.start < cutoff <= r.end

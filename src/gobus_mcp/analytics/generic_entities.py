@@ -2,7 +2,10 @@
 
 São entidades que co-ocorrem com quase tudo no acervo e por isso dominam os pesos de
 co-menção sem dizer nada sobre o foco: o país, a dateline/sede do governo, o próprio
-emissor e o boilerplate de serviço.
+emissor e o boilerplate de serviço ou de publicação (o DOU). Critério para entrar: volume
+alto e lift ≤ 1 (co-menção não acima do acaso, ``weight / (n_foco · n_genérica / total)``)
+nas entidades conferidas. Ocultar não perde informação: a linha "Ocultas como genéricas"
+mostra cada uma com o peso, e ``include_generic=true`` traz de volta.
 
 Continuam visíveis: as UFs (inclusive o Distrito Federal, ``Q119158``), as demais
 capitais, os ministérios (pelo QID ou pela entidade da própria agência, ``dgb_{code}``:
@@ -60,6 +63,14 @@ GENERIC_ENTITIES: tuple[GenericEntity, ...] = (
         "boilerplate de serviço ('acesse o gov.br'): 2.099 artigos (conferido em "
         "21/10/2026); revisar — às vezes é o serviço de fato",
         review=True,
+    ),
+    GenericEntity(
+        "Q3712237",
+        "Diário Oficial da União (DOU)",
+        "boilerplate",
+        "boilerplate de ato publicado ('publicado no DOU'): 11.824 artigos (conferido em "
+        "21/10/2026); co-menção abaixo do esperado ao acaso (lift 0,49 com Bolsa Família, "
+        "0,90 com INSS, 0,92 com MEC; fora dos 60 vizinhos do Pé-de-Meia)",
     ),
 )
 

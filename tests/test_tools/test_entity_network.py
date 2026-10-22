@@ -165,6 +165,39 @@ async def test_genericas_ocultas_por_padrao_com_linha_de_aviso(fake_client):
     assert "Brasília" not in _line(text, "**Lugares:**")
 
 
+async def test_dou_fica_oculto_como_generico_sem_perder_a_contagem(fake_client):
+    # INSS em 21/10/2026: o DOU era o 10º vizinho (195) com lift 0,90 (< 1, sem associação)
+    dou = _rel("Q3712237", "Diário Oficial da União (DOU)", 200)
+
+    def related(v):
+        rows = [*FIRST_HOP, dou] if v["id"] == FOCUS else SECOND_HOP.get(v["id"], [])
+        return {"relatedEntities": rows[: v["limit"]]}
+
+    _route(fake_client, related=related)
+    text = await get_entity_network(FOCUS, fake_client)
+
+    assert "Diário Oficial da União (DOU)" not in _ranked(text)
+    assert "Diário Oficial da União (DOU) (200)" in _line(text, "Ocultas como genéricas:")
+    shown = await get_entity_network(FOCUS, fake_client, include_generic=True)
+    assert "Diário Oficial da União (DOU)" in _ranked(shown)
+
+
+async def test_depth2_dou_nao_vira_ponte(fake_client):
+    dou = _rel("Q3712237", "Diário Oficial da União (DOU)", 500)
+    second = {k: [*rows, dou] for k, rows in SECOND_HOP.items()}
+
+    def related(v):
+        rows = FIRST_HOP if v["id"] == FOCUS else second.get(v["id"], [])
+        return {"relatedEntities": rows[: v["limit"]]}
+
+    _route(fake_client, related=related)
+    text = await get_entity_network(FOCUS, fake_client, depth=2)
+
+    assert "Diário Oficial da União (DOU)" not in _line(text, "**Pontes**")
+    via = [line for line in text.splitlines() if line.startswith("- via **")]
+    assert via and not any("`Q3712237`" in line for line in via)
+
+
 async def test_include_generic_mostra_as_genericas(fake_client):
     _route(fake_client)
     text = await get_entity_network(FOCUS, fake_client, include_generic=True)

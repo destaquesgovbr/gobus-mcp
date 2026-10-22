@@ -4,6 +4,7 @@ de contagem, prior, tema dinâmico e erros. Relógio fixo em 06/10/2026 12:00 BR
 from __future__ import annotations
 
 import json
+import logging
 from datetime import date, datetime
 from pathlib import Path
 
@@ -134,6 +135,32 @@ def counts_route(tone=TONE, totals=None, themes=None, theme_total=None):
     return handler
 
 
+def sentiment_check_route(tone=TONE, articles=ARTICLES, found=None):
+    """``CoherenceSentimentCheck`` (pré-checagem, 4 aliases): o total do assunto na janela e
+    a soma de cada rótulo de sentimento entre as agências (as pedidas, se houver)."""
+
+    def handler(variables):
+        agencies = variables["total"].get("agencies")
+        total = (
+            found
+            if found is not None
+            else sum(1 for a in articles if _matches(a, variables["total"]))
+        )
+        out = {"total": {"found": total}}
+        for label in ("positive", "negative", "neutral"):
+            assert variables[label]["sentiment"] == [label]
+            out[label] = {
+                "found": sum(
+                    n
+                    for (a, lbl), n in tone.items()
+                    if lbl == label and (not agencies or a in agencies)
+                )
+            }
+        return out
+
+    return handler
+
+
 ENTITY = {"entity": {"entityId": "Q575545", "canonicalName": "Bolsa Família", "type": "POLICY"}}
 
 
@@ -156,6 +183,7 @@ def scenario(
         },
     )
     client.route("CoherenceCounts", counts_route(tone, totals))
+    client.route("CoherenceSentimentCheck", sentiment_check_route(tone, articles, found))
     return client
 
 
@@ -302,6 +330,79 @@ async def test_falha_do_tom_nao_derruba_a_tool(fake_client):
     assert tone.status == "unavailable"
     assert "timeout" in tone.detail
     assert report.index_status == "scored"
+
+
+def test_tom_consulta_no_maximo_8_emissores():
+    assert MAX_TONE_AGENCIES == 8
+
+
+async def test_pre_checagem_de_sentimento_4_aliases_com_o_filtro_do_assunto(fake_client):
+    scenario(fake_client)
+    await run(fake_client, entity_id="Q575545", agencies=["mds", "saude"])
+
+    (variables,) = fake_client.calls("CoherenceSentimentCheck")
+    assert set(variables) == {"total", "positive", "negative", "neutral"}
+    assert "sentiment" not in variables["total"]
+    for label in ("positive", "negative", "neutral"):
+        assert variables[label] == {**variables["total"], "sentiment": [label]}
+    assert variables["total"]["entityCanonical"] == ["Q575545"]
+    assert variables["total"]["agencies"] == ["mds", "saude"]
+
+
+async def test_pre_checagem_baixa_pula_as_contagens_por_agencia(fake_client):
+    # sentimento parado (como depois de 27/09): sem as 8×3 buscas por agência
+    scenario(fake_client, tone={("mds", "positive"): 1})
+    report, markdown = await run(fake_client, entity_id="Q575545")
+
+    assert fake_client.calls("CoherenceSentimentCheck")
+    assert not fake_client.calls("CoherenceCounts")
+    tone = next(d for d in report.dimensions if d.key == "tone")
+    assert tone.status == "unavailable"
+    assert "1 de 13" in tone.detail and "não consultadas" in tone.detail
+    assert "falha" not in tone.detail
+    status = next(d for d in report.data_status if d.key == "sentiment_labels")
+    assert status.status == "unavailable"
+    assert "SENTIMENT_UNAVAILABLE" in {n.code for n in report.notices}
+    assert report.index_status == "scored"
+
+
+async def test_pre_checagem_baixa_no_tema_so_mede_a_cobertura(fake_client):
+    theme_scenario(fake_client, classified=95, total=100)
+    fake_client.route("CoherenceSentimentCheck", sentiment_check_route(tone={}))
+    await run(fake_client, theme="Desenvolvimento Social")
+
+    (coverage,) = fake_client.calls("CoherenceCounts")  # só a cobertura de temas
+    assert not any("sentiment" in f for f in coverage.values())
+
+
+async def test_falha_da_pre_checagem_cai_nas_contagens_por_agencia(fake_client):
+    scenario(fake_client)
+    fake_client.route("CoherenceSentimentCheck", RuntimeError("timeout"))
+    report, _ = await run(fake_client, entity_id="Q575545")
+
+    assert len(fake_client.calls("CoherenceCounts")) == 1
+    tone = next(d for d in report.dimensions if d.key == "tone")
+    assert tone.status == "ok"
+
+
+async def test_loga_o_tempo_de_cada_fase(fake_client, caplog):
+    scenario(fake_client, found=600)
+    with caplog.at_level(logging.INFO, logger="gobus_mcp.tools.get_message_coherence"):
+        await run(fake_client, entity_id="Q575545")
+
+    (record,) = [r for r in caplog.records if "tempos" in r.getMessage()]
+    text = record.getMessage()
+    for phase in ("total=", "entrada=", "lote1=", "páginas=", "tom=", "análise="):
+        assert phase in text, phase
+    assert "Q575545" in text
+
+
+async def test_loga_os_tempos_tambem_na_saida_antecipada(fake_client, caplog):
+    scenario(fake_client, articles=[])
+    with caplog.at_level(logging.INFO, logger="gobus_mcp.tools.get_message_coherence"):
+        await run(fake_client, entity_id="Q575545")
+
+    assert any("tempos" in r.getMessage() and "lote1=" in r.getMessage() for r in caplog.records)
 
 
 async def test_paginacao_found_600_busca_as_paginas_2_e_3(fake_client):
@@ -656,6 +757,52 @@ async def test_defeso_na_janela_gera_aviso(fake_client):
     assert "ELECTORAL_BLACKOUT" in {n.code for n in report.notices}
     assert "defeso" in markdown
 
+
+def _blackout(report) -> str:
+    return next(n.message for n in report.notices if n.code == "ELECTORAL_BLACKOUT")
+
+
+async def test_aviso_do_defeso_sugere_janela_pre_defeso_concreta(fake_client):
+    # A9 (testes 6.1/6.2): o aviso já traz a janela para repetir a chamada
+    scenario(fake_client)
+    report, markdown = await run(fake_client, entity_id="Q575545")  # 22/09–05/10
+
+    message = _blackout(report)
+    assert 'date_from="2026-06-20", date_to="2026-07-03"' in message  # 14 dias, véspera
+    assert "26/10/2026" in message  # pós-defeso: ainda sem dias fechados
+    assert "02/11/2026" in message  # quando a janela pós-defeso tem 7 dias
+    assert 'date_from="2026-06-20"' in markdown
+
+
+async def test_aviso_do_defeso_por_entidade_comeca_no_indice_de_entidades(fake_client):
+    scenario(fake_client)
+    report, _ = await run(
+        fake_client, entity_id="Q575545", date_from="2026-08-01", date_to="2026-09-30"
+    )
+
+    message = _blackout(report)
+    assert 'date_from="2026-05-20", date_to="2026-07-03"' in message
+    assert "20/05/2026" in message and "índice" in message
+
+
+async def test_aviso_do_defeso_por_tema_nao_corta_no_indice_de_entidades(fake_client):
+    theme_scenario(fake_client, classified=95, total=100)
+    report, _ = await run(fake_client, theme="Saúde", date_from="2026-08-01", date_to="2026-09-30")
+
+    assert 'date_from="2026-05-04", date_to="2026-07-03"' in _blackout(report)
+
+
+async def test_aviso_do_defeso_sugere_janela_pos_defeso_quando_ha_dias_fechados(fake_client):
+    scenario(fake_client)
+    now = datetime(2026, 11, 12, 12, 0, tzinfo=BRT)
+    report, _ = await run(
+        fake_client, entity_id="Q575545", date_from="2026-10-12", date_to="2026-10-25", now=now
+    )
+
+    message = _blackout(report)
+    assert 'date_from="2026-10-26", date_to="2026-11-08"' in message
+    assert "recuperação" in message
+
     scenario(fake_client)
     report, _ = await run(
         fake_client, entity_id="Q575545", date_from="2026-06-01", date_to="2026-06-30"
@@ -671,7 +818,8 @@ async def test_payload_valida_e_cabe_no_orcamento(fake_client):
         for i in range(20)
         for d in range(3)
     ]  # fmt: skip
-    scenario(fake_client, articles=many, tone={})
+    tone = {(f"ag{i:02d}", "positive"): 3 for i in range(20)}
+    scenario(fake_client, articles=many, tone=tone)
     report, markdown = await run(fake_client, entity_id="Q575545")
 
     CoherenceReport.model_validate(json.loads(report.model_dump_json()))

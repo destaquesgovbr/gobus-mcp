@@ -3,7 +3,7 @@
 Detector de anomalias comunicacionais, ciente do **defeso eleitoral**: picos e quedas sustentados de **temas** (share-of-voice) e sinais de **entidades** (silêncio coordenado, cobertura concentrada, rajadas, entidades novas), recalculados pela cobertura diária do acervo.
 
 !!! info "MCP App"
-    Tool de app: em hosts com suporte abre o radar [`ui://anomaly-radar`](../apps/anomaly-radar.md) (8 gauges por domínio; no fullscreen, a lista de sinais com sensibilidade e domínio). O `content` é o Markdown completo abaixo; o `structuredContent` traz o `AnomalyReport` com o mesmo Markdown até 6 KB em `summary`, como primeiro campo.
+    Tool de app: em hosts com suporte abre o radar [`ui://anomaly-radar`](../apps/anomaly-radar.md) (8 gauges por domínio e a sensibilidade no próprio card; no fullscreen, a lista de sinais e o domínio). O `content` é o Markdown completo abaixo; o `structuredContent` traz o `AnomalyReport` com o mesmo Markdown até 6 KB em `summary`, como primeiro campo.
 
 ## Parâmetros
 

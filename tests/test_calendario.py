@@ -13,6 +13,7 @@ from gobus_mcp.calendario import (
     BRT,
     CLASSIFIER_CUTOFF,
     HOLIDAYS,
+    MIN_ALTERNATIVE_DAYS,
     TAXONOMY_CHANGE_2026,
     TAXONOMY_CHANGE_2026_DEFAULT,
     TAXONOMY_CHANGED_THEMES,
@@ -22,6 +23,7 @@ from gobus_mcp.calendario import (
     agency_analytics_date_to,
     as_window,
     baseline_for,
+    blackout_alternatives,
     brt_bounds,
     brt_day_end,
     brt_day_start,
@@ -426,3 +428,61 @@ def test_calendar_notices_sem_temas_continua_igual_para_quem_ja_chamava():
     # chamadas antigas (sem taxonomy_themes) não ganham o aviso novo
     crossing = DateRange(D(2026, 10, 20), D(2026, 11, 16))
     assert calendar_notices(D(2026, 12, 7), baselines=[crossing]) == []
+
+
+# ── alternativas de janela sem o defeso (coerência, A9) ─────────────────────
+
+
+def test_blackout_alternatives_fora_do_defeso_e_none():
+    assert blackout_alternatives(DateRange(D(2026, 6, 1), D(2026, 6, 30)), D(2026, 10, 6)) is None
+    assert blackout_alternatives(DateRange(D(2026, 11, 2), D(2026, 11, 8)), D(2026, 11, 9)) is None
+
+
+def test_blackout_alternatives_no_defeso_pre_com_a_mesma_duracao_e_pos_ainda_sem_dias():
+    window = DateRange(D(2026, 9, 22), D(2026, 10, 5))  # 14 dias, dentro do defeso
+    alt = blackout_alternatives(window, D(2026, 10, 6))
+
+    assert alt is not None and alt.period == BLACKOUTS[0]
+    assert alt.pre == DateRange(D(2026, 6, 20), D(2026, 7, 3))  # véspera do defeso, 14 dias
+    assert alt.pre_clamped is False
+    assert alt.post is None  # 26/10 ainda não chegou
+    assert alt.post_from == D(2026, 10, 26)
+    assert alt.post_ready_on == D(2026, 10, 26) + timedelta(days=MIN_ALTERNATIVE_DAYS)
+
+
+def test_blackout_alternatives_pre_respeita_o_inicio_minimo():
+    # caminho por entidade: o índice de busca só marca entidades desde 20/05/2026
+    window = DateRange(D(2026, 8, 1), D(2026, 9, 30))  # 61 dias
+    alt = blackout_alternatives(window, D(2026, 10, 6), earliest=D(2026, 5, 20))
+
+    assert alt.pre == DateRange(D(2026, 5, 20), D(2026, 7, 3))
+    assert alt.pre_clamped is True
+
+
+def test_blackout_alternatives_pre_curto_demais_fica_none():
+    window = DateRange(D(2026, 8, 1), D(2026, 8, 14))
+    alt = blackout_alternatives(window, D(2026, 10, 6), earliest=D(2026, 7, 1))
+    assert alt.pre is None  # 01–03/07 = 3 dias < mínimo
+
+
+@pytest.mark.parametrize(
+    ("today", "expected"),
+    [
+        (D(2026, 11, 1), None),  # 26–31/10 = 6 dias fechados < 7
+        (D(2026, 11, 2), DateRange(D(2026, 10, 26), D(2026, 11, 1))),  # 7 dias (mínimo)
+        (D(2026, 11, 12), DateRange(D(2026, 10, 26), D(2026, 11, 8))),  # a mesma duração (14)
+    ],
+)
+def test_blackout_alternatives_pos_defeso_ate_ontem_no_maximo_com_a_mesma_duracao(today, expected):
+    window = DateRange(D(2026, 10, 12), D(2026, 10, 25))  # 14 dias
+    alt = blackout_alternatives(window, today)
+    assert alt.post == expected
+    assert alt.post_ready_on == D(2026, 11, 2)
+
+
+def test_blackout_alternatives_janela_curta_aceita_a_mesma_duracao():
+    window = DateRange(D(2026, 10, 20), D(2026, 10, 22))  # 3 dias
+    alt = blackout_alternatives(window, D(2026, 10, 30))
+    assert alt.pre == DateRange(D(2026, 7, 1), D(2026, 7, 3))
+    assert alt.post == DateRange(D(2026, 10, 26), D(2026, 10, 28))
+    assert alt.post_ready_on == D(2026, 10, 29)

@@ -50,11 +50,11 @@ _Fora do índice: republicam conteúdo de outras agências._
 - Agência Brasil (`agencia_brasil`): 33 artigos · 1ª em 06/08 16:28 (−3,6 d do 1º emissor)
 
 ### Avisos de dados
-> - A janela cruza o defeso eleitoral 2026 (04/07–25/10/2026): …
+> - A janela cruza o defeso eleitoral 2026 (04/07–25/10/2026): parte das agências está calada e as republicadoras pesam mais no volume. Para comparar sem o defeso: antes, date_from="2026-05-20", date_to="2026-07-03" (45 dias; o índice de busca só marca entidades desde 20/05/2026); depois, date_from="2026-10-26" (26/10/2026, 1º dia pós-defeso), com 7 dias fechados em 02/11/2026.
 > - Início truncado: a pauta já corria antes da janela (0,7 artigos/dia nos 30 dias anteriores contra 1,0/dia na janela) …
 ```
 
-A saída fica em torno de 2–4 KB (alvo ≤ 5 KB): até 12 agências, 8 âncoras compartilhadas e 5 divergências.
+A saída fica em torno de 2–4 KB (alvo ≤ 5 KB): até 12 agências (o tom é medido nas 8 maiores), 8 âncoras compartilhadas e 5 divergências.
 
 ## Algoritmo
 
@@ -67,7 +67,7 @@ A saída fica em torno de 2–4 KB (alvo ≤ 5 KB): até 12 agências, 8 âncora
     | E, entidades | 0,35 | Peso por agência `Σ salience / n_a × ln(1 + N/df)`, só entidades com `canonicalId`, sem a própria entidade e sem as `dgb_{código}` das agências do catálogo. Média dos cossenos entre pares, ponderada por `min(n_a, n_b)`. Agência com menos de 3 entidades fica fora |
     | T, timing | 0,25 | `0,5 ×` fração dos emissores com o 1º artigo em até 48 h do primeiro emissor `+ 0,5 ×` Jaccard médio dos dias de publicação. Datas sempre em BRT a partir do `publishedAt` (`2026-09-26T01:30Z` conta como 25/09) |
     | F, enquadramento | 0,25 | Léxico pt-BR (anúncio, resultado, desafio, serviço, agenda) sobre título (peso 2), subtítulo, lead, resumo e tags. Resumos `[MOCK]` são ignorados. `1 − JSD` médio (base 2) entre agências. Indisponível com menos de 40% dos artigos classificados |
-    | S, tom | 0,15 | Aliases de contagem `articles(limit:1, filter:{…, agencies:[a], sentiment:[l]}){found}` para os 12 maiores emissores, numa requisição. `1 − JSD` médio. Indisponível com cobertura de sentimento abaixo de 50% |
+    | S, tom | 0,15 | **Pré-checagem** em paralelo com a página 1 (`CoherenceSentimentCheck`, 4 aliases: o total do assunto na janela e cada rótulo). Abaixo de 50% de cobertura, o tom fica indisponível sem as contagens por agência ("contagens por agência não consultadas"). Senão, aliases de contagem `articles(limit:1, filter:{…, agencies:[a], sentiment:[l]}){found}` para os **8** maiores emissores (`MAX_TONE_AGENCIES`), numa requisição. `1 − JSD` médio. Indisponível com cobertura de sentimento abaixo de 50%. Falha da pré-checagem cai direto nas contagens por agência |
 
 4. **Índice:** `score = Σ w·D / Σ w` das dimensões disponíveis (pesos renormalizados). Índice 1–5 pelos cortes 0,2 / 0,4 / 0,6 / 0,8, **provisórios** (ver Calibração).
 5. **Contexto:** HHI do volume entre os emissores (no payload) e os 5 pares de menor similaridade combinada, com a dimensão mais fraca de cada um.
@@ -75,18 +75,20 @@ A saída fica em torno de 2–4 KB (alvo ≤ 5 KB): até 12 agências, 8 âncora
     - **Início truncado:** a pauta já corria antes da janela quando a taxa diária do prior é pelo menos metade da taxa da janela (com ≥ 3 artigos antes). Nesse caso, o atraso conta a partir do início da janela.
     - **Índice de busca:** compara o `found` do Typesense com o Postgres na janela (`indexing_lag`). Se o Typesense não tem a marcação `entity_canonical` (histórico ainda não reindexado), o relatório fica **indisponível**, com `INDEXING_LAG`, em vez de dizer "nenhum artigo". Com menos de 50% dos artigos do Postgres no índice, também fica indisponível: a amostra parcial distorceria timing e âncoras. Entre 50% e 90% (degradado), o índice sai sem o timing.
 
-Custo típico: 3–4 requisições em 1–2 s. Os nomes das agências vêm do catálogo (cache de 24 h). A frio, a tool espera por eles até 2 s desde o início; depois disso, a tabela mostra os códigos.
+Custo típico: 3–5 requisições em 1–2 s. Os nomes das agências vêm do catálogo (cache de 24 h). A frio, a tool espera por eles até 2 s desde o início; depois disso, a tabela mostra os códigos.
+
+**Latência (A9, testes 6.1/6.2 do roteiro):** o resolver da graphql-api executa os aliases de uma requisição em série, e cada alias é uma busca no Typesense. Com o sentimento parado, as contagens por agência eram até 48 buscas (12 emissores × 3 rótulos, mais os totais) para concluir "indisponível". Agora são 4 buscas na pré-checagem, em paralelo com a página 1, e no máximo 8 × 3 (+ 8 totais na amostra truncada) quando o sentimento existe. Cada chamada loga em INFO os tempos por fase: `coerência <assunto> <início>–<fim>: tempos total=… entrada=… lote1=… páginas=… tom=… nomes=… análise=…` (`entrada` = validação, agências e busca do nome; `lote1` = página 1, cobertura do Postgres, taxonomia, catálogo e pré-checagem em paralelo). Nas saídas antecipadas (sem artigos, índice indisponível), o log traz só as fases que rodaram.
 
 ## Avisos
 
 | Código | Quando |
 |---|---|
-| `ELECTORAL_BLACKOUT` | a janela cruza o defeso (04/07–25/10/2026): agências caladas e republicadoras com mais peso |
+| `ELECTORAL_BLACKOUT` | a janela cruza o defeso (04/07–25/10/2026): agências caladas e republicadoras com mais peso. O aviso traz as janelas para repetir a chamada sem o defeso (`calendario.blackout_alternatives`): **antes**, a mesma duração terminando em 03/07 (no caminho por entidade, nunca antes de 20/05/2026, quando o índice de busca passou a marcar entidades); **depois**, a partir de 26/10 até ontem, no máximo com a mesma duração, quando houver ao menos 7 dias fechados (ou a duração da janela, se menor); antes disso, a data em que fica disponível |
 | `POST_BLACKOUT_RECOVERY` | a janela cruza a recuperação (26/10–29/11): agências retomando podem parecer atrasadas |
 | `CLASSIFIER_CHANGED` | caminho por tema com janela que cruza a troca do classificador (25/09/2026) |
 | `TAXONOMY_CHANGED` | caminho por tema afetado pela virada da taxonomia (04, 05, 15, 19 ou 26) com janela que cruza a data: o filtro `themeLabel` mistura as duas árvores de temas |
 | `THEMES_UNCLASSIFIED` | caminho por tema: fração dos artigos **da janela** com tema, medida por aliases de contagem (total contra Σ labels L1). Abaixo de 80% fica degradado e abaixo de 50%, indisponível; a tool sugere `entity_id`. O aviso some sozinho quando o re-enriquecimento e o reindex cobrem a janela |
-| `SENTIMENT_UNAVAILABLE` | cobertura de sentimento dos emissores abaixo de 80% (abaixo de 50%, o tom sai do índice) |
+| `SENTIMENT_UNAVAILABLE` | cobertura de sentimento dos emissores abaixo de 80% (abaixo de 50%, o tom sai do índice); com a pré-checagem abaixo de 50%, a cobertura é a do assunto na janela |
 | `SAMPLE_TRUNCATED` | mais de 1000 artigos, ou páginas 2–4 com falha; o timing sai do índice |
 | `INDEXING_LAG` | Typesense com menos artigos que o Postgres na janela, nas agências pedidas (caminho por entidade). Degradado (50–90%): sem timing; indisponível (abaixo de 50%): sem índice |
 

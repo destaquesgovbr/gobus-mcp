@@ -6,8 +6,8 @@ Quatro tools do Gobus abrem um **MCP App** ([SEP-1865](https://github.com/modelc
 |----------------|------|--------------|
 | [`ui://readability-dashboard`](readability-dashboard.md) | [`gobus_get_readability_recommendations`](../tools/get-readability-recommendations.md) | Ranking do Flesch por agência com as metas; detalhe da agência |
 | [`ui://article-scorecard`](article-scorecard.md) | [`gobus_score_article`](../tools/score-article.md) | Nota 0–10 com semáforos, benchmark e comparação lado a lado |
-| [`ui://anomaly-radar`](anomaly-radar.md) | [`gobus_detect_anomalies`](../tools/detect-anomalies.md) | 8 gauges por domínio (picos e silêncios), chips do defeso e dos temas; lista de sinais no fullscreen |
-| [`ui://forecast-radar`](forecast-radar.md) | [`gobus_forecast_trends`](../tools/forecast-trends.md) | Radar do ritmo semanal dos temas (log2, anel 1×), top-3 com momentum; horizonte no fullscreen |
+| [`ui://anomaly-radar`](anomaly-radar.md) | [`gobus_detect_anomalies`](../tools/detect-anomalies.md) | 8 gauges por domínio (picos e silêncios), chips do defeso e dos temas, sensibilidade no card; lista de sinais e domínio no fullscreen |
+| [`ui://forecast-radar`](forecast-radar.md) | [`gobus_forecast_trends`](../tools/forecast-trends.md) | Radar do ritmo semanal dos temas (log2, anel 1×), top-3 com momentum e horizonte no card |
 
 Para validar o render sem depender dos dados de produção, há as tools de preview `gobus_dev_preview_*`, só em desenvolvimento: ver [Desenvolvimento e validação](desenvolvimento.md).
 
