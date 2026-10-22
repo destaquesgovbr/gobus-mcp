@@ -247,7 +247,7 @@ async def test_aviso_de_taxonomia_nomeia_os_temas_afetados_da_lista(fake_client)
     route_g2(fake_client, themes=rename_theme(healthy_theme_ranges(), "Saúde", CIVIL))
 
     report, markdown = await build_forecast_output(
-        fake_client, now=_at(D(2026, 12, 7)), taxonomy_change=D(2026, 11, 20)
+        fake_client, limit=10, now=_at(D(2026, 12, 7)), taxonomy_change=D(2026, 11, 20)
     )
     notice = next(n for n in report.notices if n.code == "TAXONOMY_CHANGED")
     civil = _theme(report, CIVIL)

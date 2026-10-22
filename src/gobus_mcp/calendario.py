@@ -8,17 +8,23 @@ gobus fixam as mesmas datas nos testes — defeso 2026-07-04..2026-10-25 e recup
 até 2026-11-29 (= fim + janela 7 + baseline 28); em 30/11 tudo volta ao normal.
 
 Todas as funções são puras: recebem ``today``/``now`` (só ``now_brt`` lê o relógio).
+A única leitura de configuração é a data da virada da taxonomia
+(``GOBUS_TAXONOMY_CHANGE_DATE``), resolvida uma vez no import.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+import logging
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo
 
+from gobus_mcp.config import settings
 from gobus_mcp.payloads.common import CalendarContext, Notice, Window
+
+logger = logging.getLogger(__name__)
 
 BRT = ZoneInfo("America/Sao_Paulo")
 
@@ -84,6 +90,59 @@ NON_WORKING_DAYS: frozenset[date] = HOLIDAYS | PONTOS_FACULTATIVOS
 # (primeira falha 2026-09-25T17:32Z); daí em diante o tema vem do Haiku 4.5 (INF-1 + B2).
 # Se a D6 (re-enriquecer os 28 dias anteriores) for aprovada, o corte recua junto.
 CLASSIFIER_CUTOFF: date | None = date(2026, 9, 25)
+
+# Virada da taxonomia de temas (D0 do TH-1/DP-2, migração 034): nasce o L1 26 "Defesa Civil
+# e Gestão de Desastres" (19.03 → 26.01, 19.04 → 26.02). Só parte do histórico é
+# reclassificada (19.*, e MDR/termo-chave em 04, 05.02.01 e 15.02.03), então as séries
+# desses temas mudam de patamar na D0: comparação cujo baseline cruza a data recebe o aviso
+# TAXONOMY_CHANGED.
+#
+# PROVISÓRIA: 23/10/2026 até a D0 real (prevista para 10/11/2026, go/no-go em 09/11).
+# Ajuste TAXONOMY_CHANGE_2026_DEFAULT antes do merge do PR-D, ou defina
+# GOBUS_TAXONOMY_CHANGE_DATE (AAAA-MM-DD; "off" desliga) sem mexer no código.
+TAXONOMY_CHANGE_2026_DEFAULT = date(2026, 10, 23)
+_TAXONOMY_OFF = frozenset({"off", "none", "desligado", "0", "false"})
+
+
+def parse_taxonomy_change(
+    value: str | None, default: date = TAXONOMY_CHANGE_2026_DEFAULT
+) -> date | None:
+    """Data da virada a partir do texto da configuração; nunca levanta.
+
+    Vazio → ``default``; ``off``/``none``/``desligado`` → ``None`` (aviso desligado);
+    AAAA-MM-DD → a data; qualquer outra coisa → ``default`` com um warning no log (o
+    servidor não pode cair no import por uma variável mal escrita)."""
+    text = (value or "").strip()
+    if not text:
+        return default
+    if text.lower() in _TAXONOMY_OFF:
+        return None
+    try:
+        if len(text) == 10:  # só AAAA-MM-DD (o fromisoformat também aceitaria AAAAMMDD)
+            return date.fromisoformat(text)
+    except ValueError:
+        pass
+    logger.warning(
+        "GOBUS_TAXONOMY_CHANGE_DATE=%r inválida (use AAAA-MM-DD ou off); usando %s",
+        text,
+        default.isoformat(),
+    )
+    return default
+
+
+TAXONOMY_CHANGE_2026: date | None = parse_taxonomy_change(settings.taxonomy_change_date)
+
+# Temas L1 cuja série muda na virada (código → label, como vêm do topThemes): o 19 perde
+# Defesa Civil para o 26, e a reclassificação por LLM também tira Defesa Civil do 04
+# (MDR em 04.03.01, o maior bolsão), do 05 (05.02.01) e do 15 (15.02.03).
+TAXONOMY_CHANGED_THEMES: Mapping[str, str] = {
+    "04": "Segurança Pública",
+    "05": "Meio Ambiente e Sustentabilidade",
+    "15": "Desenvolvimento Social",
+    "19": "Defesa e Forças Armadas",
+    "26": "Defesa Civil e Gestão de Desastres",
+}
+TAXONOMY_CHANGED_LABELS: frozenset[str] = frozenset(TAXONOMY_CHANGED_THEMES.values())
 
 
 @dataclass(frozen=True)
@@ -340,8 +399,28 @@ def classifier_changed_within(r: DateRange, cutoff: date | None = CLASSIFIER_CUT
     return cutoff is not None and r.start < cutoff <= r.end
 
 
+def taxonomy_changed_within(r: DateRange, change: date | None = TAXONOMY_CHANGE_2026) -> bool:
+    """O intervalo cruza a virada da taxonomia (dias antes e depois dela)?"""
+    return change is not None and r.start < change <= r.end
+
+
+def taxonomy_affected(labels: Iterable[str]) -> list[str]:
+    """As labels de ``labels`` cuja série muda na virada, na ordem dos códigos."""
+    present = set(labels)
+    return [label for label in TAXONOMY_CHANGED_THEMES.values() if label in present]
+
+
 def _fmt(day: date) -> str:
     return day.strftime("%d/%m/%Y")
+
+
+def taxonomy_change_text(change: date) -> str:
+    """Frase comum dos avisos da virada (o que mudou e quando)."""
+    return (
+        f"Virada da taxonomia de temas em {_fmt(change)}: Defesa Civil saiu de Defesa e "
+        "Forças Armadas (19) para o novo tema Defesa Civil e Gestão de Desastres (26), com "
+        "reclassificação só de parte do histórico."
+    )
 
 
 def calendar_notices(
@@ -351,12 +430,17 @@ def calendar_notices(
     silenced_agencies: int | None = None,
     periods: tuple[BlackoutPeriod, ...] = BLACKOUTS,
     cutoff: date | None = CLASSIFIER_CUTOFF,
+    taxonomy_themes: Iterable[str] = (),
+    taxonomy_change: date | None = TAXONOMY_CHANGE_2026,
 ) -> list[Notice]:
     """Avisos de calendário em ``today`` (detecção pela fase e pelos intervalos passados):
 
     - ``ELECTORAL_BLACKOUT`` durante o defeso;
     - ``POST_BLACKOUT_RECOVERY`` na recuperação (baselines pré-defeso, confiança −1 nível);
-    - ``CLASSIFIER_CHANGED`` enquanto algum intervalo de ``baselines`` cruzar ``cutoff``.
+    - ``CLASSIFIER_CHANGED`` enquanto algum intervalo de ``baselines`` cruzar ``cutoff``;
+    - ``TAXONOMY_CHANGED`` enquanto algum intervalo de ``baselines`` cruzar
+      ``taxonomy_change`` **e** houver, entre as labels de ``taxonomy_themes`` (os temas
+      exibidos no relatório), algum tema cuja série muda na virada.
     """
     notices: list[Notice] = []
     current, period = _active(today, periods)
@@ -405,6 +489,25 @@ def calendar_notices(
                     "quedas artificiais de tema."
                 ),
                 since=cutoff,
+                affects=["themes"],
+            )
+        )
+    affected = taxonomy_affected(taxonomy_themes)
+    if (
+        taxonomy_change is not None
+        and affected
+        and any(taxonomy_changed_within(r, taxonomy_change) for r in baselines)
+    ):
+        notices.append(
+            Notice(
+                code="TAXONOMY_CHANGED",
+                severity="warn",
+                message=(
+                    f"{taxonomy_change_text(taxonomy_change)} Comparações cujo baseline cruza "
+                    "essa data podem mostrar picos ou quedas artificiais em "
+                    f"{', '.join(affected)}."
+                ),
+                since=taxonomy_change,
                 affects=["themes"],
             )
         )

@@ -68,6 +68,8 @@ from gobus_mcp.cache import TTLCache
 from gobus_mcp.calendario import (
     BLACKOUTS,
     CLASSIFIER_CUTOFF,
+    TAXONOMY_CHANGE_2026,
+    TAXONOMY_CHANGED_LABELS,
     DateRange,
     as_window,
     brt_bounds,
@@ -75,6 +77,8 @@ from gobus_mcp.calendario import (
     classifier_changed_within,
     now_brt,
     reference_date,
+    taxonomy_change_text,
+    taxonomy_changed_within,
     utc_day_bounds,
 )
 from gobus_mcp.client import GobusGraphQLClient
@@ -492,8 +496,16 @@ class _Fetch:
     pages_requested: int = 1
 
 
-def _window_notices(window: DateRange, *, theme_path: bool) -> list[Notice]:
-    """Avisos de calendário da **janela** (não da data de hoje)."""
+def _window_notices(
+    window: DateRange,
+    *,
+    theme_path: bool,
+    theme_label: str | None = None,
+    taxonomy_change: date | None = TAXONOMY_CHANGE_2026,
+) -> list[Notice]:
+    """Avisos de calendário da **janela** (não da data de hoje). No caminho por tema,
+    ``TAXONOMY_CHANGED`` quando a janela cruza a virada da taxonomia e ``theme_label`` é um
+    tema cuja série muda nela (o filtro ``themeLabel`` mistura as duas árvores)."""
     notices: list[Notice] = []
     for period in BLACKOUTS:
         span = f"{period.start.strftime('%d/%m')}–{_fmt(period.end)}"
@@ -535,6 +547,24 @@ def _window_notices(window: DateRange, *, theme_path: bool) -> list[Notice]:
                     "o filtro por tema mistura dois modelos."
                 ),
                 since=CLASSIFIER_CUTOFF,
+                affects=["subject"],
+            )
+        )
+    if (
+        theme_path
+        and taxonomy_change is not None
+        and theme_label in TAXONOMY_CHANGED_LABELS
+        and taxonomy_changed_within(window, taxonomy_change)
+    ):
+        notices.append(
+            Notice(
+                code="TAXONOMY_CHANGED",
+                severity="warn",
+                message=(
+                    f"{taxonomy_change_text(taxonomy_change)} A janela cruza essa data: o "
+                    f"filtro por {theme_label} mistura as duas árvores de temas."
+                ),
+                since=taxonomy_change,
                 affects=["subject"],
             )
         )
@@ -611,11 +641,14 @@ async def build_coherence_output(
     catalog: AgencyCatalog | None = None,
     now: datetime | None = None,
     cache: TTLCache | None = None,
+    taxonomy_change: date | None = TAXONOMY_CHANGE_2026,
 ) -> tuple[CoherenceReport, str]:
     """``(CoherenceReport, Markdown completo)``.
 
     Levanta ``CoherenceInputError`` (parâmetro inválido, entidade ou tema não encontrado,
-    agência inválida) antes de buscar artigos; falhas de dados degradam o relatório."""
+    agência inválida) antes de buscar artigos; falhas de dados degradam o relatório.
+    ``taxonomy_change`` (injetável): data da virada da taxonomia (tema 26); ``None``
+    desliga o aviso ``TAXONOMY_CHANGED``."""
     started = time.monotonic()
     now = now or now_brt()
     today = reference_date(now)
@@ -730,7 +763,12 @@ async def build_coherence_output(
         calendar=calendar_context(today),
         window=as_window(window, bucket_tz="America/Sao_Paulo"),
     )
-    window_notices = _window_notices(window, theme_path=subject.kind == "theme")
+    window_notices = _window_notices(
+        window,
+        theme_path=subject.kind == "theme",
+        theme_label=subject.label if subject.kind == "theme" else None,
+        taxonomy_change=taxonomy_change,
+    )
 
     def finish(report: CoherenceReport) -> tuple[CoherenceReport, str]:
         _detach(names_task)

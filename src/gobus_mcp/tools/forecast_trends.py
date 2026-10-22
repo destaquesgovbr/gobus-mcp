@@ -21,6 +21,7 @@ Falha do snapshot de atividade: perfil semanal e níveis padrão (``profile_sour
 from __future__ import annotations
 
 import asyncio
+from datetime import date
 
 from gobus_mcp.agency_activity import AgencyActivityService, activity_status
 from gobus_mcp.agency_catalog import AgencyCatalog
@@ -40,6 +41,7 @@ from gobus_mcp.analytics.weekday import (
 )
 from gobus_mcp.cache import TTLCache
 from gobus_mcp.calendario import (
+    TAXONOMY_CHANGE_2026,
     calendar_context,
     calendar_notices,
     now_brt,
@@ -84,11 +86,13 @@ async def build_forecast_output(
     now=None,
     cache: TTLCache | None = None,
     series_themes: int = MAX_SERIES_THEMES,
+    taxonomy_change: date | None = TAXONOMY_CHANGE_2026,
 ) -> tuple[ForecastReport, str]:
     """``(payload do app, Markdown completo)``. ``horizon_days`` fora de 1–28 é ajustado
     (com aviso no Markdown); ``limit`` fica entre 1 e 10. O payload traz o Markdown até
     6 KB em ``summary`` e a série diária da projeção só nos ``series_themes`` primeiros
-    temas (o top-3 do app)."""
+    temas (o top-3 do app). ``taxonomy_change`` (injetável): data da virada da taxonomia
+    (tema 26); ``None`` desliga o aviso ``TAXONOMY_CHANGED``."""
     now = now or now_brt()
     today = reference_date(now)
     catalog = catalog or AgencyCatalog(client)
@@ -135,6 +139,7 @@ async def build_forecast_output(
         limit=effective_limit,
         weights=weights,
         levels=levels,
+        taxonomy_change=taxonomy_change,
     )
 
     theme_statuses = [s for pair in pairs.values() for s in pair.statuses()]
@@ -146,6 +151,8 @@ async def build_forecast_output(
         today,
         baselines=[rolling_range(including, today) for _, including in WINDOWS.values()],
         silenced_agencies=len(snapshot.silenced) if snapshot else None,
+        taxonomy_themes=[t.label for t in themes],
+        taxonomy_change=taxonomy_change,
     )
     notices += notices_for(statuses)
 
