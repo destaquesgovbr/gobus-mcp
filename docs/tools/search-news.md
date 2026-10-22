@@ -10,7 +10,7 @@ Busca notícias no acervo do Gov.BR por texto livre e, opcionalmente, por agênc
 | `agency_key` | `str` | Não | — | Chave da agência para filtrar (ex: `"mec"`, `"saude"`) |
 | `date_from` | `str` | Não | — | Primeiro dia, `AAAA-MM-DD` (ou `AAAAMMDD`), inclusivo (dia inteiro em Brasília) |
 | `date_to` | `str` | Não | — | Último dia, `AAAA-MM-DD` (ou `AAAAMMDD`), inclusivo (dia inteiro em Brasília); `date_from == date_to` = um único dia |
-| `page` | `int` | Não | `1` | Página de resultados |
+| `page` | `int` | Não | `1` | Página de resultados, de `limit` artigos cada (a página 2 com o `limit` padrão traz os resultados 11–20) |
 | `limit` | `int` | Não | `10` | Resultados por página (máx 50) |
 
 ## Retorno
@@ -33,6 +33,11 @@ ID: `ms-2024-05-12-vacinacao-gripe`
 **[saude] Ministério da Saúde** · 2024-05-08
 O quantitativo cobre todos os grupos prioritários da campanha...
 ID: `ms-2024-05-08-doses-vacina`
+
+**Para explorar:**
+- `gobus_get_article(unique_id="ms-2024-05-12-vacinacao-gripe")` — texto do 1º resultado
+- `gobus_get_agency_summary(agency_key="saude")` — resumo do órgão mais citado
+- `gobus_search_news(query="vacinação", page=2)` — próxima página
 ```
 
 ## Exemplos
@@ -58,6 +63,8 @@ ID: `ms-2024-05-08-doses-vacina`
 - **Período invertido:** `date_from` depois de `date_to` devolve "Período inválido", sem consultar a API, também com hora (`T15:00` → `T10:00` do mesmo dia) e na mistura de dia inteiro com hora. Antes, datetimes invertidos voltavam "Nenhum resultado". A comparação é por instante: hora sem fuso conta como UTC, como no upstream.
 - `query` vazia vira `"*"` (o `search()` rejeita texto vazio).
 - A data exibida é o dia de publicação em Brasília (a API devolve UTC; um artigo das 23h30 de 20/10 aparece em 20/10, não em 21/10).
-- O `search()` da API devolve até 20 artigos por página; para listar mais, use `page`.
+- **Paginação:** o `search()` da API devolve 20 artigos por página, sem argumento de tamanho. A página `p` da tool traz os resultados `(p−1)·limit + 1` a `p·limit`, montados das páginas de 20 da API que cobrem esse intervalo (no máximo 4 consultas, em paralelo depois da primeira). Antes, `page` ia direto à página da API e o corte em `limit` pulava resultados: com o `limit` padrão, a página 2 mostrava os resultados 21–30, e os 11–20 nunca apareciam.
 - `limit` acima de 50 é limitado a 50 pelo servidor.
+- **Para explorar:** ler o 1º resultado, o resumo do órgão que mais aparece (quando a busca não filtra agência) e a próxima página com os mesmos filtros e o mesmo `limit` (omitido quando é o padrão), só quando há mais resultados que `page·limit`; na última página, `gobus_resolve_entity` com a própria busca. Sem resultado, não há rodapé.
 - O indicador de trending só aparece quando `trendingScore` é maior que 1.0.
+- **Nome do órgão** ([#17](https://github.com/destaquesgovbr/gobus-mcp/issues/17)): o `search()` devolve `agencyName: null` em todos os artigos ([graphql-api#34](https://github.com/destaquesgovbr/graphql-api/issues/34)), então o nome vem do catálogo de agências (`AgencyCatalog.display_names()`, cache de 24 h), resolvido uma vez por página e em paralelo com a busca: `[previdencia] Ministério da Previdência Social`. Se o catálogo não tem o código, vale o `agencyName` da API; com o catálogo fora do ar, sai só `[previdencia]`, sem erro.

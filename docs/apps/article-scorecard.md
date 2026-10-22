@@ -9,14 +9,14 @@
 
 - Nota geral e um **semáforo por dimensão** (legibilidade, concisão, densidade de entidades), sempre com ícone e texto, não só cor: ✓ verde (≥ 7), ! amarelo (≥ 4), ✕ vermelho, – cinza (sem nota). Os limiares e as cores vêm do payload (`light`, `overallLight`).
 - Chip de estado: **nota completa**, **parcial** (sem benchmark de concisão; média renormalizada) ou **nota recusada** (sem Flesch ou sem contagem de palavras: nunca um número).
-- Benchmark: barras do Flesch do artigo contra as medianas da agência e da Agência Brasil (90 dias antes da publicação), palavras contra as medianas e o tamanho real das amostras.
+- Benchmark: barras do Flesch pt-BR do artigo contra as medianas da agência e da Agência Brasil (90 dias antes da publicação), palavras contra as medianas e o tamanho real das amostras. Sem o pt-BR no artigo, artigo e medianas usam a fórmula inglesa (legado), com o aviso `READABILITY_LEGACY_SCALE` (`scaleFallback: true`).
 - Ações: **Comparar** (a mesma tool com `compare_with` = a primeira sugestão), **Pedir reescrita** (`ui/message` com título, `uniqueId` e métricas) e **Expandir**.
 - Tabela das dimensões em `<details>`.
 
 ## Fullscreen e comparação
 
 - No fullscreen, as até 2 sugestões de comparação (`suggestedComparisons`: o maior Flesch da amostra da agência e o da Agência Brasil) aparecem com o motivo.
-- Com `comparison` no payload, os dois artigos ficam **lado a lado** (um embaixo do outro abaixo de ~560 px), cada um com nota, estado e semáforos. O app avisa o modelo da comparação (`ui/update-model-context`).
+- Com `comparison` no payload, os dois artigos ficam **lado a lado** (um embaixo do outro abaixo de ~560 px), cada um com nota, estado e semáforos. O app avisa o modelo da comparação (`ui/update-model-context`). Os dois lados usam a mesma escala de Flesch (o pt-BR se os dois o têm; senão, a inglesa, com aviso); sem escala comum, cada lado fica na sua (`comparison.scale`) e o aviso diz que a legibilidade não é comparável.
 - O título do artigo abre pelo host (`ui/open-link`, só `https`).
 
 ## Estados

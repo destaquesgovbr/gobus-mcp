@@ -20,7 +20,7 @@ Retorna Markdown com o título como link Markdown `[título](url)` (texto puro s
 **[saude] Ministério da Saúde** · 2024-05-12
 Tags: vacinação, gripe, saúde pública
 
-⏱ 4 min leitura (812 palavras) · 📖 Legibilidade: 58.0 (médio)
+⏱ 4 min leitura (812 palavras) · 📖 Legibilidade (Flesch pt-BR): 18.0 (muito difícil)
 
 ## Entidades mencionadas
 **Instituições:** Ministério da Saúde (6x), Anvisa (2x)
@@ -29,6 +29,11 @@ Tags: vacinação, gripe, saúde pública
 
 ## Conteúdo
 A campanha foi estendida até o fim de maio...
+
+**Para explorar:**
+- `gobus_score_article(unique_id="ms-2024-05-12-vacinacao-gripe")` — nota editorial e benchmark
+- `gobus_get_entity_profile(entity_name="Q7907952")` — perfil de Programa Nacional de Imunizações
+- `gobus_get_agency_summary(agency_key="saude")` — resumo do órgão
 ```
 
 ## Exemplos
@@ -42,7 +47,8 @@ A campanha foi estendida até o fim de maio...
 ## Notas
 
 - O tempo de leitura é estimado em 200 palavras por minuto.
-- A legibilidade usa o índice Flesch (fórmula inglesa do `textstat`), limitado a 0–100, com as faixas únicas 0–25 muito difícil · 25–50 difícil · 50–75 médio · 75–100 fácil. Um Flesch negativo aparece como `0.0 (muito difícil; valor bruto -12.3)`.
+- A legibilidade usa o Flesch pt-BR (Martins et al., 1996; `readabilityFleschPtbr`), limitado a 0–100, com as faixas de Martins 0–25 muito difícil · 25–50 difícil · 50–75 fácil · 75–100 muito fácil. Um valor negativo aparece como `0.0 (muito difícil; valor bruto -12.3)`. Sem o pt-BR, vale a fórmula inglesa do `textstat`, identificada como `Legibilidade (Flesch inglês, legado)`.
+- **Para explorar:** nota editorial do artigo, perfil da primeira entidade com id canônico (fora as genéricas) e o resumo do órgão.
 - **Nulo não é zero:** sem Flesch ou contagem de palavras, a saída mostra "Legibilidade: indisponível" / "Tamanho: indisponível" (o pipeline de features parou em 30/06/2026; ver `gobus://health/pipelines`). Um Flesch 0.0 real é exibido.
 - O nome da agência vem do catálogo (`gobus://agencies`), não do código.
 - Visualizações usam ponto de milhar (`1.500 visualizações`).

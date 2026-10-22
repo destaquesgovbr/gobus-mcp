@@ -73,7 +73,7 @@ from gobus_mcp.analytics.coherence import (
     truncated_start,
 )
 from gobus_mcp.analytics.framing import normalize_text
-from gobus_mcp.analytics.render import fit_summary, render_coherence_markdown
+from gobus_mcp.analytics.render import SUMMARY_MAX_BYTES, fit_summary, render_coherence_markdown
 from gobus_mcp.cache import TTLCache
 from gobus_mcp.calendario import (
     BLACKOUTS,
@@ -103,6 +103,7 @@ from gobus_mcp.data_status import (
     theme_coverage_status,
 )
 from gobus_mcp.entity_lookup import looks_like_id
+from gobus_mcp.formatting import FollowUp, follow_ups, tool_call
 from gobus_mcp.payloads.coherence import (
     DIMENSION_ORDER,
     DIMENSION_WEIGHTS,
@@ -739,6 +740,54 @@ def _truncation_notice(fetch: _Fetch, fetched: int, oldest: datetime | None) -> 
     )
 
 
+def _follow_ups(report: CoherenceReport) -> list[FollowUp]:
+    """Entidade: perfil na janela, artigos do emissor com mais artigos e a rede. Tema:
+    artigos do tema na janela, perfil da 1ª âncora compartilhada e o resumo do emissor com
+    mais artigos."""
+    subject = report.subject
+    date_from = report.params.get("date_from")
+    date_to = report.params.get("date_to")
+    top = max(report.agencies, key=lambda a: a.articles, default=None)
+    top_key = top.agency_key if top is not None else None
+    if subject.kind == "entity" and subject.id:
+        profile = tool_call(
+            "gobus_get_entity_profile",
+            entity_name=subject.id,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        search = tool_call(
+            "gobus_search_news",
+            query=subject.label,
+            agency_key=top_key,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        network = tool_call("gobus_get_entity_network", entity_id=subject.id)
+        return [
+            (profile, "série e órgãos na janela"),
+            (search, "artigos do emissor principal"),
+            (network, "vizinhos por associação"),
+        ]
+    items: list[FollowUp] = [
+        (
+            tool_call(
+                "gobus_search_news", query=subject.label, date_from=date_from, date_to=date_to
+            ),
+            "artigos do tema na janela",
+        )
+    ]
+    if report.shared_anchors:
+        anchor = report.shared_anchors[0]
+        call = tool_call("gobus_get_entity_profile", entity_name=anchor.entity_id)
+        items.append((call, f"perfil de {anchor.label}"))
+    if top_key:
+        items.append(
+            (tool_call("gobus_get_agency_summary", agency_key=top_key), "emissor principal")
+        )
+    return items
+
+
 async def build_coherence_output(
     client: GobusGraphQLClient,
     *,
@@ -895,7 +944,14 @@ async def build_coherence_output(
             timer.summary(),
         )
         markdown = render_coherence_markdown(report, max_bytes=None)
-        return report.model_copy(update={"summary": fit_summary(markdown)}), markdown
+        footer = follow_ups(_follow_ups(report))
+        if not footer:
+            return report.model_copy(update={"summary": fit_summary(markdown)}), markdown
+        # o rodapé entra depois do corte do summary: nunca é cortado
+        budget = SUMMARY_MAX_BYTES - len(footer.encode()) - 2
+        summary = f"{fit_summary(markdown, budget).rstrip()}\n\n{footer}"
+        markdown = f"{markdown.rstrip()}\n\n{footer}"
+        return report.model_copy(update={"summary": summary}), markdown
 
     def without_index(index_status: IndexStatus, note: str, detail: str) -> CoherenceReport:
         return CoherenceReport(

@@ -292,3 +292,9 @@ async def catalog_info(catalog: AgencyCatalog) -> CatalogInfo:
     except Exception as exc:
         logger.warning("catálogo indisponível (%s)", exc)
         return FALLBACK_CATALOG_INFO
+
+
+async def catalog_display_names(catalog: AgencyCatalog | None) -> dict[str, str]:
+    """``display_names()`` de um catálogo opcional: sem catálogo, ``{}`` (a tool fica com o
+    ``agencyName`` da API ou o código). Nunca levanta."""
+    return await catalog.display_names() if catalog is not None else {}

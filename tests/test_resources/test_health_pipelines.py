@@ -16,7 +16,14 @@ from tests.fixtures.g2 import activity_route, busy
 NOW = datetime(2026, 10, 5, 19, 0, tzinfo=BRT)  # 22:00 UTC
 
 
-def _analytics(flesch=40.0, sentiment=0.1, pct=0.3):
+def _analytics(flesch=40.0, sentiment=0.1, pct=0.3, *, english=38.0, ptbr_count=100):
+    """3 agências × 100 artigos; ``flesch`` = pt-BR (saude com -5.0), ``english`` = legado."""
+
+    def ptbr(key):
+        if flesch is None:
+            return None
+        return flesch if key != "saude" else -5.0
+
     return {
         "agencyAnalytics": [
             {
@@ -24,9 +31,9 @@ def _analytics(flesch=40.0, sentiment=0.1, pct=0.3):
                 "articleCount": 100,
                 "avgSentimentScore": sentiment,
                 "pctPositive": pct,
-                "avgReadabilityFlesch": flesch
-                if key != "saude"
-                else (-5.0 if flesch is not None else None),
+                "avgReadabilityFlesch": english,
+                "avgReadabilityFleschPtbr": ptbr(key),
+                "readabilityFleschPtbrCount": ptbr_count if flesch is not None else 0,
             }
             for key in ("agencia_brasil", "saude", "mec")
         ]
@@ -140,13 +147,14 @@ async def test_formato_com_as_seis_chaves_e_schema_2(fake_client):
 
 
 async def test_flesch_todo_nulo_e_indisponivel(fake_client):
-    _route(fake_client, analytics=_analytics(flesch=None))
+    _route(fake_client, analytics=_analytics(flesch=None, english=None))
 
     data = await _health(fake_client)
 
     readability = data["pipelines"]["readability"]
     assert readability["status"] == "unavailable"
-    assert readability["since"] == "2026-06-30"
+    assert readability["since"] is None  # a parada de 30/06 é do Flesch inglês
+    assert "Flesch pt-BR" in readability["message"]
     assert any(n["code"] == "READABILITY_UNAVAILABLE" for n in data["notices"])
     assert data["status"] == "unavailable"
 
@@ -355,3 +363,41 @@ async def test_ranking_pede_is_new_e_reporta_a_fracao(fake_client):
     data = await _health(fake_client)
 
     assert data["pipelines"]["entity_ranking"]["metric"]["isNewShare"] == pytest.approx(0.4)
+
+
+async def test_readability_mede_o_ptbr_pela_contagem_e_compara_com_o_ingles(fake_client):
+    # pt-BR em 60 de 100 artigos por agência; o inglês (legado) em todos
+    _route(fake_client, analytics=_analytics(ptbr_count=60))
+
+    data = await _health(fake_client)
+
+    readability = data["pipelines"]["readability"]
+    assert readability["status"] == "degraded"
+    assert readability["metric"]["ratio"] == pytest.approx(0.6)
+    assert readability["metric"]["coveredArticles"] == 180
+    assert readability["metric"]["englishRatio"] == 1.0
+    assert "Flesch pt-BR" in readability["message"]
+
+
+async def test_api_sem_ptbr_mede_o_ingles_e_avisa(fake_client):
+    from gobus_mcp.client import GobusGraphQLError
+
+    _route(fake_client)
+    fake_client.route(
+        "HealthAnalytics",
+        GobusGraphQLError(
+            [
+                {
+                    "message": "Cannot query field 'avgReadabilityFleschPtbr' on type 'AgencyPeriodMetrics'."
+                }
+            ]
+        ),
+    )
+    fake_client.route("HealthAnalyticsLegacy", _analytics(flesch=None, english=None))
+
+    data = await _health(fake_client)
+
+    readability = data["pipelines"]["readability"]
+    assert readability["status"] == "unavailable"
+    assert readability["since"] == "2026-06-30"  # dica da parada do inglês
+    assert "a API ainda não expõe o Flesch pt-BR" in readability["message"]

@@ -43,7 +43,9 @@
       "notices": [],
       "mode": "agency",
       "error": "'tcu' (Tribunal de Contas da União) está fora do catálogo do Destaques Gov.BR, que reúne as notícias dos órgãos publicadas no gov.br.",
-      "scale": "flesch_en_textstat",
+      "scale": "flesch_ptbr_martins1996",
+      "scaleLabel": "Flesch pt-BR (Martins et al., 1996), limitado a 0–100",
+      "scaleFallback": false,
       "bands": [
         {
           "key": "very_hard",
@@ -58,14 +60,14 @@
           "upper": 50.0
         },
         {
-          "key": "medium",
-          "label": "médio",
+          "key": "easy",
+          "label": "fácil",
           "lower": 50.0,
           "upper": 75.0
         },
         {
-          "key": "easy",
-          "label": "fácil",
+          "key": "very_easy",
+          "label": "muito fácil",
           "lower": 75.0,
           "upper": 100.0
         }

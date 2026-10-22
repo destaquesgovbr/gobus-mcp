@@ -1,4 +1,5 @@
-"""gobus://readability-report: agências ativas do catálogo, null-aware, janela efetiva."""
+"""gobus://readability-report: agências ativas do catálogo, Flesch pt-BR (inglês de reserva),
+null-aware, janela efetiva."""
 
 import json
 from datetime import date
@@ -10,15 +11,22 @@ TODAY = date(2026, 10, 5)
 REQ_FROM, LOOKBACK_FROM = "2026-07-07", "2025-10-04"
 
 
-def _row(period, key, count, flesch, wc=450.0):
-    return {
+def _row(period, key, count, flesch, wc=450.0, *, legacy=False):
+    """Linha com o Flesch pt-BR (ou só o inglês, legado, com ``legacy=True``)."""
+    row = {
         "period": f"{period}-01 00:00:00+00",
         "agencyKey": key,
         "agencyName": key.upper(),
         "articleCount": count,
-        "avgReadabilityFlesch": flesch,
         "avgWordCount": wc if flesch is not None else None,
     }
+    if legacy:
+        row["avgReadabilityFlesch"] = flesch
+    else:
+        row["avgReadabilityFlesch"] = None
+        row["avgReadabilityFleschPtbr"] = flesch
+        row["readabilityFleschPtbrCount"] = count if flesch is not None else 0
+    return row
 
 
 ROWS = [
@@ -51,9 +59,13 @@ async def test_formato_e_agencias_ativas_do_catalogo(fake_client):
 
     data = await _report(fake_client)
 
-    assert data["schemaVersion"] == 2
+    assert data["schemaVersion"] == 3
     assert data["targetFlesch"] == 50
-    assert data["scale"] == "flesch_en_textstat"
+    assert data["scale"] == "flesch_ptbr_martins1996"
+    assert data["scaleLabel"].startswith("Flesch pt-BR (Martins")
+    assert data["scaleFallback"] is False
+    assert data["notices"] == []
+    assert [b["key"] for b in data["bands"]] == ["very_hard", "hard", "easy", "very_easy"]
     assert data["requestedWindow"] == {"start": "2026-07-07", "end": "2026-10-04", "days": 90}
     (top,) = fake_client.calls("CatalogTopAgencies")
     assert (top["days"], top["limit"]) == (90, 20)
@@ -68,7 +80,7 @@ async def test_nulo_continua_nulo_e_gap_nulo(fake_client):
     data = await _report(fake_client)
 
     mec = next(a for a in data["agencies"] if a["agencyKey"] == "mec")
-    assert mec["avgReadabilityFlesch"] is None
+    assert mec["flesch"] is None
     assert mec["gapToTarget"] is None
     assert mec["articleCount"] == 120 and mec["articlesWithData"] == 0
     assert mec["agencyName"] == "Ministério da Educação"
@@ -81,10 +93,10 @@ async def test_gap_clamp_e_ordem(fake_client):
 
     by_key = {a["agencyKey"]: a for a in data["agencies"]}
     assert by_key["agencia_brasil"]["gapToTarget"] == -16.5
-    assert by_key["defesa"]["avgReadabilityFlesch"] == 0.0
-    assert by_key["defesa"]["avgReadabilityFleschRaw"] == -22.9
+    assert by_key["defesa"]["flesch"] == 0.0
+    assert by_key["defesa"]["fleschRaw"] == -22.9
     assert by_key["defesa"]["band"] == "very_hard"
-    values = [a["avgReadabilityFlesch"] for a in data["agencies"]]
+    values = [a["flesch"] for a in data["agencies"]]
     with_data = [v for v in values if v is not None]
     assert with_data == sorted(with_data, reverse=True)
     assert values[len(with_data) :] == [None] * (len(values) - len(with_data))  # nulos no fim
@@ -103,4 +115,17 @@ async def test_janela_efetiva_quando_o_dado_parou(fake_client):
     assert data["coverage"]["lastPeriodWithData"].startswith("2026-06")
     assert data["dataStatus"][0]["status"] == "unavailable"
     saude = next(a for a in data["agencies"] if a["agencyKey"] == "saude")
-    assert saude["avgReadabilityFlesch"] == 30.0
+    assert saude["flesch"] == 30.0
+
+
+async def test_sem_ptbr_usa_o_ingles_com_aviso(fake_client):
+    rows = [_row("2026-10", "agencia_brasil", 300, 33.5, legacy=True)]
+    _route(fake_client, {REQ_FROM: rows, LOOKBACK_FROM: rows})
+
+    data = await _report(fake_client)
+
+    assert data["scale"] == "flesch_en_textstat"
+    assert data["scaleFallback"] is True
+    assert [n["code"] for n in data["notices"]] == ["READABILITY_LEGACY_SCALE"]
+    ab = next(a for a in data["agencies"] if a["agencyKey"] == "agencia_brasil")
+    assert ab["flesch"] == 33.5

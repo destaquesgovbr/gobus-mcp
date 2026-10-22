@@ -22,7 +22,8 @@ class TestGetAgencyAnalytics:
                         "avgSentimentScore": 0.62,
                         "pctPositive": 0.71,
                         "pctNegative": 0.08,
-                        "avgReadabilityFlesch": 65.0,
+                        "avgReadabilityFleschPtbr": 65.0,
+                        "readabilityFleschPtbrCount": 10,
                         "avgWordCount": 380.0,
                     }
                 ]
@@ -32,7 +33,8 @@ class TestGetAgencyAnalytics:
         assert "Ministério da Educação" in result
         assert "45" in result
         assert "pos" in result.lower()
-        assert "médio" in result.lower()
+        assert "65.0 (fácil)" in result
+        assert "Flesch pt-BR (Martins" in result
 
     @pytest.mark.asyncio
     async def test_sem_dados_retorna_mensagem(self):
@@ -56,7 +58,8 @@ class TestGetAgencyAnalytics:
                         "avgSentimentScore": 0.1,
                         "pctPositive": 0.3,
                         "pctNegative": 0.1,
-                        "avgReadabilityFlesch": 72.5,
+                        "avgReadabilityFleschPtbr": 72.5,
+                        "readabilityFleschPtbrCount": 10,
                         "avgWordCount": 380.0,
                     }
                 ]
@@ -64,7 +67,7 @@ class TestGetAgencyAnalytics:
         )
         result = await get_agency_analytics(["mec"], "2026-06-01", "2026-06-30", client)
         assert "72.5" in result
-        assert "médio" in result.lower()  # faixa única 50–75 (antes: "fácil" acima de 70)
+        assert "72.5 (fácil)" in result  # faixas de Martins: 50–75 fácil
 
     @pytest.mark.asyncio
     async def test_exibe_pct_negativo(self):
@@ -81,7 +84,8 @@ class TestGetAgencyAnalytics:
                         "avgSentimentScore": 0.1,
                         "pctPositive": 0.3,
                         "pctNegative": 0.12,
-                        "avgReadabilityFlesch": 65.0,
+                        "avgReadabilityFleschPtbr": 65.0,
+                        "readabilityFleschPtbrCount": 10,
                         "avgWordCount": 300.0,
                     }
                 ]
@@ -105,7 +109,8 @@ class TestGetAgencyAnalytics:
                         "avgSentimentScore": 0.1,
                         "pctPositive": 0.3,
                         "pctNegative": 0.05,
-                        "avgReadabilityFlesch": 65.0,
+                        "avgReadabilityFleschPtbr": 65.0,
+                        "readabilityFleschPtbrCount": 10,
                         "avgWordCount": 420.0,
                     }
                 ]
@@ -285,7 +290,8 @@ def _metrics(**overrides):
         "avgSentimentScore": 0.1,
         "pctPositive": 0.3,
         "pctNegative": 0.1,
-        "avgReadabilityFlesch": 40.0,
+        "avgReadabilityFleschPtbr": 40.0,
+        "readabilityFleschPtbrCount": 10,
         "avgWordCount": 380.0,
     }
     row.update(overrides)
@@ -308,7 +314,7 @@ async def test_analytics_sentimento_nulo_fica_indisponivel_sem_pct_zero(fake_cli
 
 
 async def test_analytics_flesch_e_palavras_nulos_ficam_indisponiveis(fake_client):
-    _route_analytics(fake_client, [_metrics(avgReadabilityFlesch=None, avgWordCount=None)])
+    _route_analytics(fake_client, [_metrics(avgReadabilityFleschPtbr=None, avgWordCount=None)])
 
     result = await get_agency_analytics(["mec"], "2026-09-01", "2026-09-30", fake_client)
 
@@ -319,10 +325,11 @@ async def test_analytics_flesch_e_palavras_nulos_ficam_indisponiveis(fake_client
 
 @pytest.mark.parametrize(
     ("flesch", "expected"),
-    [(72.5, "72.5 (médio)"), (-5.0, "0.0 (muito difícil; valor bruto -5.0)"), (0.0, "0.0")],
-)
-async def test_analytics_flesch_na_faixa_unica(fake_client, flesch, expected):
-    _route_analytics(fake_client, [_metrics(avgReadabilityFlesch=flesch)])
+    [(72.5, "72.5 (fácil)"), (80.0, "80.0 (muito fácil)"),
+     (-5.0, "0.0 (muito difícil; valor bruto -5.0)"), (0.0, "0.0")],
+)  # fmt: skip
+async def test_analytics_flesch_nas_faixas_de_martins(fake_client, flesch, expected):
+    _route_analytics(fake_client, [_metrics(avgReadabilityFleschPtbr=flesch)])
 
     result = await get_agency_analytics(["mec"], "2026-09-01", "2026-09-30", fake_client)
 
@@ -397,3 +404,47 @@ async def test_analytics_resolve_os_nomes_do_catalogo_uma_vez_so(fake_client, br
     assert len(fake_client.calls(broken_op)) == 1
     assert result.count("**MEC (API)**") == 3  # sem catálogo, o agencyName da API
     assert result.count("**MS (API)**") == 3
+
+
+async def test_analytics_sem_ptbr_usa_o_ingles_e_avisa(fake_client):
+    _route_analytics(
+        fake_client,
+        [
+            _metrics(
+                avgReadabilityFleschPtbr=None,
+                readabilityFleschPtbrCount=0,
+                avgReadabilityFlesch=33.0,
+            )
+        ],
+    )
+
+    result = await get_agency_analytics(["mec"], "2026-09-01", "2026-09-30", fake_client)
+
+    assert "legibilidade 33.0 (difícil)" in result
+    assert "Flesch pt-BR indisponível" in result
+    assert "fórmula inglesa" in result
+
+
+async def test_analytics_api_sem_ptbr_usa_a_query_antiga(fake_client):
+    from gobus_mcp.client import GobusGraphQLError
+
+    route_catalog(fake_client)
+    fake_client.route(
+        "AgencyAnalytics",
+        GobusGraphQLError(
+            [
+                {
+                    "message": "Cannot query field 'avgReadabilityFleschPtbr' on type 'AgencyPeriodMetrics'."
+                }
+            ]
+        ),
+    )
+    fake_client.route(
+        "AgencyAnalyticsLegacy",
+        {"agencyAnalytics": [_metrics(avgReadabilityFleschPtbr=None, avgReadabilityFlesch=33.0)]},
+    )
+
+    result = await get_agency_analytics(["mec"], "2026-09-01", "2026-09-30", fake_client)
+
+    assert "legibilidade 33.0 (difícil)" in result
+    assert "Flesch pt-BR indisponível" in result

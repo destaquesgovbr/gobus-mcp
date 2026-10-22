@@ -8,11 +8,11 @@ Resolve o nome ou alias de uma entidade para o seu `entityId` canônico. É o pa
 |-----------|------|-------------|---------|-----------|
 | `query` | `str` | Sim | — | Nome ou alias a buscar (ex: `"MEC"`, `"Ministério da Educação"`) |
 | `entity_type` | `str` | Não | — | Tipo da entidade — `ORG`, `PER`, `LOC`, `EVENT`, `POLICY`, `LAW` |
-| `limit` | `int` | Não | `5` | Máximo de resultados |
+| `limit` | `int` | Não | `5` | Máximo de resultados distintos (por `entityId`) |
 
 ## Retorno
 
-Retorna Markdown listando as entidades encontradas, cada uma com nome canônico, tipo, `entityId`, link para Wikidata (se houver), contagem de artigos, confiança, tipo de match, aliases e descrição.
+Retorna Markdown listando as entidades encontradas, **uma por `entityId`**, cada uma com nome canônico, tipo, `entityId`, link para Wikidata (se houver), contagem de artigos, confiança, tipo de match, aliases e descrição.
 
 **Exemplo de saída:**
 
@@ -45,3 +45,4 @@ Retorna Markdown listando as entidades encontradas, cada uma com nome canônico,
 - Tipos válidos de entidade: `ORG`, `PER`, `LOC`, `EVENT`, `POLICY`, `LAW`. O valor é convertido para maiúsculas automaticamente.
 - A confiança e o `matchType` (ex: `exact`, `fuzzy`) ajudam a julgar se o primeiro resultado é realmente a entidade desejada.
 - O `entityId` retornado costuma ser o QID do Wikidata para entidades canonicalizadas.
+- **Sem repetição:** o `entitySearch` une o casamento exato de alias (`alias_exact`) com o trigrama do nome (`trgm_fuzzy`) e repete o mesmo `entityId` quando ele casa por mais de um alias ou pelos dois caminhos (em 21/10/2026, "Enem" voltava o `Q5419278` três vezes e "Camilo Santana", o `Q18242106` duas). A tool fica com a linha de maior confiança de cada id, na ordem da 1ª aparição, e pede à API 3× o `limit` (teto de 20 do resolver) para que as repetições não ocupem as vagas.

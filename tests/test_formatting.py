@@ -6,13 +6,20 @@ from datetime import date
 import pytest
 
 from gobus_mcp.formatting import (
+    FOLLOW_UPS_MAX,
+    FOLLOW_UPS_MAX_BYTES,
     agency_label,
+    article_ref,
     brt_day,
     error_text,
     fmt_date,
+    fmt_decimal,
     fmt_int,
+    follow_ups,
     md_link,
     plural,
+    tool_call,
+    with_follow_ups,
 )
 
 URL = "https://www.gov.br/mec/pt-br/assuntos/noticias/x"
@@ -121,3 +128,106 @@ class TestErrorText:
 )
 def test_brt_day_converte_publicacao_para_o_dia_de_brasilia(published_at, expected):
     assert brt_day(published_at) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "digits", "expected"),
+    [
+        (4.14, 1, "4,1"),
+        (14.58, 1, "14,6"),
+        (1234.5, 1, "1.234,5"),
+        (2.0, 0, "2"),
+        (-0.25, 2, "-0,25"),
+    ],
+)
+def test_fmt_decimal_usa_virgula_e_ponto_de_milhar(value, digits, expected):
+    assert fmt_decimal(value, digits) == expected
+
+
+class TestToolCall:
+    def test_argumentos_em_json(self):
+        assert (
+            tool_call("gobus_get_entity_network", entity_id="Q155", depth=2, include_generic=True)
+            == 'gobus_get_entity_network(entity_id="Q155", depth=2, include_generic=true)'
+        )
+
+    def test_omite_none_e_vazio(self):
+        assert tool_call("gobus_search_news", query="x", agency_key=None, date_from="") == (
+            'gobus_search_news(query="x")'
+        )
+
+    def test_lista_e_acentos(self):
+        assert tool_call(
+            "gobus_get_agency_analytics", agencies=["saude"], date_from="2026-10-01"
+        ) == ('gobus_get_agency_analytics(agencies=["saude"], date_from="2026-10-01")')
+        assert tool_call("gobus_search_news", query="Pé-de-Meia") == (
+            'gobus_search_news(query="Pé-de-Meia")'
+        )
+
+    def test_crase_no_valor_nao_quebra_o_codigo_inline(self):
+        assert "`" not in tool_call("gobus_search_news", query="a `b` c")
+
+
+class TestFollowUps:
+    def test_rodape_com_ate_3_chamadas(self):
+        items = [(f'gobus_get_article(unique_id="a{i}")', f"artigo {i}") for i in range(5)]
+
+        footer = follow_ups(items)
+
+        lines = footer.splitlines()
+        assert lines[0] == "**Para explorar:**"
+        assert lines[1] == '- `gobus_get_article(unique_id="a0")` — artigo 0'
+        assert len(lines) == 1 + FOLLOW_UPS_MAX == 4
+
+    def test_no_maximo_400_bytes(self):
+        long_why = "explicação " * 12
+        items = [(f'gobus_get_article(unique_id="{i:040d}")', long_why) for i in range(3)]
+
+        footer = follow_ups(items)
+
+        assert 0 < len(footer.encode()) <= FOLLOW_UPS_MAX_BYTES == 400
+        assert footer.count("\n- ") < 3  # o que não cabe fica de fora
+
+    def test_item_grande_e_pulado_e_o_seguinte_entra(self):
+        items = [
+            ('gobus_search_news(query="' + "x" * 500 + '")', "grande"),
+            ('gobus_get_article(unique_id="a1")', "cabe"),
+        ]
+        footer = follow_ups(items)
+        assert "x" * 10 not in footer
+        assert 'unique_id="a1"' in footer
+
+    def test_sem_repeticao_e_sem_itens_vazios(self):
+        footer = follow_ups(
+            [
+                ('gobus_get_article(unique_id="a1")', "um"),
+                ('gobus_get_article(unique_id="a1")', "de novo"),
+                ("", "sem chamada"),
+                None,
+            ]
+        )
+        assert footer.count("gobus_get_article") == 1
+        assert "sem chamada" not in footer
+
+    def test_sem_itens_devolve_vazio(self):
+        assert follow_ups([]) == ""
+        assert follow_ups([None, ("", "x")]) == ""
+
+    def test_with_follow_ups_anexa_depois_de_linha_em_branco(self):
+        md = with_follow_ups("# Título", [('gobus_get_article(unique_id="a1")', "ler")])
+        assert md.startswith("# Título\n\n**Para explorar:**\n- `gobus_get_article")
+
+    def test_with_follow_ups_sem_itens_nao_muda_o_texto(self):
+        assert with_follow_ups("# Título", []) == "# Título"
+
+
+class TestArticleRef:
+    def test_link_e_id(self):
+        art = {"uniqueId": "a1", "title": "Título", "url": URL}
+        assert article_ref(art) == f"[Título]({URL}) · `a1`"
+
+    def test_sem_url_so_titulo_e_id(self):
+        assert article_ref({"uniqueId": "a1", "title": "Título"}) == "Título · `a1`"
+
+    def test_corta_o_titulo(self):
+        assert article_ref({"title": "abcdef"}, 3) == "abc"

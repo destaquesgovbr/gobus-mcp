@@ -11,7 +11,12 @@ from typing import Literal
 
 from gobus_mcp.payloads.common import Payload, ReportBase
 from gobus_mcp.payloads.readability import DayRange, FleschBandInfo
-from gobus_mcp.readability import FLESCH_SCALE_ID, TARGET_INSTITUTIONAL, TARGET_SERVICE
+from gobus_mcp.readability import (
+    FLESCH_SCALE_ID,
+    PTBR_SCALE,
+    TARGET_INSTITUTIONAL,
+    TARGET_SERVICE,
+)
 
 ScoreStatus = Literal["scored", "partial", "refused"]
 DimensionKey = Literal["readability", "conciseness", "entity_density"]
@@ -77,7 +82,11 @@ class SuggestedComparison(Payload):
 
 
 class ScoreComparison(Payload):
-    """O artigo de ``compare_with``, pontuado do mesmo jeito (sem resumo próprio)."""
+    """O artigo de ``compare_with``, pontuado do mesmo jeito (sem resumo próprio).
+
+    ``scale``: a escala de Flesch usada neste lado. É a mesma do relatório sempre que os
+    dois artigos têm uma escala em comum (o pt-BR, ou o inglês para os dois); só difere
+    quando um tem apenas o pt-BR e o outro apenas o inglês, com aviso no relatório."""
 
     score_status: ScoreStatus
     overall: float | None
@@ -86,6 +95,9 @@ class ScoreComparison(Payload):
     article: ScoredArticle
     dimensions: list[ScoreDimension]
     benchmark: ScoreBenchmark | None
+    scale: str = FLESCH_SCALE_ID
+    scale_label: str = PTBR_SCALE.label
+    scale_fallback: bool = False  # True = este lado pela fórmula inglesa (legado)
 
 
 class ScoreReport(ReportBase):
@@ -94,7 +106,9 @@ class ScoreReport(ReportBase):
     score_status: ScoreStatus
     overall: float | None
     refusal_reason: str | None = None
-    scale: str = FLESCH_SCALE_ID
+    scale: str = FLESCH_SCALE_ID  # do artigo: pt-BR, ou a inglesa de reserva
+    scale_label: str = PTBR_SCALE.label
+    scale_fallback: bool = False  # True = artigo sem Flesch pt-BR (fórmula inglesa)
     bands: list[FleschBandInfo]
     target_service: float = TARGET_SERVICE
     target_institutional: float = TARGET_INSTITUTIONAL

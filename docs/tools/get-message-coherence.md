@@ -52,9 +52,14 @@ _Fora do índice: republicam conteúdo de outras agências._
 ### Avisos de dados
 > - A janela cruza o defeso eleitoral 2026 (04/07–25/10/2026): parte das agências está calada e as republicadoras pesam mais no volume. Para comparar sem o defeso: antes, date_from="2026-05-20", date_to="2026-07-03" (45 dias; o índice de busca só marca entidades desde 20/05/2026); depois, date_from="2026-10-26" (26/10/2026, 1º dia pós-defeso), com 7 dias fechados em 02/11/2026.
 > - Início truncado: a pauta já corria antes da janela (0,7 artigos/dia nos 30 dias anteriores contra 1,0/dia na janela) …
+
+**Para explorar:**
+- `gobus_get_entity_profile(entity_name="Q575545", date_from="2026-08-01", date_to="2026-09-30")` — série e órgãos na janela
+- `gobus_search_news(query="Bolsa Família", agency_key="mds", date_from="2026-08-01", date_to="2026-09-30")` — artigos do emissor principal
+- `gobus_get_entity_network(entity_id="Q575545")` — vizinhos por associação
 ```
 
-A saída fica em torno de 2–4 KB (alvo ≤ 5 KB): até 12 agências (o tom é medido nas 8 maiores), 8 âncoras compartilhadas e 5 divergências.
+A saída fica em torno de 2–4 KB (alvo ≤ 5 KB): até 12 agências (o tom é medido nas 8 maiores), 8 âncoras compartilhadas e 5 divergências, mais o rodapé "Para explorar" (≤ 400 B). Por entidade, o rodapé traz o perfil e a busca do emissor com mais artigos na janela e a rede; por tema, a busca do tema na janela, o perfil da 1ª âncora compartilhada e o resumo do emissor com mais artigos. Entrada inválida não tem rodapé.
 
 ## Algoritmo
 
@@ -96,7 +101,7 @@ Também aparecem no Markdown: as entidades sem NER (`entities_ner`), os resumos 
 
 ## Payload (`CoherenceReport`)
 
-`build_coherence_output` devolve `(CoherenceReport, Markdown completo)`. O modelo (`kind: "gobus.coherence"`, `schemaVersion: 1`) segue o contrato comum (`summary` primeiro, `status`, `calendar`, `dataStatus`, `notices`) e traz:
+`build_coherence_output` devolve `(CoherenceReport, Markdown completo)`. O rodapé "Para explorar" entra depois do corte do `summary` (6 KB), no Markdown e no `summary`: nunca é cortado. O modelo (`kind: "gobus.coherence"`, `schemaVersion: 1`) segue o contrato comum (`summary` primeiro, `status`, `calendar`, `dataStatus`, `notices`) e traz:
 
 - `subject`: `kind` (`entity` ou `theme`), `id`, `label`, `type`, `resolvedBy` (`id`, `search`, `taxonomy` ou `literal`), `query` e `alternatives`;
 - `window` (fechada, dias em BRT), `indexStatus` (`scored`, `insufficient`, `no_articles` ou `unavailable`), `indexNote`, `index{score, level, cuts}`;

@@ -15,7 +15,7 @@ Detecta temas em crescimento comparando o volume de publicações de uma janela 
 
 ## Retorno
 
-Retorna Markdown com um cabeçalho dos parâmetros e do limiar e um ranking de temas em crescimento. Cada tema mostra a **razão sem sobreposição** (ou "novo", sem artigos antes da janela), o `growthScore` da API, a contagem de artigos na janela, a média diária do baseline, as agências e até 3 artigos.
+Retorna Markdown com um cabeçalho dos parâmetros e do limiar e um ranking de temas em crescimento. Cada tema mostra a **razão sem sobreposição** (ou "novo", sem artigos antes da janela), o `growthScore` da API, a contagem de artigos na janela, a média diária do baseline, as agências e até 3 artigos no formato `` [título](url) · `id` `` (a URL vem do `ArticleSummary.url` do GQL-1; sem ela, só o título e o id).
 
 **Exemplo de saída:**
 
@@ -27,9 +27,16 @@ Retorna Markdown com um cabeçalho dos parâmetros e do limiar e um ranking de t
 ## 2 temas em crescimento
 
 1. 📈 **Saúde** · razão **3.0×** · growthScore 2.0 · 42 artigos (janela) vs 3.0/dia (baseline)
-   Agências: Ministério da Saúde (1) · SECOM (1)
-   - Novo imunizante aprovado  `a1`
+   Agências: [saude] Ministério da Saúde (1) · [secom] Secretaria de Comunicação Social (1)
+   - [Novo imunizante aprovado](https://www.gov.br/saude/...) · `a1`
 2. 🔥 **Educação** · **novo** (sem artigos antes da janela) · growthScore 4.0 · 21 artigos (janela) vs 0.8/dia (baseline)
+
+_Razão = …_
+
+**Para explorar:**
+- `gobus_get_article(unique_id="a1")` — artigo-chave
+- `gobus_search_news(query="Saúde", date_from="2026-09-28", date_to="2026-10-04")` — artigos do tema na janela
+- `gobus_forecast_trends()` — o tema segue em alta?
 ```
 
 ## Exemplos
@@ -51,3 +58,6 @@ Retorna Markdown com um cabeçalho dos parâmetros e do limiar e um ranking de t
 - Os indicadores visuais refletem o `growthScore`: 🔥 ≥ 3.0, 📈 ≥ 2.0, ↗ abaixo disso.
 - **Virada da taxonomia (tema 26):** quando o baseline cruza a data da virada, os temas afetados da lista (Segurança Pública, Meio Ambiente e Sustentabilidade, Desenvolvimento Social, Defesa e Forças Armadas e Defesa Civil e Gestão de Desastres) ganham "taxonomia mudou no baseline" na linha, e o cabeçalho ganha uma nota com a data. O crescimento do 26 e a queda do 19 logo depois da virada podem ser só a migração de Defesa Civil.
 - `min_articles` evita ruído de temas com poucos artigos na janela recente.
+- **Órgãos dos top artigos** ([#17](https://github.com/destaquesgovbr/gobus-mcp/issues/17)): a linha "Agências:" conta os órgãos pelo código (`ArticleSummary.agencyKey`, do GQL-1; na query antiga, o `agencyName`, que carrega a key) e mostra `[código] Nome` com o nome do catálogo de agências, resolvido uma vez por resposta. Antes ela mostrava só os códigos. Com o catálogo fora do ar, sai `[código]`.
+- **Para explorar:** com temas, o artigo mais representativo, a busca do 1º tema nos dias fechados da janela (com a `agency_key`, se houver) e o forecast; sem temas, `gobus_detect_anomalies()` e o mesmo radar com limiar 1,2×.
+- **Compatibilidade:** sem o `ArticleSummary.url` na API, a tool repete a consulta sem o campo (`TrendingThemesLegacy`) e segue assim por 1 h.

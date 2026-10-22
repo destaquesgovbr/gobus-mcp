@@ -199,6 +199,16 @@ def test_trace_entity_pede_rede_rasa_e_limitada():
     assert "depth=2" not in text
 
 
+def test_trace_entity_descreve_a_rede_centrada_e_nao_a_antiga_de_centenas_de_nos():
+    # a rede é centrada no foco (graphql-api#32, gobus#13): o 2º grau tem ≤ 5 entidades por
+    # vizinho; o texto antigo justificava o depth=1 com "centenas de nós"
+    text = trace_entity_prompt("Pé-de-Meia")
+    assert "centenas de nós" not in text
+    assert "centrada na entidade" in text
+    assert "associação" in text
+    assert "Para explorar" in text  # o rodapé da rede sugere o segundo grau
+
+
 def test_weekly_digest_traz_a_semana_fechada_no_titulo_e_nas_buscas():
     text = weekly_digest_prompt(today=D_2110)
 

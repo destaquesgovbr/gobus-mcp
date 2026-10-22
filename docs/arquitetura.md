@@ -40,10 +40,12 @@ Fundações compartilhadas (Fase 2.5):
 | Módulo | Papel |
 |--------|-------|
 | `cache.py` | `TTLCache` assíncrono com single-flight por chave e relógio injetável |
-| `formatting.py` | Markdown compartilhado das tools: `md_link` (link `[título](url)` só para `http(s)`, com escape), `agency_label` (`[código] Nome`), `fmt_int` (ponto de milhar), `plural` (contagem com concordância), `fmt_date` (`DD/MM/AAAA`), `brt_day` (dia de publicação em Brasília) e `error_text` (texto da exceção nas notas de falha) |
+| `formatting.py` | Markdown compartilhado das tools: `md_link` (link `[título](url)` só para `http(s)`, com escape), `article_ref` (`` [título](url) · `id` ``), `agency_label` (`[código] Nome`), `fmt_int` (ponto de milhar), `fmt_decimal` (vírgula decimal), `plural` (contagem com concordância), `fmt_date` (`DD/MM/AAAA`), `brt_day` (dia de publicação em Brasília), `error_text` (texto da exceção nas notas de falha) e o rodapé "Para explorar" (`tool_call`, `follow_ups`, `with_follow_ups`: até 3 chamadas concretas em até 400 B) |
+| `schema_compat.py` | compatibilidade com a graphql-api sem um campo novo: `execute_compatible` tenta a query nova e, em erro de schema, usa a `*_LEGACY_QUERY` por 1 h (ver abaixo) |
+| `entity_lookup.py` | id canônico, `entity(id)` e `fetch_neighbors`: vizinhos de `relatedEntities` ranqueados por associação (`w·max(0, log2 lift)`, `w ≥ 3`), com o peso bruto de reserva |
 | `agency_catalog.py` | `AgencyCatalog`: códigos, nomes humanos (via `agencyAnalytics` de D−1), republicadoras, validação com aliases curados (`ms`→`saude`) antes do `difflib`, agências ativas (`topAgencies`). Cache de 24 h |
 | `calendario.py` | fuso BRT, defeso eleitoral 2026 (04/07–25/10) e recuperação até 29/11, feriados, janelas fechadas `[D−N, D−1]` e baseline. O nome evita sombrear o `calendar` da stdlib |
-| `readability.py` | escala do Flesch (`flesch_en_textstat`), clamp em 0–100, faixas únicas 0/25/50/75, médias ponderadas que ignoram nulo, janela efetiva |
+| `readability.py` | escalas do Flesch (`PTBR_SCALE` = Martins/1996, padrão; `EN_SCALE` = fórmula inglesa do `textstat`, reserva), `choose_scale` (uma escala por resposta), clamp em 0–100, faixas de Martins 0/25/50/75, médias ponderadas pela contagem de artigos com valor que ignoram nulo, janela efetiva e o aviso `READABILITY_LEGACY_SCALE` |
 | `readability_data.py` | leitura de legibilidade por agência: janela pedida, histórico e janela efetiva |
 | `data_status.py` | avaliadores de saúde das fontes (`ok \| degraded \| unavailable`), detecção dinâmica e mapeamento para avisos |
 | `payloads/` | modelos pydantic dos relatórios estruturados (`common`, `readability`, `scorecard`, `anomalies`, `forecast`, `coherence`), o `structuredContent` dos MCP Apps (o `CoherenceReport` ainda sem app); `compact_anomaly_payload` e `compact_forecast_payload` deixam no payload só o que o app desenha |
@@ -52,6 +54,18 @@ Fundações compartilhadas (Fase 2.5):
 | `theme_data.py` | contagens de temas por range móvel (`topThemes` + `analyticsKpis`), cache de 5 min |
 | `ui/` | MCP Apps: `render_app` (HTML único, estático, com guards de CSP e XSS), `app_tool_kwargs`, `register_ui_resources`, `app_result` e os assets (`_bridge.js` JSON-RPC raw, `_dom.js`, `_svg.js`, `_tokens.css` e o JS/CSS de cada app); `ui/preview.py` com as tools `gobus_dev_preview_*` (só com `GOBUS_DEV_PREVIEW=1`). Ver [MCP Apps](apps/index.md) |
 | `analytics/` | funções puras: razões (Laplace, share-of-voice, taxa log por dia, severidade), perfil de dia útil e feriados, temas, entidades, forecast, coerência de mensagem (`coherence`: salience×idf, timing BRT, JSD; `framing`: léxico pt-BR de enquadramento) e o Markdown de anomalias, forecast e coerência |
+
+### Compatibilidade de schema
+
+O gobus pode chegar à produção antes do PR da graphql-api que cria os campos que ele usa (ou a API pode voltar para uma revisão anterior). Cada uso de campo novo fica atrás de uma *feature* do `schema_compat`, com duas queries nomeadas: a nova e a antiga (`*_LEGACY_QUERY`, operação com sufixo `Legacy`). As duas passam pelo teste de contrato contra o snapshot do SDL, e o teste ao vivo confere que toda query nova ou a sua reserva vale no SDL de produção.
+
+| Feature | Campos (GQL-1, graphql-api#32) | Sem o campo |
+|---------|--------------------------------|-------------|
+| `article_summary_url` | `ArticleSummary.url` | top artigos dos temas sem link, com o `unique_id` |
+| `related_lift` | `relatedEntities(orderBy:, minWeight:)` e `RelatedEntity.lift`/`articleCount` | rede e relacionadas pelo peso bruto, com nota |
+| `flesch_ptbr` | `readabilityFleschPtbr`, `avgReadabilityFleschPtbr`, `readabilityFleschPtbrCount` | Flesch inglês (legado), com aviso |
+
+Em erro de schema ("Cannot query field", argumento, tipo ou valor de enum desconhecido), a feature fica ausente por 1 h (`FEATURE_TTL`) e as chamadas vão direto para a query antiga; depois, a nova é tentada de novo. Outros erros propagam. O estado é por processo, como o cache.
 
 ## Transport
 
@@ -140,6 +154,8 @@ Gotchas conhecidos do schema atual:
 | Média do baseline em `trendingThemes` | `baseDailyAvg`, `baselineCount` | `baselineDailyAvg` (o baseline **inclui** a janela) |
 | Limite em `search()` | `limit:` | `search` não tem `limit`; use `articles(page, limit ≤ 250, filter, sort)` |
 | `themeCode` em `trendingThemes` | — | sempre `null`; use `themeLabel` |
+| Ranking de `relatedEntities` | `orderBy: LIFT` sozinho (perde os vizinhos fortes: o MEC é só o 65º vizinho do Pé-de-Meia por lift) | união dos pools `orderBy: WEIGHT, minWeight: 2` e `orderBy: LIFT, minWeight: 3`, reordenada por `w·max(0, log2 lift)` com `w ≥ 3` (GQL-1) |
+| Flesch | `readabilityFlesch`/`avgReadabilityFlesch` (fórmula inglesa) | `readabilityFleschPtbr`/`avgReadabilityFleschPtbr` + `readabilityFleschPtbrCount` (GQL-1); o inglês só de reserva |
 | `agencies { label }` | nome humano | `label == code`; o nome vem de `agencyAnalytics.agencyName` (catálogo) |
 | `endDate` / `dateTo` | — | `search`/`articles.filter.endDate` compara `published_at <= endDate` (segundos; data pura = 00:00 UTC, que perde o dia — o `gobus_search_news` manda `T23:59:59-03:00` via `calendario.brt_day_end`); `entityCoverage.dateTo` é exclusivo; `agencyAnalytics.dateTo` é inclusivo em `DAY` e exclusivo na prática em `MONTH`/`WEEK` (00:00 do dia; use `calendario.agency_analytics_bounds`); dias da API em UTC |
 

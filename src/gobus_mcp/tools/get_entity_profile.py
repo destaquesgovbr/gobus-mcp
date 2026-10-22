@@ -8,8 +8,9 @@ passa pelo ``entitySearch(limit: 1)``. Depois, em paralelo e cada parte degradan
   o resolver compara ``published_at <= dateTo::timestamptz`` e a data pura vira 00:00 UTC,
   cortando o último dia. Cabeçalho, série e tabela somam as mesmas linhas
   (``analytics.profile``);
-- ``relatedEntities(limit: 40)`` sem as entidades genéricas da lista curada (pesos de todo
-  o acervo);
+- ``relatedEntities(limit: 40)`` por associação (``entity_lookup.fetch_neighbors``: peso ×
+  log2 do lift, com o peso bruto de reserva), sem as entidades genéricas da lista curada
+  (pesos de todo o acervo);
 - ``EntityDedupCounts``: artigos × textos distintos (o ``dedup`` do Typesense agrupa por
   ``content_hash``), só desde ``ENTITY_CANONICAL_INDEX_SINCE`` (antes, o índice não marca a
   entidade). Conteúdo idêntico é raro (republicação costuma mudar o texto), então a saída
@@ -35,8 +36,25 @@ from gobus_mcp.cache import TTLCache
 from gobus_mcp.calendario import DateRange, reference_date, utc_day_bounds
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import ENTITY_CANONICAL_INDEX_SINCE
-from gobus_mcp.entity_lookup import display_name, fetch_entity, fetch_related, looks_like_id
-from gobus_mcp.formatting import error_text, fmt_date, fmt_int, md_link, plural
+from gobus_mcp.entity_lookup import (
+    RelatedNeighbors,
+    association_text,
+    display_name,
+    fetch_entity,
+    fetch_neighbors,
+    looks_like_id,
+    ranking_label,
+)
+from gobus_mcp.formatting import (
+    FollowUp,
+    error_text,
+    fmt_date,
+    fmt_int,
+    md_link,
+    plural,
+    tool_call,
+    with_follow_ups,
+)
 
 _ENTITY_SEARCH_QUERY = """
 query EntitySearch($query: String!, $entityType: EntityKind) {
@@ -175,10 +193,11 @@ def _agency_lines(rows: list[dict], republishers: frozenset[str]) -> list[str]:
     return lines
 
 
-def _related_lines(kept: list[dict], hidden: list[dict]) -> list[str]:
-    lines = [
-        f"- **{display_name(r)}** ({r.get('type') or '?'}) · {fmt_int(int(r.get('weight') or 0))} "
-        f"artigos em co-menção · `{r['canonicalId']}`"
+def _related_lines(kept: list[dict], hidden: list[dict], neighbors: RelatedNeighbors) -> list[str]:
+    lines = [f"**Ordem:** {ranking_label(neighbors)}"]
+    lines += [
+        f"- **{display_name(r)}** ({r.get('type') or '?'}) · {association_text(r)} · "
+        f"`{r['canonicalId']}`"
         for r in kept[:RELATED_SHOWN]
     ]
     if not kept:
@@ -194,6 +213,40 @@ def _related_lines(kept: list[dict], hidden: list[dict]) -> list[str]:
             "(veja com gobus_get_entity_network e include_generic=true)."
         )
     return lines
+
+
+def _follow_ups(
+    entity_id: str,
+    name: str,
+    kind: str | None,
+    rows: list[dict],
+    republishers: frozenset[str],
+    start: date | None,
+    end: date | None,
+) -> list[FollowUp]:
+    """Rede por associação, artigos do órgão que mais publicou (no período pedido) e o
+    ciclo de vida (política) ou a coerência entre as agências (demais tipos)."""
+    items: list[FollowUp] = [
+        (tool_call("gobus_get_entity_network", entity_id=entity_id), "vizinhos por associação")
+    ]
+    agencies = top_agencies(rows, republishers, n=1) if rows else []
+    search = tool_call(
+        "gobus_search_news",
+        query=name,
+        agency_key=agencies[0].agency_key if agencies else None,
+        date_from=start.isoformat() if start else None,
+        date_to=end.isoformat() if end else None,
+    )
+    items.append((search, "artigos do órgão que mais publicou" if agencies else "artigos"))
+    if (kind or "").upper() == "POLICY":
+        items.append(
+            (tool_call("gobus_get_policy_lifecycle", policy_name=name), "fases da política")
+        )
+    else:
+        items.append(
+            (tool_call("gobus_get_message_coherence", entity_id=entity_id), "agências em sintonia?")
+        )
+    return items
 
 
 async def get_entity_profile(
@@ -243,7 +296,7 @@ async def get_entity_profile(
     node_r, coverage_r, related_r, dedup_r, info = await asyncio.gather(
         fetch_entity(client, entity_id, cache=cache) if by_id else _none(),
         _coverage(client, entity_id, start, end),
-        fetch_related(client, entity_id, RELATED_LIMIT, cache=cache),
+        fetch_neighbors(client, entity_id, RELATED_LIMIT, cache=cache),
         _dedup_counts(client, entity_id, window) if window and not summary_only else _none(),
         catalog_info(catalog),
         return_exceptions=True,
@@ -294,8 +347,9 @@ async def get_entity_profile(
         related_note = f"> Entidades relacionadas indisponíveis ({error_text(related_r)})."
     else:
         related_note = None
-        kept, hidden = split_generic(related_r, generic_ids())
+        kept, hidden = split_generic(related_r.rows, generic_ids())
 
+    follow = _follow_ups(entity_id, name, kind, rows, info.republishers, start, end)
     if summary_only:
         if related_note:
             notes.append(related_note)
@@ -304,7 +358,7 @@ async def get_entity_profile(
                 f"{display_name(r)} ({r.get('type') or '?'})" for r in kept[:SUMMARY_RELATED]
             )
             lines.append(f"**Top relacionadas:** {top}")
-        return "\n".join(lines + ([""] + notes if notes else []))
+        return with_follow_ups("\n".join(lines + ([""] + notes if notes else [])), follow)
 
     if rows:
         series_end = min(end, today) if end is not None else today
@@ -320,5 +374,5 @@ async def get_entity_profile(
         notes.append(f"> Contagem de cópias idênticas indisponível ({error_text(dedup_r)}).")
 
     lines.append("\n## Entidades relacionadas (co-menção, todo o acervo)")
-    lines.extend([related_note] if related_note else _related_lines(kept, hidden))
-    return "\n".join(lines + ([""] + notes if notes else []))
+    lines.extend([related_note] if related_note else _related_lines(kept, hidden, related_r))
+    return with_follow_ups("\n".join(lines + ([""] + notes if notes else [])), follow)
