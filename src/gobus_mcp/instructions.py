@@ -26,6 +26,7 @@ SERVER_INSTRUCTIONS = "\n".join(
         "gobus://health/pipelines.",
         *(_blackout_line(p) for p in BLACKOUTS),
         "- Execute em paralelo as chamadas independentes.",
-        "- Termine com 2–3 perguntas de continuação que usem outras tools do Gobus.",
+        "- Termine com 2–3 perguntas de continuação que usem outras tools do Gobus (o rodapé "
+        '"Para explorar" das respostas traz chamadas prontas).',
     ]
 )
