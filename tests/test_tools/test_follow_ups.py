@@ -14,6 +14,7 @@ from gobus_mcp.tools.get_article import get_article
 from gobus_mcp.tools.get_entity_network import get_entity_network
 from gobus_mcp.tools.get_entity_profile import get_entity_profile
 from gobus_mcp.tools.get_message_coherence import get_message_coherence
+from gobus_mcp.tools.get_message_coherence import parse_params as parse_coherence_params
 from gobus_mcp.tools.get_policy_lifecycle import get_policy_lifecycle
 from gobus_mcp.tools.search_news import search_news
 from tests.conftest import route_catalog
@@ -234,6 +235,48 @@ async def test_policy_lifecycle_sugere_perfil_coerencia_no_pico_e_artigo(fake_cl
         'date_to="2024-03-31")',
         'gobus_get_article(unique_id="p1")',
     ]
+
+
+def _coherence_calls(markdown: str) -> list[str]:
+    return [c for c in calls(markdown) if c.startswith("gobus_get_message_coherence(")]
+
+
+def _call_args(call: str) -> dict[str, str]:
+    return dict(re.findall(r'(\w+)="([^"]*)"', call))
+
+
+async def test_policy_lifecycle_pico_no_mes_corrente_limita_a_coerencia_a_ontem(fake_client):
+    # política nova: toda a cobertura no mês corrente (parcial), então o pico é ele; o fim
+    # do mês (31/10) está no futuro e a coerência recusaria a chamada
+    today = date(2026, 10, 21)
+    coverage = {"entityCoverage": [policy_fx._point("2026-10", "mec", "MEC", 12)]}
+    policy_fx._route(fake_client, coverage=coverage)
+
+    md = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=today)
+
+    check_budget(md)
+    (call,) = _coherence_calls(md)
+    assert call == (
+        'gobus_get_message_coherence(entity_id="dgb_pe-de-meia", date_from="2026-10-01", '
+        'date_to="2026-10-20")'
+    )
+    args = _call_args(call)
+    params = parse_coherence_params(
+        args["entity_id"], None, None, args["date_from"], args["date_to"], today=today
+    )
+    assert params.window.end == date(2026, 10, 20)  # D−1: a chamada sugerida é válida
+
+
+async def test_policy_lifecycle_pico_no_mes_corrente_no_dia_1_nao_sugere_coerencia(fake_client):
+    # no dia 1, o mês de pico ainda não tem dia fechado: não há janela válida para sugerir
+    coverage = {"entityCoverage": [policy_fx._point("2026-10", "mec", "MEC", 3)]}
+    policy_fx._route(fake_client, coverage=coverage)
+
+    md = await get_policy_lifecycle("Pé-de-Meia", fake_client, today=date(2026, 10, 1))
+
+    check_budget(md)
+    assert _coherence_calls(md) == []
+    assert calls(md)[0] == 'gobus_get_entity_profile(entity_name="dgb_pe-de-meia")'
 
 
 async def test_policy_lifecycle_cita_o_pico_com_link(fake_client):
