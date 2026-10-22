@@ -38,6 +38,17 @@ def _is_http(url: str) -> bool:
     return parts.scheme.lower() in _SAFE_SCHEMES and bool(parts.netloc)
 
 
+def article_ref(article: dict, max_title: int | None = None) -> str:
+    """Artigo numa linha de lista: ``[título](url) · `id``` (sem URL, só o título; sem id,
+    só o link). ``max_title`` corta o título."""
+    title = article.get("title") or "Sem título"
+    if max_title is not None:
+        title = title[:max_title]
+    uid = article.get("uniqueId") or ""
+    link = md_link(title, article.get("url"))
+    return f"{link} · `{uid}`" if uid else link
+
+
 def agency_label(code: str | None, name: str | None) -> str:
     """Rótulo de agência: ``[código] Nome``, só ``[código]`` ou só o nome."""
     if code and name:

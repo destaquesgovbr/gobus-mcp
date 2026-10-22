@@ -15,7 +15,9 @@ from gobus_mcp.analytics.ratios import overlap_growth_threshold, ratio_from_tren
 from gobus_mcp.calendario import agency_analytics_bounds, closed_window, reference_date
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import metric_coverage_status, theme_coverage
+from gobus_mcp.formatting import article_ref
 from gobus_mcp.readability import FleschValue, describe_flesch, weighted_metric
+from gobus_mcp.schema_compat import ARTICLE_SUMMARY_URL, execute_compatible
 
 TREND_WINDOW_DAYS = 7
 TREND_BASELINE_DAYS = 28
@@ -34,8 +36,8 @@ query AgencySummaryAnalytics(
 }
 """
 
-_TRENDS_QUERY = """
-query AgencySummaryTrends(
+_TRENDS_TEMPLATE = """
+query AgencySummaryTrends__SUFFIX__(
     $windowDays: Int!, $baselineDays: Int!, $growthThreshold: Float, $agencyKey: String, $limit: Int
 ) {
     trendingThemes(
@@ -43,10 +45,14 @@ query AgencySummaryTrends(
         growthThreshold: $growthThreshold agencyKey: $agencyKey limit: $limit
     ) {
         themeLabel growthScore windowCount baselineDailyAvg
-        topArticles { uniqueId title publishedAt }
+        topArticles { uniqueId title publishedAt__URL__ }
     }
 }
 """
+
+# ``ArticleSummary.url`` veio com o GQL-1; sem ele, a antiga responde (schema_compat).
+_TRENDS_QUERY = _TRENDS_TEMPLATE.replace("__SUFFIX__", "").replace("__URL__", " url")
+_TRENDS_LEGACY_QUERY = _TRENDS_TEMPLATE.replace("__SUFFIX__", "Legacy").replace("__URL__", "")
 
 
 def _readability_line(rows: list[dict]) -> str:
@@ -90,7 +96,7 @@ async def get_agency_summary(
     date_from, date_to = agency_analytics_bounds(window, "MONTH")  # MONTH: dateTo exclusivo
     g0 = round(overlap_growth_threshold(TREND_MIN_RATIO, TREND_WINDOW_DAYS, TREND_BASELINE_DAYS), 4)
 
-    analytics_data, trends_data, coverage, name = await asyncio.gather(
+    analytics_data, (trends_data, _), coverage, name = await asyncio.gather(
         client.execute(
             _ANALYTICS_QUERY,
             {
@@ -100,8 +106,11 @@ async def get_agency_summary(
                 "granularity": "MONTH",
             },
         ),
-        client.execute(
+        execute_compatible(
+            client,
+            ARTICLE_SUMMARY_URL,
             _TRENDS_QUERY,
+            _TRENDS_LEGACY_QUERY,
             {
                 "windowDays": TREND_WINDOW_DAYS,
                 "baselineDays": TREND_BASELINE_DAYS,
@@ -151,8 +160,7 @@ async def get_agency_summary(
                 f"{t.get('windowCount') or 0} artigos"
             )
             for art in (t.get("topArticles") or [])[:2]:
-                title = (art.get("title") or "")[:70]
-                lines.append(f"  - {title}")
+                lines.append(f"  - {article_ref(art, 70)}")
     elif coverage.status == "unavailable":
         lines.append("Temas indisponíveis: a classificação de temas não cobre a janela.")
     else:

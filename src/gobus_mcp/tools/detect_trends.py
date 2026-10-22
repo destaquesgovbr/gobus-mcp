@@ -16,11 +16,13 @@ from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.analytics.ratios import overlap_growth_threshold, ratio_from_trending_row
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import theme_coverage
+from gobus_mcp.formatting import article_ref
+from gobus_mcp.schema_compat import ARTICLE_SUMMARY_URL, execute_compatible
 
 MIN_GROWTH_THRESHOLD = 1.0  # abaixo disso entram temas em queda (e o N+1 de topArticles)
 
-_TRENDING_QUERY = """
-query TrendingThemes(
+_TRENDING_TEMPLATE = """
+query TrendingThemes__SUFFIX__(
     $windowDays: Int!
     $baselineDays: Int!
     $minArticles: Int
@@ -41,11 +43,15 @@ query TrendingThemes(
         baselineDailyAvg
         growthScore
         topArticles {
-            uniqueId title agencyName publishedAt
+            uniqueId title agencyName publishedAt__URL__
         }
     }
 }
 """
+
+# ``ArticleSummary.url`` veio com o GQL-1; sem ele, a antiga responde (schema_compat).
+_TRENDING_QUERY = _TRENDING_TEMPLATE.replace("__SUFFIX__", "").replace("__URL__", " url")
+_TRENDING_LEGACY_QUERY = _TRENDING_TEMPLATE.replace("__SUFFIX__", "Legacy").replace("__URL__", "")
 
 
 def _ratio_text(theme: dict, window_days: int, baseline_days: int) -> str:
@@ -108,8 +114,10 @@ async def detect_trends(
             return check.message
         variables["agencyKey"] = check.code
 
-    data, coverage = await asyncio.gather(
-        client.execute(_TRENDING_QUERY, variables),
+    (data, _), coverage = await asyncio.gather(
+        execute_compatible(
+            client, ARTICLE_SUMMARY_URL, _TRENDING_QUERY, _TRENDING_LEGACY_QUERY, variables
+        ),
         theme_coverage(client, window_days),
     )
     themes = data.get("trendingThemes") or []
@@ -160,9 +168,7 @@ async def detect_trends(
             agency_str = " · ".join(f"{name} ({cnt})" for name, cnt in agency_counts.most_common(3))
             lines.append(f"   Agências: {agency_str}")
             for art in top_arts[:3]:
-                title = (art.get("title") or "")[:80]
-                uid = art.get("uniqueId") or ""
-                lines.append(f"   - {title}  `{uid}`")
+                lines.append(f"   - {article_ref(art, 80)}")
 
     lines.append(
         "\n_Razão = artigos/dia na janela ÷ artigos/dia nos dias anteriores do baseline "

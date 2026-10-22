@@ -9,6 +9,7 @@ from gobus_mcp.formatting import (
     FOLLOW_UPS_MAX,
     FOLLOW_UPS_MAX_BYTES,
     agency_label,
+    article_ref,
     brt_day,
     error_text,
     fmt_date,
@@ -218,3 +219,15 @@ class TestFollowUps:
 
     def test_with_follow_ups_sem_itens_nao_muda_o_texto(self):
         assert with_follow_ups("# Título", []) == "# Título"
+
+
+class TestArticleRef:
+    def test_link_e_id(self):
+        art = {"uniqueId": "a1", "title": "Título", "url": URL}
+        assert article_ref(art) == f"[Título]({URL}) · `a1`"
+
+    def test_sem_url_so_titulo_e_id(self):
+        assert article_ref({"uniqueId": "a1", "title": "Título"}) == "Título · `a1`"
+
+    def test_corta_o_titulo(self):
+        assert article_ref({"title": "abcdef"}, 3) == "abc"
