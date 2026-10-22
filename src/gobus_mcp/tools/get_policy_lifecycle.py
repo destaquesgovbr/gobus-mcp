@@ -387,6 +387,4 @@ async def get_policy_lifecycle(
             agency = art.get("agencyName") or art.get("agency") or ""
             lines.append(f"- {md_link(title, art.get('url'))} — {agency} · {when}")
 
-    return with_follow_ups(
-        "\n".join(lines), _follow_ups(entity_id, peak, articles, today=today)
-    )
+    return with_follow_ups("\n".join(lines), _follow_ups(entity_id, peak, articles, today=today))
