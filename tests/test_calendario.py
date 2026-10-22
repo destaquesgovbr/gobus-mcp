@@ -345,6 +345,18 @@ def test_parse_taxonomy_change_nunca_levanta(value, expected):
     assert parse_taxonomy_change(value) == expected
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(None, None), ("", None), ("off", None), ("lixo", None), ("10/11/2026", None),
+     ("2026-11-10", D(2026, 11, 10))],
+)  # fmt: skip
+def test_parse_taxonomy_change_com_default_desligado_nunca_levanta(value, expected):
+    # Desligar o aviso pelo código é TAXONOMY_CHANGE_2026_DEFAULT = None (PR de uma linha →
+    # deploy automático): a env var não está no Terraform, então não é chave operacional.
+    # Mesmo assim, valor inválido nunca derruba o import.
+    assert parse_taxonomy_change(value, default=None) == expected
+
+
 def test_temas_da_virada_sao_os_que_mudam_de_serie():
     # 19.03/19.04 → 26; a reclassificação por LLM tira Defesa Civil também de 04 (MDR em
     # 04.03.01), 05.02.01 e 15.02.03 (atualização de 21–22/10 do plano)
