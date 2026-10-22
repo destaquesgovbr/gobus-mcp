@@ -39,7 +39,7 @@ Projeta a cobertura de temas em três janelas móveis (3, 7 e 21 dias) por **sha
 3. **Taxa log por dia:** `k = ln(r) / (B/2)`, a distância entre os centros da janela e do baseline (3/14 → 7 dias; 7/28 → 14; 21/84 → 42). Assim as janelas ficam comparáveis.
 4. **Composto:** pesos 0,5 / 0,3 / 0,2, **renormalizados** nas janelas utilizáveis. Uma janela com cobertura de classificação < 50% (ou com a consulta falhando) sai do composto; entre 50% e 80%, fica degradada e a confiança vai para baixa.
 5. **Momentum:** `k3 − k7` (sem a janela de 3 dias, `k7 − k21`) contra ±ln(1,10)/7 (±10% por semana): acelerando, desacelerando, estável ou **indeterminado** quando faltam duas taxas.
-6. **Confiança:** alta com as 3 janelas ok e ≥ 20 artigos em 7 dias; média com ≥ 2 janelas e ≥ 5 artigos. Cai **um nível na recuperação** pós-defeso (26/10 a 29/11).
+6. **Confiança:** alta com as 3 janelas ok e ≥ 20 artigos em 7 dias; média com ≥ 2 janelas e ≥ 5 artigos. Cai **um nível na recuperação** pós-defeso (26/10 a 29/11) e mais um nos temas afetados pela virada da taxonomia (04, 05, 15, 19 e 26) enquanto algum baseline utilizável cruzar a data, com a flag `taxonomy_changed`. O tema 26 entra no domínio `SECURITY`.
 7. **Projeção amortecida:** fatia `s(t) = s0·exp(k·φ(1−φᵗ)/(1−φ))`, com φ = 0,9 e o multiplicador limitado a [0,2; 5]. Os artigos esperados no dia `t` são `s(t)` × o volume esperado da plataforma nesse dia, que é o nível da fase × o peso do dia da semana.
    - **Perfil de dia útil:** estimado dos últimos 56 dias do snapshot de atividade das agências, sem feriados. Sem snapshot, vale o perfil padrão (sábado 0,26; domingo 0,12) e o payload marca `profileSource: "default"`.
    - **Feriados** contam como domingo: 12/10, 02/11, 15/11, 20/11 e 25/12 (e os anteriores, no perfil).
@@ -53,6 +53,7 @@ Projeta a cobertura de temas em três janelas móveis (3, 7 e 21 dias) por **sha
 | `ELECTORAL_BLACKOUT` | durante o defeso (04/07–25/10/2026) |
 | `POST_BLACKOUT_RECOVERY` | na recuperação (26/10–29/11): confiança −1 nível |
 | `CLASSIFIER_CHANGED` | enquanto algum baseline (14, 28 ou 84 dias) cruzar a troca de classificador (25/09/2026), ou seja, até 17/12/2026 |
+| `TAXONOMY_CHANGED` | algum baseline (14, 28 ou 84 dias) cruza a virada da taxonomia (tema 26) **e** a lista tem tema afetado (04, 05, 15, 19 ou 26). Com o baseline de 84 dias, dura até 83 dias depois da virada |
 | `THEMES_UNCLASSIFIED` | cobertura de classificação baixa em alguma janela (a janela some do composto ou fica degradada) |
 
 Falha do snapshot de atividade: o Markdown avisa ("perfil semanal padrão") e a tool segue.

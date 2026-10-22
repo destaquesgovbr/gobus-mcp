@@ -96,6 +96,7 @@ PORT=8000 GOBUS_GRAPHQL_URL=... python -m gobus_mcp
 | `GOBUS_GRAPHQL_API_KEY` | `""` | API key (opcional, enviada como `X-API-Key`) |
 | `GOBUS_REQUEST_TIMEOUT` | `10.0` | Timeout httpx em segundos |
 | `GOBUS_LOG_LEVEL` | `INFO` | Nível de log |
+| `GOBUS_TAXONOMY_CHANGE_DATE` | `""` | Virada da taxonomia (tema 26), `AAAA-MM-DD`; `off` desliga o `TAXONOMY_CHANGED`. Vazio = `calendario.TAXONOMY_CHANGE_2026_DEFAULT` (provisória) |
 | `GOBUS_DEV_PREVIEW` | `false` | **Só dev:** `1` registra `gobus_dev_preview_<app>` (fixtures "DEV — dados fictícios") |
 | `GOBUS_DEV_FIXTURES` | `""` | **Só dev:** diretório das fixtures das previews (padrão: `tests/fixtures/ui` do clone) |
 | `GOBUS_CORS_ORIGINS` | `""` | **Só dev:** origens CORS do HTTP, separadas por vírgula (basic-host conecta do navegador) |
@@ -117,8 +118,10 @@ agency_catalog.py    # AgencyCatalog: nomes, republicadoras, validate (aliases c
 agency_activity.py   # snapshot agencyAnalytics DAY de todas as agências (cache 6 h): silenciadas, retomadas, platform_daily
 entity_lookup.py     # looks_like_id, entity(id), relatedEntities ordenado (cache 30 min)
 domains.py           # 7 domínios de policies.domain + OTHER, aliases PT, mapas curados de tema e agência
+                     #   (tema 26 "Defesa Civil e Gestão de Desastres" → SECURITY, como o 19)
 calendario.py        # BRT, defeso 2026 (04/07–25/10), recuperação até 29/11, feriados, janelas fechadas,
-                     #   limites do dia em BRT (brt_day_start/brt_day_end)
+                     #   limites do dia em BRT (brt_day_start/brt_day_end), troca de classificador
+                     #   (25/09) e virada da taxonomia (TAXONOMY_CHANGE_2026, temas afetados)
 instructions.py      # SERVER_INSTRUCTIONS (≤ 1,5 KB, pt-BR) → FastMCP(instructions=…) no initialize
 formatting.py        # Markdown compartilhado: md_link (só http(s)), agency_label, fmt_int (pt-BR), brt_day,
                      #   plural, fmt_date (DD/MM/AAAA), error_text (notas de falha)
@@ -198,6 +201,7 @@ Gotchas conhecidos do schema atual:
 - **Null ≠ 0:** métrica sem dado vira "indisponível"/`null`, nunca 0.0 nem nota neutra. Médias ignoram nulos (`readability.weighted_metric`).
 - **Flesch:** fórmula inglesa do `textstat` (`FLESCH_SCALE_ID = "flesch_en_textstat"`), limitado a 0–100 com o bruto exibido quando houve clamp; faixas únicas 0/25/50/75.
 - **Detecção dinâmica:** o estado das fontes é medido na resposta (`data_status`); datas de incidente (`SINCE_HINTS`) só redigem "desde dd/mm".
+- **Virada da taxonomia (tema 26):** na D0 do TH-1/DP-2 (migração 034) nasce o L1 26 "Defesa Civil e Gestão de Desastres" (19.03 → 26.01, 19.04 → 26.02), com reclassificação só de parte do histórico. `calendario.TAXONOMY_CHANGE_2026` é a data (**provisória: 23/10/2026**; ajustar `TAXONOMY_CHANGE_2026_DEFAULT` para a D0 real antes do merge do PR-D, ou definir `GOBUS_TAXONOMY_CHANGE_DATE`); `TAXONOMY_CHANGED_THEMES` lista os temas cuja série muda (04, 05, 15, 19 e 26). Comparação de tema cujo baseline (ou a janela, na coerência) cruza a data e que mostra tema afetado ganha o aviso `TAXONOMY_CHANGED`, no padrão do `CLASSIFIER_CHANGED`: anomalias e forecast (flag `taxonomy_changed` e confiança −1 só nos temas afetados), coerência por tema e `detect_trends` (nota no cabeçalho e marca na linha). Builders aceitam `taxonomy_change=` (injetável nos testes; `None` desliga); as fixtures de UI fixam 27/10 (`TAXONOMY_CHANGE_FIXTURE`) para não depender da constante. O 26 fica em `SECURITY`; depois da virada, `"defesa"` vira tema ambíguo na coerência.
 - **Janelas:** "últimos N dias" = dias fechados em BRT `[D−N, D−1]` (`calendario.closed_window`); `today`/`now` sempre injetáveis.
 - **Anomalias e forecast (G2):** temas por share-of-voice de `topThemes` + `analyticsKpis` em janelas **móveis** (UTC), com gate de cobertura de classificação na janela e no baseline; entidades por `entityCoverage(DAY)` em janela **fechada** `[D−7, D−1]` (contagens em dias UTC), sem republicadoras, com precedência burst → new_entity → calendar_explained → coordinated_silence → concentrated_coverage → normal. O `volumeRatio` do upstream nunca aparece no Markdown; linhas do piso antigo (`vr/wc ≥ 100`) e de execuções antigas não viram candidatas. Concentrada e silêncio exigem o `min_count` da sensibilidade; abaixo dele a severidade é proporcional ao volume; `calendar_explained` e entidade sem menções próprias têm severidade 0; `burst`, `new_entity` e concentrada/normal com baseline < `min_count` (flag `thin_baseline`) ficam no máximo em `watch` (`SEVERITY_WATCH_MAX`). Linhas do `entityCoverage` da mesma (dia, agência) somam (o resolver agrupa também por nome); o dedup `(period, agencyKey)` é só do `agencyAnalytics` DAY. Na recuperação, só `resumed_after_blackout` (calada no último dia do defeso e de volta depois) explica sinal e conta em `resumed_agencies`; o `resumed` genérico é só informativo no health. No forecast, a razão de uma janela só conta com ≥ 5 artigos do tema (`w + b_prev`). Detalhes em `docs/tools/detect-anomalies.md` e `forecast-trends.md`.
 - **Health:** `indexing_lag` compara o Typesense (`articles{found}`) com o Postgres (`agencyAnalytics` DAY) no dia D em **UTC** (D−1..D com menos de 20 artigos em D); `agency_activity` reaproveita o snapshot do `Deps.activity`; `entity_ranking` pede `isNew` (GA-1) e reporta `isNewShare` só entre as linhas com valor.

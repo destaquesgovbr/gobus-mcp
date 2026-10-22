@@ -53,6 +53,7 @@ Cada sinal traz a razão, o volume, a severidade de 0 a 1 com a faixa (normal, a
 - **Share-of-voice sem sobreposição:** fatia do tema entre os artigos **classificados** da janela contra a fatia no baseline anterior a ela (21 − 3 e 28 − 7 dias), com suavização de Laplace. Cancela fim de semana, dia parcial e atraso de indexação. Atenua o defeso, mas não o cancela, porque a mistura de agências muda.
 - **Gate de cobertura de classificação**, medido na janela **e** no baseline: abaixo de 50% de artigos com tema, o bloco fica `unavailable` com o aviso `THEMES_UNCLASSIFIED`; abaixo de 80%, `degraded` com confiança baixa. A detecção é dinâmica: a data "desde 26/09" é só redação.
 - `sustained_spike`: razão ≥ limiar nas **duas** janelas e ≥ volume mínimo na curta. `sustained_drop`: razão ≤ 1/limiar nas duas, com volume mínimo no baseline. A severidade vem do sinal mais fraco das duas janelas.
+- **Virada da taxonomia (tema 26):** enquanto o baseline de 21 ou 28 dias cruzar a data da virada, os sinais de Segurança Pública (04), Meio Ambiente e Sustentabilidade (05), Desenvolvimento Social (15), Defesa e Forças Armadas (19) e Defesa Civil e Gestão de Desastres (26) ganham a flag `taxonomy_changed` ("virada da taxonomia no baseline") e perdem um nível de confiança. O pico do 26 e a queda do 19 logo depois da virada podem ser só a migração de Defesa Civil. Os demais temas não mudam.
 
 ### Entidades
 
@@ -74,7 +75,7 @@ Cada sinal traz a razão, o volume, a severidade de 0 a 1 com a faixa (normal, a
 
 ### Domínios
 
-`domain_filter` filtra as listas de sinais. Tema: mapa curado das labels L1. POLICY: `policyDetails.domain`. Demais entidades, ou POLICY sem domínio: mapa curado da agência dona. Sem mapa, `OTHER`. Os 8 gauges `domains` do payload (ordem fixa) resumem **todos** os domínios, mesmo com filtro, para o radar manter o contexto.
+`domain_filter` filtra as listas de sinais. Tema: mapa curado das labels L1 (o tema 26, Defesa Civil e Gestão de Desastres, fica em `SECURITY` por continuidade com o 19, de onde saiu). POLICY: `policyDetails.domain`. Demais entidades, ou POLICY sem domínio: mapa curado da agência dona. Sem mapa, `OTHER`. Os 8 gauges `domains` do payload (ordem fixa) resumem **todos** os domínios, mesmo com filtro, para o radar manter o contexto.
 
 ## Avisos
 
@@ -83,6 +84,7 @@ Cada sinal traz a razão, o volume, a severidade de 0 a 1 com a faixa (normal, a
 | `ELECTORAL_BLACKOUT` | durante o defeso (04/07–25/10/2026) |
 | `POST_BLACKOUT_RECOVERY` | na recuperação (26/10–29/11): baselines pré-defeso, confiança −1 |
 | `CLASSIFIER_CHANGED` | enquanto o baseline de tema (21 ou 28 dias) cruzar a troca de classificador (25/09/2026) |
+| `TAXONOMY_CHANGED` | o baseline de tema (21 ou 28 dias) cruza a virada da taxonomia (tema 26) **e** há sinal de tema afetado (04, 05, 15, 19 ou 26) na lista, depois do `domain_filter`. A mensagem nomeia esses temas |
 | `THEMES_UNCLASSIFIED` | cobertura de classificação < 80% na janela ou no baseline |
 | `TRENDING_ENTITIES_STALE` | ranking upstream com linhas legadas, execuções misturadas, velho ou fora do ar |
 | `BASELINE_ZERO_SUPPRESSED` | linhas do piso antigo descartadas como candidatas |

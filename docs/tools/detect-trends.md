@@ -49,4 +49,5 @@ Retorna Markdown com um cabeçalho dos parâmetros e do limiar e um ranking de t
 - **Razão sem sobreposição** = artigos/dia na janela ÷ artigos/dia nos dias anteriores do baseline (`b_prev = baselineDailyAvg·B − w`), com suavização de Laplace.
 - **Temas indisponíveis:** sem temas, a tool mede a cobertura de classificação (`topThemes` ÷ `analyticsKpis.total`) da janela. Abaixo de 50% ela avisa "Temas: indisponível" em vez de dizer que nada cresceu (a classificação parou em 26/09/2026).
 - Os indicadores visuais refletem o `growthScore`: 🔥 ≥ 3.0, 📈 ≥ 2.0, ↗ abaixo disso.
+- **Virada da taxonomia (tema 26):** quando o baseline cruza a data da virada, os temas afetados da lista (Segurança Pública, Meio Ambiente e Sustentabilidade, Desenvolvimento Social, Defesa e Forças Armadas e Defesa Civil e Gestão de Desastres) ganham "taxonomia mudou no baseline" na linha, e o cabeçalho ganha uma nota com a data. O crescimento do 26 e a queda do 19 logo depois da virada podem ser só a migração de Defesa Civil.
 - `min_articles` evita ruído de temas com poucos artigos na janela recente.

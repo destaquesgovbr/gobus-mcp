@@ -9,7 +9,7 @@ Não tem MCP App nesta fase. O builder já produz o `CoherenceReport` (payload v
 | Parâmetro | Tipo | Obrigatório | Default | Descrição |
 |-----------|------|-------------|---------|-----------|
 | `entity_id` | `str` | Um dos dois | `""` | `entityId` canônico (`Q575545`, `dgb_pe-de-meia`) ou um **nome**. Com nome, a tool usa o `entitySearch(limit:3)` e fica com a entidade de maior volume; as outras aparecem como alternativas |
-| `theme` | `str` | Um dos dois | `""` | Label L1 de tema ([`gobus://themes`](../resources/themes.md)). Aceita sem acento e prefixo único (`"defesa"` → `Defesa e Forças Armadas`) |
+| `theme` | `str` | Um dos dois | `""` | Label L1 de tema ([`gobus://themes`](../resources/themes.md)). Aceita sem acento, prefixo único e trecho único (`"forças armadas"` → `Defesa e Forças Armadas`). Depois da virada da taxonomia, `"defesa"` casa com Defesa e Forças Armadas e com Defesa Civil e Gestão de Desastres e a tool pede para escolher |
 | `agencies` | `list[str]` | Não | — | Restringe às agências listadas (códigos do catálogo). Código inválido devolve sugestões (`"ms"` → `saude`). A conferência do índice de busca e o prior também usam só essas agências |
 | `date_from` | `str` | Não | D−14 | Primeiro dia da janela (ISO, dia em BRT) |
 | `date_to` | `str` | Não | D−1 | Último dia da janela (ISO, dia em BRT). Só `date_from` → 14 dias a partir dele, limitados a ontem |
@@ -84,6 +84,7 @@ Custo típico: 3–4 requisições em 1–2 s. Os nomes das agências vêm do ca
 | `ELECTORAL_BLACKOUT` | a janela cruza o defeso (04/07–25/10/2026): agências caladas e republicadoras com mais peso |
 | `POST_BLACKOUT_RECOVERY` | a janela cruza a recuperação (26/10–29/11): agências retomando podem parecer atrasadas |
 | `CLASSIFIER_CHANGED` | caminho por tema com janela que cruza a troca do classificador (25/09/2026) |
+| `TAXONOMY_CHANGED` | caminho por tema afetado pela virada da taxonomia (04, 05, 15, 19 ou 26) com janela que cruza a data: o filtro `themeLabel` mistura as duas árvores de temas |
 | `THEMES_UNCLASSIFIED` | caminho por tema: fração dos artigos **da janela** com tema, medida por aliases de contagem (total contra Σ labels L1). Abaixo de 80% fica degradado e abaixo de 50%, indisponível; a tool sugere `entity_id`. O aviso some sozinho quando o re-enriquecimento e o reindex cobrem a janela |
 | `SENTIMENT_UNAVAILABLE` | cobertura de sentimento dos emissores abaixo de 80% (abaixo de 50%, o tom sai do índice) |
 | `SAMPLE_TRUNCATED` | mais de 1000 artigos, ou páginas 2–4 com falha; o timing sai do índice |
