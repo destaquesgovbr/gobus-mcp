@@ -12,7 +12,8 @@ meta de serviço continua 50. Notícia de governo fica tipicamente em "muito dif
 
 **Reserva:** sem o pt-BR (API sem o campo ou valor nulo), vale o Flesch antigo, a fórmula
 **inglesa** do ``textstat`` (``EN_SCALE``), com aviso (``READABILITY_LEGACY_SCALE``). As
-duas escalas nunca se misturam numa média: ``choose_scale`` escolhe uma por resposta.
+duas escalas nunca se misturam numa média: ``choose_scale`` escolhe uma por resposta, e
+``common_scale``, uma para os dois artigos de uma comparação.
 Os valores vão de negativos a >100; o exibido é sempre limitado a [0, 100] e o bruto
 aparece quando houve clamp.
 
@@ -97,14 +98,34 @@ def legacy_scale_notice(scale: FleschScale, affects: list[str] | None = None) ->
     )
 
 
-def article_flesch(features: Mapping | None) -> tuple[float | None, FleschScale]:
-    """Flesch de um artigo: o pt-BR; sem ele, o inglês (legado); sem nenhum, ``None``."""
+SCALES: Final = {scale.id: scale for scale in (PTBR_SCALE, EN_SCALE)}
+
+
+def article_flesch(
+    features: Mapping | None, scale: FleschScale | None = None
+) -> tuple[float | None, FleschScale]:
+    """Flesch de um artigo: o pt-BR; sem ele, o inglês (legado); sem nenhum, ``None``.
+    Com ``scale``, o valor daquela escala (``None`` se o artigo não o tem)."""
     features = features or {}
-    for scale in (PTBR_SCALE, EN_SCALE):
-        value = features.get(scale.article_field)
+    if scale is not None:
+        return features.get(scale.article_field), scale
+    for candidate in (PTBR_SCALE, EN_SCALE):
+        value = features.get(candidate.article_field)
         if value is not None:
-            return value, scale
+            return value, candidate
     return None, PTBR_SCALE
+
+
+def common_scale(features: Iterable[Mapping | None]) -> FleschScale | None:
+    """Escala comum a artigos postos lado a lado (as duas nunca se misturam): o pt-BR se
+    todos os que têm algum Flesch têm o pt-BR; senão, o inglês se todos têm o inglês;
+    ``None`` se não há escala comum (só pt-BR de um lado e só o inglês do outro). Artigo
+    sem Flesch nenhum não restringe a escolha."""
+    with_value = [f or {} for f in features if article_flesch(f)[0] is not None]
+    for scale in (PTBR_SCALE, EN_SCALE):
+        if all(f.get(scale.article_field) is not None for f in with_value):
+            return scale
+    return None
 
 
 @dataclass(frozen=True)

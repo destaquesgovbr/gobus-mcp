@@ -82,7 +82,11 @@ class SuggestedComparison(Payload):
 
 
 class ScoreComparison(Payload):
-    """O artigo de ``compare_with``, pontuado do mesmo jeito (sem resumo próprio)."""
+    """O artigo de ``compare_with``, pontuado do mesmo jeito (sem resumo próprio).
+
+    ``scale``: a escala de Flesch usada neste lado. É a mesma do relatório sempre que os
+    dois artigos têm uma escala em comum (o pt-BR, ou o inglês para os dois); só difere
+    quando um tem apenas o pt-BR e o outro apenas o inglês, com aviso no relatório."""
 
     score_status: ScoreStatus
     overall: float | None
@@ -91,6 +95,9 @@ class ScoreComparison(Payload):
     article: ScoredArticle
     dimensions: list[ScoreDimension]
     benchmark: ScoreBenchmark | None
+    scale: str = FLESCH_SCALE_ID
+    scale_label: str = PTBR_SCALE.label
+    scale_fallback: bool = False  # True = este lado pela fórmula inglesa (legado)
 
 
 class ScoreReport(ReportBase):

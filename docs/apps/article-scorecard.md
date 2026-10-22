@@ -16,7 +16,7 @@
 ## Fullscreen e comparação
 
 - No fullscreen, as até 2 sugestões de comparação (`suggestedComparisons`: o maior Flesch da amostra da agência e o da Agência Brasil) aparecem com o motivo.
-- Com `comparison` no payload, os dois artigos ficam **lado a lado** (um embaixo do outro abaixo de ~560 px), cada um com nota, estado e semáforos. O app avisa o modelo da comparação (`ui/update-model-context`).
+- Com `comparison` no payload, os dois artigos ficam **lado a lado** (um embaixo do outro abaixo de ~560 px), cada um com nota, estado e semáforos. O app avisa o modelo da comparação (`ui/update-model-context`). Os dois lados usam a mesma escala de Flesch (o pt-BR se os dois o têm; senão, a inglesa, com aviso); sem escala comum, cada lado fica na sua (`comparison.scale`) e o aviso diz que a legibilidade não é comparável.
 - O título do artigo abre pelo host (`ui/open-link`, só `https`).
 
 ## Estados

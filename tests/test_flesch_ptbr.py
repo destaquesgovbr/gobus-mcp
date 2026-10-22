@@ -11,6 +11,7 @@ from gobus_mcp.readability import (
     PTBR_SCALE,
     article_flesch,
     choose_scale,
+    common_scale,
     legacy_scale_notice,
     readability_status,
     scale_metric,
@@ -56,6 +57,36 @@ def test_escalas_e_campos_da_api():
 )
 def test_article_flesch_prefere_o_ptbr(features, value, scale):
     assert article_flesch(features) == (value, scale)
+
+
+def test_article_flesch_com_escala_dada_le_so_aquela_escala():
+    features = {"readabilityFleschPtbr": 15.0, "readabilityFlesch": 45.0}
+
+    assert article_flesch(features, EN_SCALE) == (45.0, EN_SCALE)
+    assert article_flesch({"readabilityFlesch": 45.0}, PTBR_SCALE) == (None, PTBR_SCALE)
+
+
+BOTH = {"readabilityFleschPtbr": 15.0, "readabilityFlesch": 45.0}
+PTBR_ONLY = {"readabilityFleschPtbr": 15.0, "readabilityFlesch": None}
+EN_ONLY = {"readabilityFleschPtbr": None, "readabilityFlesch": 45.0}
+NONE = {"readabilityFleschPtbr": None, "readabilityFlesch": None}
+
+
+@pytest.mark.parametrize(
+    ("pair", "scale"),
+    [
+        ((BOTH, PTBR_ONLY), PTBR_SCALE),  # os dois têm o pt-BR
+        ((BOTH, EN_ONLY), EN_SCALE),  # o comparado só tem o inglês: os dois no inglês
+        ((EN_ONLY, BOTH), EN_SCALE),
+        ((EN_ONLY, EN_ONLY), EN_SCALE),
+        ((PTBR_ONLY, EN_ONLY), None),  # sem escala comum
+        ((BOTH, NONE), PTBR_SCALE),  # artigo sem Flesch não restringe a escolha
+        ((EN_ONLY, None), EN_SCALE),
+        ((NONE, NONE), PTBR_SCALE),
+    ],
+)
+def test_common_scale_escolhe_uma_escala_para_os_dois_lados(pair, scale):
+    assert common_scale(pair) == scale
 
 
 def test_media_ponderada_pela_contagem_de_artigos_com_valor():

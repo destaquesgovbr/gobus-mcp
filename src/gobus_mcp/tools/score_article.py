@@ -5,7 +5,9 @@ meta de serviço 50), concisão (palavras contra a mediana da agência) e densid
 entidades (por 100 palavras).
 
 Escala: o Flesch pt-BR do artigo; sem ele, o inglês (legado), com aviso
-``READABILITY_LEGACY_SCALE``. O benchmark usa a mesma escala do artigo.
+``READABILITY_LEGACY_SCALE``. O benchmark usa a mesma escala do artigo. Com ``compare_with``,
+os dois artigos usam a escala comum (``common_scale``: o pt-BR se ambos o têm; senão, o
+inglês para os dois); sem escala comum, cada lado fica na sua, com aviso.
 
 - **refused**: sem Flesch ou sem wordCount → "Nota indisponível" (nunca uma nota neutra);
 - **partial**: sem benchmark de concisão (amostra < 10) → média renormalizada;
@@ -28,7 +30,7 @@ from gobus_mcp.agency_catalog import AgencyCatalog
 from gobus_mcp.calendario import calendar_context, now_brt, reference_date
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import notices_for, share_status
-from gobus_mcp.payloads.common import DataStatus
+from gobus_mcp.payloads.common import DataStatus, Notice
 from gobus_mcp.payloads.readability import DayRange, flesch_bands
 from gobus_mcp.payloads.scorecard import (
     Light,
@@ -41,9 +43,11 @@ from gobus_mcp.payloads.scorecard import (
 )
 from gobus_mcp.readability import (
     PTBR_SCALE,
+    SCALES,
     FleschScale,
     article_flesch,
     clamp_flesch,
+    common_scale,
     describe_flesch,
     legacy_scale_notice,
     readability_score,
@@ -315,37 +319,38 @@ class _Scored(NamedTuple):
     scale: FleschScale
 
 
-async def _score_one(
-    client: GobusGraphQLClient,
-    unique_id: str,
-    *,
-    catalog: AgencyCatalog,
-    now: datetime,
-) -> _Scored | None:
-    """Pontua um artigo; ``None`` se ele não existe."""
-    today = reference_date(now)
+class _Fetched(NamedTuple):
+    """Dados de um artigo para pontuar: as amostras trazem os dois Flesch, então a escala
+    pode ser escolhida depois (a comum aos dois lados de um ``compare_with``)."""
+
+    unique_id: str
+    art: dict
+    bench_data: dict  # amostras ``ag``/``ab``; vazio sem data de publicação ou agência
+    name: str
+    ab_name: str
+
+    @property
+    def features(self) -> dict:
+        return self.art.get("features") or {}
+
+
+async def _fetch_one(
+    client: GobusGraphQLClient, unique_id: str, *, catalog: AgencyCatalog
+) -> _Fetched | None:
+    """Artigo, nomes do catálogo e amostras do benchmark; ``None`` se o artigo não existe."""
     data, _ = await execute_compatible(
         client, FLESCH_PTBR, _ARTICLE_QUERY, _ARTICLE_LEGACY_QUERY, {"uniqueId": unique_id}
     )
     art = data.get("article")
     if not art:
         return None
-
-    features = art.get("features") or {}
-    raw_flesch, scale = article_flesch(features)
-    fv = clamp_flesch(raw_flesch)
-    word_count = features.get("wordCount")
-    entity_count = len(features.get("entities") or [])
     code = art.get("agency") or ""
     name, ab_name = await asyncio.gather(
         catalog.display_name(code, art.get("agencyName")),
         catalog.display_name(BENCHMARK_AGENCY, "Agência Brasil"),
     )
-
     published = _parse_dt(art.get("publishedAt"))
-    benchmark = reference = None
     bench_data: dict = {}
-    data_status: list[DataStatus] = []
     if published is not None and code:
         bench_data, _ = await execute_compatible(
             client,
@@ -359,6 +364,25 @@ async def _score_one(
                 "limit": SAMPLE_LIMIT,
             },
         )
+    return _Fetched(unique_id, art, bench_data, name, ab_name)
+
+
+def _score_one(fetched: _Fetched, *, now: datetime, scale: FleschScale | None = None) -> _Scored:
+    """Pontua um artigo na escala dada (padrão: a do próprio artigo, ``article_flesch``);
+    o benchmark e as sugestões seguem a mesma escala."""
+    today = reference_date(now)
+    unique_id, art, bench_data, name, ab_name = fetched
+    features = fetched.features
+    raw_flesch, scale = article_flesch(features, scale)
+    fv = clamp_flesch(raw_flesch)
+    word_count = features.get("wordCount")
+    entity_count = len(features.get("entities") or [])
+    code = art.get("agency") or ""
+
+    published = _parse_dt(art.get("publishedAt"))
+    benchmark = reference = None
+    data_status: list[DataStatus] = []
+    if published is not None and code:
         benchmark, with_flesch, total = _benchmark(
             bench_data.get("ag"), code=code, name=name, exclude=unique_id, scale=scale
         )
@@ -521,7 +545,45 @@ def _comparison(report: ScoreReport) -> ScoreComparison:
         article=report.article,
         dimensions=report.dimensions,
         benchmark=report.benchmark,
+        scale=report.scale,
+        scale_label=report.scale_label,
+        scale_fallback=report.scale_fallback,
     )
+
+
+def _pair_notice(main: _Fetched, other: _Fetched, common: FleschScale | None) -> Notice | None:
+    """Aviso de escala de um ``compare_with`` quando o pt-BR falta em só um dos lados
+    (substitui o aviso de reserva do artigo): os dois foram para a fórmula inglesa, ou,
+    sem escala comum, cada lado ficou na sua."""
+    has_ptbr = [d.features.get(PTBR_SCALE.article_field) is not None for d in (main, other)]
+    if common is None:
+        mine, theirs = (
+            article_flesch(main.features)[1].short,
+            article_flesch(other.features)[1].short,
+        )
+        return Notice(
+            code="READABILITY_LEGACY_SCALE",
+            severity="warn",
+            message=(
+                f"Escalas diferentes na comparação: este artigo tem só o {mine} e o "
+                f"comparado, só o {theirs}. A legibilidade de um não é comparável à do "
+                "outro (a nota de legibilidade e o Flesch de cada lado usam a sua escala)."
+            ),
+            affects=["readability", "comparison"],
+        )
+    if common.legacy and any(has_ptbr):
+        side = "o artigo comparado" if has_ptbr[0] else "este artigo"
+        return Notice(
+            code="READABILITY_LEGACY_SCALE",
+            severity="warn",
+            message=(
+                f"Comparação pela fórmula inglesa do textstat (legado, escala distorcida "
+                f"para o português): {side} não tem o Flesch pt-BR, e os dois artigos "
+                "(e os benchmarks) usam a mesma escala; as faixas e a meta são as mesmas."
+            ),
+            affects=["readability", "comparison"],
+        )
+    return None
 
 
 async def build_score_payload(
@@ -540,15 +602,25 @@ async def build_score_payload(
     other_id = compare_with if compare_with and compare_with != unique_id else None
 
     if other_id:
-        main, other = await asyncio.gather(
-            _score_one(client, unique_id, catalog=catalog, now=now),
-            _score_one(client, other_id, catalog=catalog, now=now),
+        main_data, other_data = await asyncio.gather(
+            _fetch_one(client, unique_id, catalog=catalog),
+            _fetch_one(client, other_id, catalog=catalog),
         )
     else:
-        main, other = await _score_one(client, unique_id, catalog=catalog, now=now), None
-    if main is None:
+        main_data, other_data = await _fetch_one(client, unique_id, catalog=catalog), None
+    if main_data is None:
         return None
+    # lado a lado, os dois artigos usam a mesma escala (pt-BR se ambos o têm; senão, o inglês)
+    common = (
+        common_scale([main_data.features, other_data.features]) if other_data is not None else None
+    )
+    main = _score_one(main_data, now=now, scale=common)
+    other = _score_one(other_data, now=now, scale=common) if other_data is not None else None
     report = main.report
+    notice = _pair_notice(main_data, other_data, common) if other_data is not None else None
+    if notice is not None:
+        notices = [n for n in report.notices if n.code != "READABILITY_LEGACY_SCALE"]
+        report = report.model_copy(update={"notices": [*notices, notice]})
 
     update: dict = {
         "params": {"unique_id": unique_id, "compare_with": compare_with},
@@ -661,8 +733,14 @@ def _comparison_lines(report: ScoreReport) -> list[str]:
     def score(d: ScoreDimension | None) -> str:
         return f"{d.score:.1f}" if d is not None and d.score is not None else "—"
 
-    def flesch(a: ScoredArticle) -> str:
-        return describe_flesch(clamp_flesch(a.flesch_raw)) if a.flesch is not None else "—"
+    mixed = cmp.scale != report.scale  # sem escala comum: cada lado diz a sua
+
+    def flesch(a: ScoredArticle, scale_id: str) -> str:
+        if a.flesch is None:
+            return "—"
+        text = describe_flesch(clamp_flesch(a.flesch_raw))
+        scale = SCALES.get(scale_id)
+        return f"{scale.short} {text}" if mixed and scale is not None else text
 
     lines = [
         f"\n## Comparação: {other.title}",
@@ -676,7 +754,7 @@ def _comparison_lines(report: ScoreReport) -> list[str]:
     for key in WEIGHTS:
         lines.append(f"| {LABELS[key]} | {score(mine.get(key))} | {score(theirs.get(key))} |")
     lines += [
-        f"| Flesch | {flesch(art)} | {flesch(other)} |",
+        f"| Flesch | {flesch(art, report.scale)} | {flesch(other, cmp.scale)} |",
         f"| Palavras | {art.word_count if art.word_count is not None else '—'} | "
         f"{other.word_count if other.word_count is not None else '—'} |",
     ]

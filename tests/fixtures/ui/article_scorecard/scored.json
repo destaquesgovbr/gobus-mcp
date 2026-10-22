@@ -453,7 +453,10 @@
                 "end": "2026-05-28",
                 "days": 28
               }
-            }
+            },
+            "scale": "flesch_ptbr_martins1996",
+            "scaleLabel": "Flesch pt-BR (Martins et al., 1996), limitado a 0–100",
+            "scaleFallback": false
           },
           "comparisonError": null
         },
