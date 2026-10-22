@@ -324,24 +324,28 @@ def test_calendar_notices_nas_fronteiras_do_contrato_entre_repos(today, codes):
 # ── virada da taxonomia de temas (tema 26, D0 do TH-1/DP-2) ─────────────────
 
 D0 = D(2026, 11, 10)  # D0 prevista no plano; os testes injetam a data (a constante é provisória)
+# Data do código (calendario.TAXONOMY_CHANGE_2026_DEFAULT): os testes do parse comparam com
+# ela, então ajustar a D0 muda só a constante e o pin abaixo.
+CODE_D0 = TAXONOMY_CHANGE_2026_DEFAULT
 
 
 def test_virada_da_taxonomia_provisoria_e_configuravel():
-    # Provisória até a D0 real (prevista para 10/11/2026): ajustar antes do merge do PR-D.
+    # Pin da data do código, provisória até a D0 real: no dia, mudar a constante em
+    # calendario.py e esta linha (o resto da suíte injeta a data ou lê a constante).
     assert TAXONOMY_CHANGE_2026_DEFAULT == D(2026, 10, 23)
-    # GOBUS_TAXONOMY_CHANGE_DATE sobrepõe a constante (sem a variável, vale a provisória)
+    # GOBUS_TAXONOMY_CHANGE_DATE sobrepõe a constante (sem a variável, vale a do código)
     assert TAXONOMY_CHANGE_2026 == parse_taxonomy_change(settings.taxonomy_change_date)
 
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [(None, D(2026, 10, 23)), ("", D(2026, 10, 23)), ("  ", D(2026, 10, 23)),
+    [(None, CODE_D0), ("", CODE_D0), ("  ", CODE_D0),
      ("2026-11-10", D(2026, 11, 10)), (" 2026-11-12 ", D(2026, 11, 12)),
      ("off", None), ("OFF", None), ("none", None), ("desligado", None),
-     ("10/11/2026", D(2026, 10, 23)), ("lixo", D(2026, 10, 23))],
+     ("10/11/2026", CODE_D0), ("lixo", CODE_D0)],
 )  # fmt: skip
 def test_parse_taxonomy_change_nunca_levanta(value, expected):
-    # valor inválido cai na data provisória: o servidor não pode cair no import
+    # vazio ou inválido cai na data do código: o servidor não pode cair no import
     assert parse_taxonomy_change(value) == expected
 
 
