@@ -1,6 +1,8 @@
-"""Formatação compartilhada do Markdown das tools: link, rótulo de agência, inteiros, plural,
-datas e texto de erro."""
+"""Formatação compartilhada do Markdown das tools: link, rótulo de agência, números, plural,
+datas, texto de erro e o rodapé "Para explorar"."""
 
+import json
+from collections.abc import Iterable
 from datetime import date, datetime
 from urllib.parse import urlsplit
 
@@ -50,6 +52,12 @@ def fmt_int(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
+def fmt_decimal(value: float, digits: int = 1) -> str:
+    """Decimal pt-BR: ``4.14`` → ``4,1``; ``1234.5`` → ``1.234,5``."""
+    text = f"{value:,.{digits}f}"
+    return text.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
 def plural(count: int, singular: str, plural_form: str) -> str:
     """Contagem com o substantivo concordando: ``1 artigo``, ``1.234 artigos``."""
     return f"{fmt_int(count)} {singular if count == 1 else plural_form}"
@@ -77,3 +85,55 @@ def brt_day(published_at: str | None) -> str:
     if moment.tzinfo is None:
         return moment.date().isoformat()
     return moment.astimezone(BRT).date().isoformat()
+
+
+# ── rodapé "Para explorar" ──────────────────────────────────────────────────
+
+FOLLOW_UPS_TITLE = "**Para explorar:**"
+FOLLOW_UPS_MAX = 3
+FOLLOW_UPS_MAX_BYTES = 400
+
+FollowUp = tuple[str, str]  # (chamada concreta, por quê)
+
+
+def tool_call(tool: str, **args: object) -> str:
+    """Chamada concreta de tool: ``gobus_x(a="b", n=2, flag=true)``.
+
+    Valores em JSON (strings entre aspas, ``true``/``false``, listas); ``None`` e ``""``
+    ficam de fora. Crases viram aspas simples (a chamada vai em código inline).
+    """
+    parts = [
+        f"{name}={json.dumps(value, ensure_ascii=False)}"
+        for name, value in args.items()
+        if value is not None and value != ""
+    ]
+    return f"{tool}({', '.join(parts)})".replace("`", "'")
+
+
+def follow_ups(items: Iterable[FollowUp | None]) -> str:
+    """Rodapé com até ``FOLLOW_UPS_MAX`` chamadas concretas, em até ``FOLLOW_UPS_MAX_BYTES``
+    (UTF-8, título incluído). Item vazio ou repetido é ignorado; item que não cabe é
+    pulado (o seguinte ainda pode entrar). Sem item, devolve ``""``."""
+    lines = [FOLLOW_UPS_TITLE]
+    used = len(FOLLOW_UPS_TITLE.encode())
+    seen: set[str] = set()
+    for item in items:
+        if len(lines) > FOLLOW_UPS_MAX:
+            break
+        if not item or not item[0] or item[0] in seen:
+            continue
+        call, why = item
+        line = f"- `{call}` — {why}" if why else f"- `{call}`"
+        size = len(line.encode()) + 1  # + quebra de linha
+        if used + size > FOLLOW_UPS_MAX_BYTES:
+            continue
+        seen.add(call)
+        lines.append(line)
+        used += size
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
+def with_follow_ups(markdown: str, items: Iterable[FollowUp | None]) -> str:
+    """``markdown`` + linha em branco + rodapé (sem rodapé, ``markdown`` intacto)."""
+    footer = follow_ups(items)
+    return f"{markdown.rstrip()}\n\n{footer}" if footer else markdown

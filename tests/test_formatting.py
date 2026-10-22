@@ -131,7 +131,13 @@ def test_brt_day_converte_publicacao_para_o_dia_de_brasilia(published_at, expect
 
 @pytest.mark.parametrize(
     ("value", "digits", "expected"),
-    [(4.14, 1, "4,1"), (14.58, 1, "14,6"), (1234.5, 1, "1.234,5"), (2.0, 0, "2"), (-0.25, 2, "-0,25")],
+    [
+        (4.14, 1, "4,1"),
+        (14.58, 1, "14,6"),
+        (1234.5, 1, "1.234,5"),
+        (2.0, 0, "2"),
+        (-0.25, 2, "-0,25"),
+    ],
 )
 def test_fmt_decimal_usa_virgula_e_ponto_de_milhar(value, digits, expected):
     assert fmt_decimal(value, digits) == expected
@@ -150,9 +156,9 @@ class TestToolCall:
         )
 
     def test_lista_e_acentos(self):
-        assert tool_call("gobus_get_agency_analytics", agencies=["saude"], date_from="2026-10-01") == (
-            'gobus_get_agency_analytics(agencies=["saude"], date_from="2026-10-01")'
-        )
+        assert tool_call(
+            "gobus_get_agency_analytics", agencies=["saude"], date_from="2026-10-01"
+        ) == ('gobus_get_agency_analytics(agencies=["saude"], date_from="2026-10-01")')
         assert tool_call("gobus_search_news", query="Pé-de-Meia") == (
             'gobus_search_news(query="Pé-de-Meia")'
         )
