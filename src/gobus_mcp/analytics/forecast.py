@@ -12,7 +12,8 @@ fora da lista.
 - ``momentum``: ``k3 − k7`` (sem a de 3 dias, ``k7 − k21``) contra ±ln(1,10)/7;
   ``undetermined`` sem duas taxas;
 - ``confidence``: janelas ok e volume na de 7 dias; cobertura degradada limita a ``low``;
-  a recuperação pós-defeso tira um nível;
+  a recuperação pós-defeso tira um nível, e a virada da taxonomia (baseline cruzando a
+  data, só nos temas afetados, flag ``taxonomy_changed``) tira outro;
 - ``project``: ``s(t) = s0·exp(k·φ(1−φᵗ)/(1−φ))`` com φ = 0,9 (multiplicador em
   [0,2; 5]); esperado(t) = s(t) × volume esperado da plataforma no dia (nível da fase ×
   perfil de dia útil, feriados como domingo; a partir de 26/10 o nível ``normal``);
@@ -34,12 +35,15 @@ from gobus_mcp.calendario import (
     BLACKOUTS,
     CLASSIFIER_CUTOFF,
     NON_WORKING_DAYS,
+    TAXONOMY_CHANGE_2026,
+    TAXONOMY_CHANGED_LABELS,
     BlackoutPeriod,
     DateRange,
     classifier_changed_within,
     overlaps_blackout,
     phase,
     rolling_range,
+    taxonomy_changed_within,
 )
 from gobus_mcp.domains import theme_domain
 from gobus_mcp.payloads.common import Confidence, Status
@@ -110,9 +114,17 @@ def momentum(
     return "stable", acc
 
 
-def confidence(windows_ok: int, count7: int, *, phase: str, degraded: bool = False) -> Confidence:
+def confidence(
+    windows_ok: int,
+    count7: int,
+    *,
+    phase: str,
+    degraded: bool = False,
+    taxonomy_changed: bool = False,
+) -> Confidence:
     """``high``: 3 janelas ok e ≥ 20 artigos em 7 dias; ``medium``: ≥ 2 janelas e ≥ 5;
-    senão ``low``. Cobertura degradada limita a ``low``; ``recovery`` tira um nível."""
+    senão ``low``. Cobertura degradada limita a ``low``; ``recovery`` e a virada da
+    taxonomia (tema afetado) tiram um nível cada."""
     if windows_ok >= 3 and count7 >= HIGH_COUNT7:
         level = 2
     elif windows_ok >= 2 and count7 >= MEDIUM_COUNT7:
@@ -122,6 +134,8 @@ def confidence(windows_ok: int, count7: int, *, phase: str, degraded: bool = Fal
     if degraded:
         level = 0
     if phase == "recovery":
+        level -= 1
+    if taxonomy_changed:
         level -= 1
     return _CONFIDENCE[max(level, 0)]
 
@@ -202,6 +216,7 @@ def forecast_themes(
     periods: tuple[BlackoutPeriod, ...] = BLACKOUTS,
     cutoff: date | None = CLASSIFIER_CUTOFF,
     holidays: frozenset[date] = NON_WORKING_DAYS,
+    taxonomy_change: date | None = TAXONOMY_CHANGE_2026,
 ) -> tuple[dict[WindowKey, ForecastWindow], list[ForecastTheme]]:
     """Janelas do payload e os ``limit`` temas de maior taxa composta, com projeção.
 
@@ -263,6 +278,11 @@ def forecast_themes(
         if on
     ]
 
+    taxonomy_crossed = any(
+        taxonomy_changed_within(rolling_range(WINDOWS[k][1], today), taxonomy_change)
+        for k in usable
+    )
+
     labels = sorted({label for key in usable for label in pairs[key].including.counts})
     k_themes = max(len(labels), 1)
     themes: list[ForecastTheme] = []
@@ -279,6 +299,7 @@ def forecast_themes(
         reference = ratios["7d"] or ratios["3d"] or ratios["21d"]
         windows_ok = sum(1 for key in usable if ratios[key] and statuses[key] == "ok")
         count7 = ratios["7d"].window_count if ratios["7d"] else 0
+        taxonomy_changed = taxonomy_crossed and label in TAXONOMY_CHANGED_LABELS
         themes.append(
             ForecastTheme(
                 label=label,
@@ -288,7 +309,13 @@ def forecast_themes(
                 weekly_multiplier=round(math.exp(7 * k), 3),
                 momentum=state,
                 acceleration=None if acc is None else round(acc, 5),
-                confidence=confidence(windows_ok, count7, phase=current_phase, degraded=degraded),
+                confidence=confidence(
+                    windows_ok,
+                    count7,
+                    phase=current_phase,
+                    degraded=degraded,
+                    taxonomy_changed=taxonomy_changed,
+                ),
                 projection=project(
                     reference.share,
                     k,
@@ -299,7 +326,7 @@ def forecast_themes(
                     periods=periods,
                     holidays=holidays,
                 ),
-                flags=list(flags),
+                flags=[*flags, "taxonomy_changed"] if taxonomy_changed else list(flags),
             )
         )
     themes.sort(key=lambda t: (-(t.per_day_rate or 0.0), t.label))

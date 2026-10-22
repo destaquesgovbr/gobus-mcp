@@ -12,6 +12,9 @@ móveis em UTC (o ``range:{days}`` do Typesense), não fechadas.
 - **``sustained_spike``**: SoV ≥ limiar nas duas janelas e ``w_short ≥ min_count``.
 - **``sustained_drop``**: SoV ≤ 1/limiar nas duas janelas e ``b_prev ≥ min_count`` nas duas.
 - **Severidade**: do sinal mais fraco das duas janelas (o que sustenta o "sustentado").
+- **Virada da taxonomia** (tema 26): com um baseline cruzando a data, os sinais dos temas
+  cuja série muda (``TAXONOMY_CHANGED_LABELS``) ganham a flag ``taxonomy_changed`` e perdem
+  um nível de confiança; os demais temas não mudam.
 """
 
 from __future__ import annotations
@@ -30,6 +33,8 @@ from gobus_mcp.analytics.ratios import (
 from gobus_mcp.calendario import (
     BLACKOUTS,
     CLASSIFIER_CUTOFF,
+    TAXONOMY_CHANGE_2026,
+    TAXONOMY_CHANGED_LABELS,
     BlackoutPeriod,
     classifier_changed_within,
     overlaps_blackout,
@@ -37,6 +42,7 @@ from gobus_mcp.calendario import (
     reference_date,
     rolling_range,
     rolling_window,
+    taxonomy_changed_within,
 )
 from gobus_mcp.data_status import theme_coverage_status
 from gobus_mcp.domains import theme_domain
@@ -198,15 +204,16 @@ def theme_confidence(
     degraded: bool = False,
     recovery: bool = False,
     classifier_changed: bool = False,
+    taxonomy_changed: bool = False,
 ) -> Confidence:
     """``high`` com ≥ 3×``min_count`` artigos na janela longa (numa queda, os que a fatia do
     baseline previa), ``medium`` com ≥ ``min_count``;
-    cobertura degradada limita a ``low``; recuperação e troca de classificador tiram um
-    nível cada."""
+    cobertura degradada limita a ``low``; recuperação, troca de classificador e virada da
+    taxonomia (só nos temas afetados) tiram um nível cada."""
     level = 2 if count_long >= 3 * min_count else 1 if count_long >= min_count else 0
     if degraded:
         level = 0
-    level -= int(recovery) + int(classifier_changed)
+    level -= int(recovery) + int(classifier_changed) + int(taxonomy_changed)
     return _CONFIDENCE[max(level, 0)]
 
 
@@ -220,8 +227,12 @@ def classify_sustained(
     recovery: bool = False,
     classifier_changed: bool = False,
     flags: Iterable[str] = (),
+    taxonomy_labels: frozenset[str] = frozenset(),
 ) -> list[ThemeSignal]:
-    """Picos e quedas sustentados (as duas janelas além do limiar), por severidade."""
+    """Picos e quedas sustentados (as duas janelas além do limiar), por severidade.
+
+    ``taxonomy_labels``: temas cuja série mudou dentro do baseline (virada da taxonomia);
+    ganham a flag ``taxonomy_changed`` e perdem um nível de confiança."""
     extra = list(flags)
     signals: list[ThemeSignal] = []
     for label in sorted(set(short) & set(long)):
@@ -241,6 +252,7 @@ def classify_sustained(
             volume = round(lg.b_prev * lg.total_w / lg.total_prev) if lg.total_prev else lg.w
         else:
             continue
+        taxonomy_changed = label in taxonomy_labels
         signals.append(
             ThemeSignal(
                 label=label,
@@ -259,8 +271,9 @@ def classify_sustained(
                     degraded=degraded,
                     recovery=recovery,
                     classifier_changed=classifier_changed,
+                    taxonomy_changed=taxonomy_changed,
                 ),
-                flags=extra,
+                flags=[*extra, "taxonomy_changed"] if taxonomy_changed else list(extra),
                 daily=None,
             )
         )
@@ -280,6 +293,7 @@ def build_themes_block(
     today: date | None = None,
     periods: tuple[BlackoutPeriod, ...] = BLACKOUTS,
     cutoff: date | None = CLASSIFIER_CUTOFF,
+    taxonomy_change: date | None = TAXONOMY_CHANGE_2026,
 ) -> tuple[ThemesBlock, DataStatus]:
     """Bloco de temas do ``AnomalyReport`` e o ``DataStatus`` de ``themes`` (o pior entre as
     coberturas das duas janelas e dos seus baselines)."""
@@ -289,6 +303,7 @@ def build_themes_block(
 
     ranges = [rolling_range(p.baseline_days, today) for p in (short, long)]
     classifier_changed = any(classifier_changed_within(r, cutoff) for r in ranges)
+    taxonomy_changed = any(taxonomy_changed_within(r, taxonomy_change) for r in ranges)
     blackout_baseline = [overlaps_blackout(r, periods) for r in ranges]
     recovery = phase(today, periods) == "recovery"
     degraded = status == "degraded"
@@ -318,6 +333,7 @@ def build_themes_block(
             recovery=recovery,
             classifier_changed=classifier_changed,
             flags=flags,
+            taxonomy_labels=TAXONOMY_CHANGED_LABELS if taxonomy_changed else frozenset(),
         )
         if degraded:
             note = (

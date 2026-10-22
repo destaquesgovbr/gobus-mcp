@@ -227,3 +227,9 @@ def test_anomalias_linha_normal_sem_severidade_nem_faixa():
     line = next(x for x in md.splitlines() if "Operação Carga Pesada" in x)
     assert "razão 10,0×" in line
     assert "severidade" not in line and "alerta" not in line
+
+
+def test_flag_da_virada_da_taxonomia_tem_rotulo_pt():
+    from gobus_mcp.analytics.render import FLAG_PT
+
+    assert FLAG_PT["taxonomy_changed"] == "virada da taxonomia no baseline"

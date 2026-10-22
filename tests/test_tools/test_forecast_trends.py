@@ -14,8 +14,19 @@ from gobus_mcp.cache import TTLCache
 from gobus_mcp.calendario import BRT
 from gobus_mcp.payloads.anomalies import MAX_PAYLOAD_BYTES, payload_size
 from gobus_mcp.payloads.forecast import MAX_THEMES, ForecastReport
-from gobus_mcp.tools.forecast_trends import build_forecast_report, forecast_trends
-from tests.fixtures.g2 import NOW_0510, busy, route_g2, theme_ranges_0510
+from gobus_mcp.tools.forecast_trends import (
+    build_forecast_output,
+    build_forecast_report,
+    forecast_trends,
+)
+from tests.fixtures.g2 import (
+    NOW_0510,
+    busy,
+    healthy_theme_ranges,
+    rename_theme,
+    route_g2,
+    theme_ranges_0510,
+)
 
 D = date
 
@@ -224,6 +235,40 @@ async def test_avisos_de_calendario_nas_fronteiras(fake_client, today, phase, co
 
     assert report.calendar.phase == phase
     assert calendar_codes == codes
+
+
+# ── virada da taxonomia (tema 26) ───────────────────────────────────────────
+
+CIVIL = "Defesa Civil e Gestão de Desastres"
+
+
+async def test_aviso_de_taxonomia_nomeia_os_temas_afetados_da_lista(fake_client):
+    # 07/12: os baselines de 28 e 84 dias cruzam a virada de 20/11
+    route_g2(fake_client, themes=rename_theme(healthy_theme_ranges(), "Saúde", CIVIL))
+
+    report, markdown = await build_forecast_output(
+        fake_client, limit=10, now=_at(D(2026, 12, 7)), taxonomy_change=D(2026, 11, 20)
+    )
+    notice = next(n for n in report.notices if n.code == "TAXONOMY_CHANGED")
+    civil = _theme(report, CIVIL)
+
+    assert notice.since == D(2026, 11, 20) and notice.affects == ["themes"]
+    assert CIVIL in notice.message and "Saúde" not in notice.message
+    assert "Segurança Pública" in notice.message  # 04 também perde Defesa Civil para o 26
+    assert civil.domain == "SECURITY" and "taxonomy_changed" in civil.flags
+    assert "taxonomy_changed" not in _theme(report, "Educação").flags
+    assert "20/11/2026" in markdown
+
+
+async def test_forecast_sem_aviso_de_taxonomia_antes_da_virada(fake_client):
+    route_g2(fake_client, themes=rename_theme(healthy_theme_ranges(), "Saúde", CIVIL))
+
+    report = await build_forecast_report(
+        fake_client, now=_at(D(2026, 12, 7)), taxonomy_change=D(2026, 12, 8)
+    )
+
+    assert "TAXONOMY_CHANGED" not in {n.code for n in report.notices}
+    assert all("taxonomy_changed" not in t.flags for t in report.themes)
 
 
 # ── degradação ──────────────────────────────────────────────────────────────

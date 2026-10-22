@@ -27,6 +27,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
+from datetime import date
 
 from gobus_mcp.agency_activity import ActivitySnapshot, AgencyActivityService, activity_status
 from gobus_mcp.agency_catalog import FALLBACK_REPUBLISHERS, AgencyCatalog
@@ -50,6 +51,7 @@ from gobus_mcp.analytics.themes import (
 )
 from gobus_mcp.cache import TTLCache
 from gobus_mcp.calendario import (
+    TAXONOMY_CHANGE_2026,
     as_window,
     calendar_context,
     calendar_notices,
@@ -195,14 +197,26 @@ async def _fetch_entities(
 
 
 def _themes(
-    fetch: ThemeRangeFetch | BaseException, sens: Sensitivity, *, now, today
+    fetch: ThemeRangeFetch | BaseException,
+    sens: Sensitivity,
+    *,
+    now,
+    today,
+    taxonomy_change: date | None = TAXONOMY_CHANGE_2026,
 ) -> tuple[ThemesBlock, DataStatus]:
     if isinstance(fetch, BaseException):
         error, as_of = str(fetch) or type(fetch).__name__, now
     else:
         short, long = fetch.pair(*SHORT_WINDOW), fetch.pair(*LONG_WINDOW)
         if short is not None and long is not None:
-            return build_themes_block(short, long, sens=sens, now=fetch.as_of, today=today)
+            return build_themes_block(
+                short,
+                long,
+                sens=sens,
+                now=fetch.as_of,
+                today=today,
+                taxonomy_change=taxonomy_change,
+            )
         error, as_of = fetch.error_text(), fetch.as_of
     block = ThemesBlock(
         status="unavailable",
@@ -348,12 +362,15 @@ async def build_anomaly_output(
     now=None,
     cache: TTLCache | None = None,
     max_candidates: int = MAX_CANDIDATES,
+    taxonomy_change: date | None = TAXONOMY_CHANGE_2026,
 ) -> tuple[AnomalyReport, str]:
     """``(payload do app, Markdown completo)``.
 
     O Markdown vai inteiro no ``content`` da tool; o payload traz o mesmo texto até 6 KB
     em ``summary`` e só os sinais que o app desenha (``compact_anomaly_payload``).
-    Parâmetro inválido levanta ``ValueError`` com as opções (antes de qualquer I/O)."""
+    Parâmetro inválido levanta ``ValueError`` com as opções (antes de qualquer I/O).
+    ``taxonomy_change`` (injetável): data da virada da taxonomia (tema 26); ``None``
+    desliga o aviso ``TAXONOMY_CHANGED``."""
     sens_name, sens = parse_sensitivity(sensitivity)
     domain: Domain | None = parse_domain(domain_filter)
     now = now or now_brt()
@@ -377,7 +394,9 @@ async def build_anomaly_output(
     republishers_fallback = isinstance(republishers_r, BaseException)
     republishers = FALLBACK_REPUBLISHERS if republishers_fallback else republishers_r
 
-    themes_block, theme_status = _themes(theme_fetch, sens, now=now, today=today)
+    themes_block, theme_status = _themes(
+        theme_fetch, sens, now=now, today=today, taxonomy_change=taxonomy_change
+    )
     entities_block, ranking_status, selection = _entities(
         entity_fetch,
         windows,
@@ -401,6 +420,8 @@ async def build_anomaly_output(
         today,
         baselines=[rolling_range(SHORT_WINDOW[1], today), rolling_range(LONG_WINDOW[1], today)],
         silenced_agencies=len(snapshot.silenced) if snapshot else None,
+        taxonomy_themes=[t.label for t in themes_block.signals],  # depois do domain_filter
+        taxonomy_change=taxonomy_change,
     )
     notices += notices_for(statuses)
     if selection is not None:

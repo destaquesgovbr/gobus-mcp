@@ -5,6 +5,10 @@ O resolver compara a janela com um baseline que **inclui** a janela. O limiar do
 (``analytics.ratios.overlap_growth_threshold``); nunca se envia ``growthThreshold: 0``.
 Sem temas, a tool distingue "nada cresceu" de "temas sem classificação" pela cobertura
 (``topThemes``/``analyticsKpis``) da mesma janela.
+
+Virada da taxonomia (tema 26): com o baseline cruzando a data, os temas cuja série muda
+nela ganham a marca "taxonomia mudou" na linha e uma nota no cabeçalho (o crescimento do 26
+e a queda do 19 logo depois da D0 podem ser só a migração de Defesa Civil).
 """
 
 from __future__ import annotations
@@ -15,7 +19,15 @@ from datetime import date
 
 from gobus_mcp.agency_catalog import AgencyCatalog, catalog_display_names
 from gobus_mcp.analytics.ratios import overlap_growth_threshold, ratio_from_trending_row
-from gobus_mcp.calendario import closed_window, reference_date
+from gobus_mcp.calendario import (
+    TAXONOMY_CHANGE_2026,
+    closed_window,
+    reference_date,
+    rolling_range,
+    taxonomy_affected,
+    taxonomy_change_text,
+    taxonomy_changed_within,
+)
 from gobus_mcp.client import GobusGraphQLClient
 from gobus_mcp.data_status import theme_coverage
 from gobus_mcp.formatting import (
@@ -135,6 +147,7 @@ async def detect_trends(
     *,
     catalog: AgencyCatalog | None = None,
     today: date | None = None,
+    taxonomy_change: date | None = TAXONOMY_CHANGE_2026,
 ) -> str:
     """Detecta temas em crescimento comparando janela recente com baseline histórico.
 
@@ -145,7 +158,8 @@ async def detect_trends(
         growth_threshold: Razão mínima sem sobreposição (default 1.5×; mínimo 1.0)
         agency_key: Filtrar por agência (opcional; validada no catálogo)
         limit: Máximo de temas (default 10)
-        today: D em BRT (injetável), base das datas sugeridas no rodapé
+        today: D em BRT (injetável; padrão: hoje), base das datas sugeridas no rodapé
+        taxonomy_change: virada da taxonomia (tema 26); ``None`` desliga a nota
 
     Returns:
         Markdown com ranking de temas em crescimento, ou o aviso de temas indisponíveis.
@@ -230,6 +244,17 @@ async def detect_trends(
             follow,
         )
 
+    affected: list[str] = []
+    if taxonomy_change is not None and taxonomy_changed_within(
+        rolling_range(baseline_days, today or reference_date()), taxonomy_change
+    ):
+        affected = taxonomy_affected(t.get("themeLabel") or "" for t in themes)
+    if affected:
+        header.append(
+            f"> {taxonomy_change_text(taxonomy_change)} O baseline cruza essa data: a razão "
+            f"de {', '.join(affected)} pode ser artificial."
+        )
+
     lines = [*header, f"\n## {len(themes)} temas em crescimento\n"]
     for i, theme in enumerate(themes, 1):
         growth = theme.get("growthScore") or 0.0
@@ -241,6 +266,7 @@ async def detect_trends(
             f"{_ratio_text(theme, window_days, baseline_days)} · "
             f"growthScore {growth:.1f} · "
             f"{window} artigos (janela) vs {baseline_avg:.1f}/dia (baseline)"
+            + (" · taxonomia mudou no baseline" if theme["themeLabel"] in affected else "")
         )
         top_arts = theme.get("topArticles") or []
         if top_arts:

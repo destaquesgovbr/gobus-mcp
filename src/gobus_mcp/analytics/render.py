@@ -52,6 +52,7 @@ FLAG_PT = {
     "owner_activity_unknown": "atividade da dona desconhecida",
     "republishers_excluded": "republicadoras excluídas",
     "thin_baseline": "baseline pequeno",
+    "taxonomy_changed": "virada da taxonomia no baseline",
 }
 
 

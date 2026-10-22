@@ -32,6 +32,14 @@ TAXONOMY_QUERIES: dict[str, list[str]] = {
     ],
     "Turismo": ["turismo", "viagem", "hospedagem", "destino turístico", "Embratur"],
     "Defesa Nacional": ["Forças Armadas", "Exército", "Marinha", "Aeronáutica", "defesa nacional"],
+    # tema 26 (D0 da taxonomia): Defesa Civil sai de "Defesa e Forças Armadas"
+    "Defesa Civil e Gestão de Desastres": [
+        "defesa civil",
+        "desastre",
+        "calamidade pública",
+        "situação de emergência",
+        "chuvas",
+    ],
 }
 
 

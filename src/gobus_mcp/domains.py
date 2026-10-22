@@ -4,7 +4,8 @@ Usados pelo ``domain_filter`` do ``gobus_detect_anomalies`` e pelos gauges do ap
 ``ui://anomaly-radar`` (um por domínio, em ``DOMAIN_ORDER``).
 
 Atribuição (integration.md §1.1; verificação B8):
-- tema: ``THEME_DOMAIN`` (as 25 labels L1 vivas); sem equivalente → ``OTHER``;
+- tema: ``THEME_DOMAIN`` (as 25 labels L1 vivas e a do tema 26, que nasce na D0 da
+  taxonomia); sem equivalente → ``OTHER``;
 - entidade POLICY: ``policyDetails.domain`` (983 de 2.441 vêm nulos);
 - demais entidades, ou POLICY sem domínio: o mapa da agência dona (``AGENCY_DOMAIN``,
   curado e **parcial**); sem dona ou sem mapa → ``OTHER``.
@@ -77,8 +78,11 @@ _ALIASES: Mapping[str, Domain] = {
     "outro": Domain.OTHER,
 }
 
-# As 25 labels L1 da taxonomia (``themes`` em 05/10/2026). Sem equivalente nos domínios de
-# política: Cultura, Ciência e Tecnologia, Comunicações e Relações Internacionais (→ OTHER).
+# As 25 labels L1 da taxonomia (``themes`` em 05/10/2026) mais a do tema 26, que nasce na
+# D0 da taxonomia (19.03 Defesa Civil → 26.01, 19.04 Situações de Emergência → 26.02) e
+# fica em SECURITY por continuidade com o 19: quem filtra segurança no radar continua vendo
+# Defesa Civil. Sem equivalente nos domínios de política: Cultura, Ciência e Tecnologia,
+# Comunicações e Relações Internacionais (→ OTHER).
 THEME_DOMAIN: Mapping[str, Domain] = {
     "Saúde": Domain.HEALTH,
     "Educação": Domain.EDUCATION,
@@ -98,6 +102,7 @@ THEME_DOMAIN: Mapping[str, Domain] = {
     "Fiscalização e Tributação": Domain.ECONOMIC,
     "Segurança Pública": Domain.SECURITY,
     "Defesa e Forças Armadas": Domain.SECURITY,
+    "Defesa Civil e Gestão de Desastres": Domain.SECURITY,
     "Meio Ambiente e Sustentabilidade": Domain.ENVIRONMENT,
     "Políticas Públicas e Governança": Domain.GOVERNANCE,
     "Legislação e Regulamentação": Domain.GOVERNANCE,

@@ -60,6 +60,7 @@ def test_vocabularios_de_status_e_codigos():
         "TRENDING_ENTITIES_STALE",
         "BASELINE_ZERO_SUPPRESSED",
         "CLASSIFIER_CHANGED",
+        "TAXONOMY_CHANGED",
         "ELECTORAL_BLACKOUT",
         "POST_BLACKOUT_RECOVERY",
         "INDEXING_LAG",

@@ -502,6 +502,10 @@ async def scorecard_fixtures() -> dict[str, dict]:
 
 ANOMALY_TOOL = "gobus_detect_anomalies"
 RECOVERY_NOW = datetime(2026, 11, 3, 12, 0, tzinfo=BRT)
+# Virada da taxonomia fixa nas fixtures dos radares: não dependem da data provisória (nem
+# da D0 real) de calendario.TAXONOMY_CHANGE_2026. 27/10 fica dentro dos baselines da
+# recuperação (03/11) e depois de 05/10 (as demais fixtures não cruzam a virada).
+TAXONOMY_CHANGE_FIXTURE = date(2026, 10, 27)
 
 
 def flat_theme_ranges() -> dict[int, dict]:
@@ -552,6 +556,7 @@ def route_graphql_down(client: FakeGraphQLClient) -> FakeGraphQLClient:
 async def _anomalies(client: FakeGraphQLClient, now: datetime = NOW_0510, **kwargs) -> dict:
     from gobus_mcp.tools.detect_anomalies import build_anomaly_output
 
+    kwargs.setdefault("taxonomy_change", TAXONOMY_CHANGE_FIXTURE)
     report, markdown = await build_anomaly_output(client, now=now, **kwargs)
     return call_result(ui.app_result(report, content=markdown))
 
@@ -683,6 +688,7 @@ def sparse_theme_ranges() -> dict[int, dict]:
 async def _forecast(client: FakeGraphQLClient, now: datetime = NOW_0510, **kwargs) -> dict:
     from gobus_mcp.tools.forecast_trends import build_forecast_output
 
+    kwargs.setdefault("taxonomy_change", TAXONOMY_CHANGE_FIXTURE)
     report, markdown = await build_forecast_output(client, now=now, **kwargs)
     return call_result(ui.app_result(report, content=markdown))
 

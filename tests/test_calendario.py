@@ -14,6 +14,9 @@ from gobus_mcp.calendario import (
     CLASSIFIER_CUTOFF,
     HOLIDAYS,
     MIN_ALTERNATIVE_DAYS,
+    TAXONOMY_CHANGE_2026,
+    TAXONOMY_CHANGE_2026_DEFAULT,
+    TAXONOMY_CHANGED_THEMES,
     BlackoutPeriod,
     DateRange,
     agency_analytics_bounds,
@@ -31,12 +34,17 @@ from gobus_mcp.calendario import (
     effective_weekday,
     is_holiday,
     now_brt,
+    parse_taxonomy_change,
     phase,
     reference_date,
     rolling_range,
     rolling_window,
+    taxonomy_affected,
+    taxonomy_changed_within,
     utc_day_bounds,
 )
+from gobus_mcp.config import settings
+from gobus_mcp.domains import THEME_DOMAIN, Domain
 from gobus_mcp.payloads.common import CalendarContext, Window
 
 D = date
@@ -313,6 +321,113 @@ def test_calendar_notices_nas_fronteiras_do_contrato_entre_repos(today, codes):
     assert _codes(calendar_notices(today)) == codes
     if today == D(2026, 10, 25):
         assert "faltam 0 dias" in calendar_notices(today)[0].message
+
+
+# ── virada da taxonomia de temas (tema 26, D0 do TH-1/DP-2) ─────────────────
+
+D0 = D(2026, 11, 10)  # D0 prevista no plano; os testes injetam a data (a constante é provisória)
+# Data do código (calendario.TAXONOMY_CHANGE_2026_DEFAULT): os testes do parse comparam com
+# ela, então ajustar a D0 muda só a constante e o pin abaixo.
+CODE_D0 = TAXONOMY_CHANGE_2026_DEFAULT
+
+
+def test_virada_da_taxonomia_provisoria_e_configuravel():
+    # Pin da data do código, provisória até a D0 real: no dia, mudar a constante em
+    # calendario.py e esta linha (o resto da suíte injeta a data ou lê a constante).
+    assert TAXONOMY_CHANGE_2026_DEFAULT == D(2026, 10, 22)
+    # GOBUS_TAXONOMY_CHANGE_DATE sobrepõe a constante (sem a variável, vale a do código)
+    assert TAXONOMY_CHANGE_2026 == parse_taxonomy_change(settings.taxonomy_change_date)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(None, CODE_D0), ("", CODE_D0), ("  ", CODE_D0),
+     ("2026-11-10", D(2026, 11, 10)), (" 2026-11-12 ", D(2026, 11, 12)),
+     ("off", None), ("OFF", None), ("none", None), ("desligado", None),
+     ("10/11/2026", CODE_D0), ("lixo", CODE_D0)],
+)  # fmt: skip
+def test_parse_taxonomy_change_nunca_levanta(value, expected):
+    # vazio ou inválido cai na data do código: o servidor não pode cair no import
+    assert parse_taxonomy_change(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(None, None), ("", None), ("off", None), ("lixo", None), ("10/11/2026", None),
+     ("2026-11-10", D(2026, 11, 10))],
+)  # fmt: skip
+def test_parse_taxonomy_change_com_default_desligado_nunca_levanta(value, expected):
+    # Desligar o aviso pelo código é TAXONOMY_CHANGE_2026_DEFAULT = None (PR de uma linha →
+    # deploy automático): a env var não está no Terraform, então não é chave operacional.
+    # Mesmo assim, valor inválido nunca derruba o import.
+    assert parse_taxonomy_change(value, default=None) == expected
+
+
+def test_temas_da_virada_sao_os_que_mudam_de_serie():
+    # 19.03/19.04 → 26; a reclassificação por LLM tira Defesa Civil também de 04 (MDR em
+    # 04.03.01), 05.02.01 e 15.02.03 (atualização de 21–22/10 do plano)
+    assert TAXONOMY_CHANGED_THEMES == {
+        "04": "Segurança Pública",
+        "05": "Meio Ambiente e Sustentabilidade",
+        "15": "Desenvolvimento Social",
+        "19": "Defesa e Forças Armadas",
+        "26": "Defesa Civil e Gestão de Desastres",
+    }
+    assert set(TAXONOMY_CHANGED_THEMES.values()) <= set(THEME_DOMAIN)
+    assert THEME_DOMAIN["Defesa Civil e Gestão de Desastres"] is Domain.SECURITY
+
+
+def test_taxonomy_affected_na_ordem_dos_codigos_e_so_os_presentes():
+    labels = ["Saúde", "Defesa Civil e Gestão de Desastres", "Desenvolvimento Social"]
+    assert taxonomy_affected(labels) == [
+        "Desenvolvimento Social",
+        "Defesa Civil e Gestão de Desastres",
+    ]
+    assert taxonomy_affected(["Saúde", "Educação"]) == []
+    assert taxonomy_affected([]) == []
+
+
+def test_taxonomy_changed_within_como_o_corte_do_classificador():
+    r = DateRange(D(2026, 10, 20), D(2026, 11, 16))
+    assert taxonomy_changed_within(r, D0) is True
+    assert taxonomy_changed_within(r, D(2026, 10, 20)) is False  # tudo depois da virada
+    assert taxonomy_changed_within(r, D(2026, 11, 17)) is False  # virada no futuro
+    assert taxonomy_changed_within(r, D(2026, 11, 16)) is True  # só o último dia depois
+    assert taxonomy_changed_within(r, None) is False
+
+
+def test_calendar_notices_taxonomy_changed_so_com_tema_afetado_e_baseline_cruzando():
+    crossing = DateRange(D(2026, 10, 20), D(2026, 11, 16))
+    clean = DateRange(D(2026, 11, 10), D(2026, 12, 7))
+    themes = ["Saúde", "Defesa e Forças Armadas", "Defesa Civil e Gestão de Desastres"]
+
+    notices = calendar_notices(
+        D(2026, 12, 7), baselines=[clean, crossing], taxonomy_themes=themes, taxonomy_change=D0
+    )
+    (changed,) = [n for n in notices if n.code == "TAXONOMY_CHANGED"]
+    assert changed.severity == "warn" and changed.since == D0
+    assert changed.affects == ["themes"]
+    assert "10/11/2026" in changed.message
+    assert "Defesa e Forças Armadas" in changed.message
+    assert "Defesa Civil e Gestão de Desastres" in changed.message
+    assert "Saúde" not in changed.message  # só os temas afetados presentes no relatório
+
+    def codes(**kw):
+        return _codes(calendar_notices(D(2026, 12, 7), **{"taxonomy_change": D0, **kw}))
+
+    # sem tema afetado no relatório, sem baseline cruzando, sem data ou sem temas: nada
+    assert "TAXONOMY_CHANGED" not in codes(baselines=[crossing], taxonomy_themes=["Saúde"])
+    assert "TAXONOMY_CHANGED" not in codes(baselines=[clean], taxonomy_themes=themes)
+    assert "TAXONOMY_CHANGED" not in codes(
+        baselines=[crossing], taxonomy_themes=themes, taxonomy_change=None
+    )
+    assert "TAXONOMY_CHANGED" not in codes(baselines=[crossing])
+
+
+def test_calendar_notices_sem_temas_continua_igual_para_quem_ja_chamava():
+    # chamadas antigas (sem taxonomy_themes) não ganham o aviso novo
+    crossing = DateRange(D(2026, 10, 20), D(2026, 11, 16))
+    assert calendar_notices(D(2026, 12, 7), baselines=[crossing]) == []
 
 
 # ── alternativas de janela sem o defeso (coerência, A9) ─────────────────────

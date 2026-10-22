@@ -162,6 +162,19 @@ def healthy_theme_ranges(days: tuple[int, ...] = RANGE_DAYS) -> dict[int, dict]:
     return ranges_from_daily(lambda label, i: rates[label](i), total, list(rates), days)
 
 
+def rename_theme(ranges: Mapping[int, dict], old: str, new: str) -> dict[int, dict]:
+    """As mesmas respostas ``ThemeRangeCounts`` com a label ``old`` trocada por ``new``."""
+    return {
+        days: {
+            **data,
+            "topThemes": [
+                {**t, "label": new if t["label"] == old else t["label"]} for t in data["topThemes"]
+            ],
+        }
+        for days, data in ranges.items()
+    }
+
+
 def coverage_rows(agency: str, counts: Mapping[date, int]) -> list[dict]:
     """Linhas ``entityCoverage(DAY)`` de uma agência (dias UTC)."""
     return [

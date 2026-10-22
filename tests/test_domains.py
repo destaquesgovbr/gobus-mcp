@@ -43,6 +43,9 @@ L1_LABELS = [
     "Fiscalização e Tributação",
     "Política Econômica",
 ]
+# A partir da D0 do tema 26 (TH-1/DP-2): o L1 26 sai de 19.03/19.04 ("Defesa Civil" deixa
+# "Defesa e Forças Armadas"). O 19 continua vivo.
+L1_LABELS_D0 = [*L1_LABELS, "Defesa Civil e Gestão de Desastres"]
 
 
 def test_os_7_dominios_de_policies_mais_other_em_ordem_fixa():
@@ -115,7 +118,7 @@ def test_parse_domain_invalido_lista_as_opcoes():
 
 
 def test_theme_domain_cobre_as_25_labels_l1():
-    assert set(THEME_DOMAIN) <= set(L1_LABELS)
+    assert set(THEME_DOMAIN) <= set(L1_LABELS_D0)
     assert theme_domain("Saúde") is Domain.HEALTH
     assert theme_domain("Segurança Pública") is Domain.SECURITY
     assert theme_domain("Política Econômica") is Domain.ECONOMIC
@@ -128,6 +131,14 @@ def test_theme_domain_cobre_as_25_labels_l1():
     assert theme_domain("tema que não existe") is Domain.OTHER
     for label in L1_LABELS:
         assert isinstance(theme_domain(label), Domain)
+
+
+def test_tema_26_defesa_civil_fica_em_seguranca_por_continuidade_com_o_19():
+    # 19.03 (Defesa Civil) e 19.04 (Situações de Emergência) viram 26.01 e 26.02: o domínio
+    # não muda para quem filtra SECURITY no radar de anomalias e no forecast.
+    assert theme_domain("Defesa Civil e Gestão de Desastres") is Domain.SECURITY
+    assert theme_domain("Defesa e Forças Armadas") is Domain.SECURITY
+    assert set(L1_LABELS_D0) - set(L1_LABELS) == {"Defesa Civil e Gestão de Desastres"}
 
 
 def test_agency_domain_curado():

@@ -37,6 +37,7 @@ const APP_FLAGS = {
   owner_activity_unknown: "atividade da dona desconhecida",
   republishers_excluded: "republicadoras excluídas",
   thin_baseline: "baseline pequeno",
+  taxonomy_changed: "virada da taxonomia no baseline",
 };
 const APP_GAUGE = { w: 120, h: 68, cx: 60, cy: 60, outer: 50, inner: 37, stroke: 9 };
 const appState = { tab: "spikes" };

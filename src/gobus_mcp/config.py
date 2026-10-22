@@ -6,6 +6,11 @@ class Settings(BaseSettings):
     graphql_api_key: str = ""
     request_timeout: float = 10.0
     log_level: str = "INFO"
+    # Data da virada da taxonomia de temas (tema 26), AAAA-MM-DD; "off" desliga o aviso
+    # TAXONOMY_CHANGED. Vazio = a data do código (calendario.TAXONOMY_CHANGE_2026_DEFAULT).
+    # O Terraform não define esta variável: em produção vale a constante do código; aqui é
+    # para simular a virada localmente (usar no Cloud Run exige antes um PR no infra).
+    taxonomy_change_date: str = ""
     # Só para desenvolvimento (o Terraform nunca define): tools gobus_dev_preview_* com as
     # fixtures dos MCP Apps e CORS para o basic-host conectar do navegador no /mcp local.
     dev_preview: bool = False
