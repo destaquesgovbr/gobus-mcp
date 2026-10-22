@@ -213,7 +213,7 @@ async def test_entity_network_usa_o_cache_do_conteiner(deps):
     text = first.content[0].text
     assert "1. **Vizinha**" in text
     assert "2. **Min. Saúde**" in text  # entidade da agência: vizinho comum
-    assert len(deps.client.calls("RelatedEntities")) == 1  # cache do contêiner
+    assert len(deps.client.calls("RelatedEntities")) == 2  # 2 pools; depois, cache do contêiner
 
 
 async def test_entity_profile_documenta_id_serie_copias_e_relacionadas():

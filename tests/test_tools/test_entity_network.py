@@ -9,6 +9,7 @@ import asyncio
 import re
 
 from gobus_mcp.cache import TTLCache
+from gobus_mcp.client import GobusGraphQLError
 from gobus_mcp.tools import get_entity_network as network_module
 from gobus_mcp.tools.get_entity_network import get_entity_network
 
@@ -254,7 +255,11 @@ async def test_node_types_loc_lista_lugares_sem_teto(fake_client):
 async def test_limit_e_vizinhos_considerados_ate_200(fake_client):
     _route(fake_client)
     await get_entity_network(FOCUS, fake_client, limit=500)
-    assert fake_client.calls("RelatedEntities") == [{"id": FOCUS, "limit": 200}]
+    calls = fake_client.calls("RelatedEntities")
+    assert {(c["id"], c["limit"], c["orderBy"]) for c in calls} == {
+        (FOCUS, 200, "WEIGHT"),
+        (FOCUS, 200, "LIFT"),
+    }
 
 
 async def test_limite_atingido_vira_mais(fake_client):
@@ -316,17 +321,21 @@ async def test_depth2_expande_so_os_5_vizinhos_mais_fortes(fake_client):
     _route(fake_client)
     await get_entity_network(FOCUS, fake_client, depth=2)
     calls = fake_client.calls("RelatedEntities")
-    assert calls[0] == {"id": FOCUS, "limit": 50}
-    assert sorted(c["id"] for c in calls[1:]) == sorted(
+    focus = [c for c in calls if c["id"] == FOCUS]
+    seeds = [c for c in calls if c["id"] != FOCUS]
+    assert sorted(c["orderBy"] for c in focus) == ["LIFT", "WEIGHT"]
+    assert all(c["limit"] == 50 for c in focus)
+    assert sorted(c["id"] for c in seeds) == sorted(
         r["canonicalId"] for r in (MEC, ENEM, INEP, ESCOLA, CAMILO)
     )
-    assert all(c["limit"] == 25 for c in calls[1:])  # top 25 de cada vizinho
+    # top 25 de cada vizinho, só o pool por peso (reordenado pela associação)
+    assert all(c["limit"] == 25 and c["orderBy"] == "WEIGHT" for c in seeds)
 
 
 async def test_depth2_expande_no_maximo_os_exibidos(fake_client):
     _route(fake_client)
     await get_entity_network(FOCUS, fake_client, depth=2, max_nodes=2)
-    ids = [c["id"] for c in fake_client.calls("RelatedEntities")[1:]]
+    ids = [c["id"] for c in fake_client.calls("RelatedEntities") if c["id"] != FOCUS]
     assert sorted(ids) == sorted([MEC["canonicalId"], ENEM["canonicalId"]])
 
 
@@ -390,4 +399,92 @@ async def test_depth2_expansoes_em_paralelo(fake_client):
 async def test_depth_fora_da_faixa_e_ajustado(fake_client):
     _route(fake_client)
     await get_entity_network(FOCUS, fake_client, depth=7)
-    assert len(fake_client.calls("RelatedEntities")) == 6  # 1 + 5 (depth=2)
+    assert len(fake_client.calls("RelatedEntities")) == 7  # 2 pools do foco + 5 (depth=2)
+
+
+# ── ranking por associação (lift, GQL-1) ───────────────────────────────────
+
+# lifts medidos em 21/10/2026 (entity_edges × news_entities)
+LIFTS = {
+    "Q4294522": 14.58,  # MEC
+    "Q5419278": 68.58,  # Enem
+    "Q6041403": 23.25,  # Inep
+    "dgb_escola-em-tempo-integral": 60.68,
+    "Q18242106": 24.44,  # Camilo
+    "Q575545": 10.41,  # Bolsa Família
+    "dgb_saude": 0.9,  # abaixo do esperado: associação 0
+    "Q155": 1.05,
+}
+LEI = {**_rel("dgb_lei-14818", "Lei nº 14.818/2024", 64, "LAW"), "lift": 153.39}
+
+
+def _with_lift(row: dict) -> dict:
+    lift = LIFTS.get(row["canonicalId"])
+    return {**row, "lift": lift, "articleCount": 1000 if lift else None}
+
+
+def _related_lift(v: dict) -> dict:
+    if v["id"] != FOCUS:
+        return _related(v)
+    rows = [_with_lift(r) for r in FIRST_HOP]
+    if v.get("orderBy") == "LIFT":
+        rows = sorted([*rows, LEI], key=lambda r: -(r.get("lift") or 0))
+    return {"relatedEntities": rows[: v["limit"]]}
+
+
+async def test_ranking_por_associacao_com_artigos_e_lift(fake_client):
+    _route(fake_client, related=_related_lift)
+    text = await get_entity_network(FOCUS, fake_client)
+    assert _ranked(text) == [
+        "Ministério da Educação (MEC)",  # 650 × log2(14,6) ≈ 2.513
+        "Enem",  # ≈ 1.866
+        "Inep",  # ≈ 1.339
+        "Escola em Tempo Integral",  # ≈ 1.066
+        "Camilo Santana",  # ≈ 784
+        "Lei nº 14.818/2024",  # ≈ 465, só no pool por lift
+        "Bolsa Família",  # ≈ 389
+        "Ministério da Saúde",  # lift < 1: associação 0, por último
+    ]
+    assert (
+        "1. **Ministério da Educação (MEC)** (ORG) · 650 artigos · 14,6× o esperado · "
+        "`Q4294522`" in text
+    )
+    ranking = _line(text, "**Ranking:**")
+    assert "associação" in ranking and "lift" in ranking
+
+
+async def test_sem_lift_nos_dados_o_cabecalho_diz_peso_bruto(fake_client):
+    _route(fake_client)
+    text = await get_entity_network(FOCUS, fake_client)
+    ranking = _line(text, "**Ranking:**")
+    assert "peso bruto" in ranking
+    assert "o esperado" not in text
+
+
+async def test_api_sem_lift_usa_a_query_antiga_e_o_peso_bruto(fake_client):
+    _route(fake_client)
+    fake_client.route(
+        "RelatedEntities",
+        GobusGraphQLError(
+            [{"message": "Unknown argument 'orderBy' on field 'Query.relatedEntities'."}]
+        ),
+    )
+    fake_client.route("RelatedEntitiesLegacy", _related)
+    text = await get_entity_network(FOCUS, fake_client, depth=2)
+    assert _ranked(text)[0] == "Ministério da Educação (MEC)"
+    assert "peso bruto" in _line(text, "**Ranking:**")
+    assert "- via **Enem** (306):" in text
+    assert "Não foi possível expandir" not in text
+
+
+async def test_segundo_grau_mostra_o_lift_quando_ha(fake_client):
+    def related(v):
+        if v["id"] == FOCUS:
+            return _related_lift(v)
+        rows = [{**r, "lift": 3.0} for r in SECOND_HOP.get(v["id"], [])]
+        return {"relatedEntities": rows[: v["limit"]]}
+
+    _route(fake_client, related=related)
+    text = await get_entity_network(FOCUS, fake_client, depth=2)
+    via_mec = _line(text, "- via **Ministério da Educação (MEC)** (650")
+    assert "FNDE (1.300 · 3,0×, `Q1`)" in via_mec

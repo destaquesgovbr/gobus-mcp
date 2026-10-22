@@ -208,7 +208,12 @@ async def test_relacionadas_sem_genericas_rotuladas_todo_o_acervo(fake_client):
     hidden = next(line for line in section.splitlines() if line.startswith("Ocultas como"))
     assert "República Federativa do Brasil (341)" in hidden
     assert "Ministério da Saúde" not in hidden
-    assert fake_client.calls("RelatedEntities") == [{"id": ID, "limit": 40}]
+    calls = fake_client.calls("RelatedEntities")
+    assert {(c["id"], c["limit"], c["orderBy"]) for c in calls} == {
+        (ID, 40, "WEIGHT"),
+        (ID, 40, "LIFT"),
+    }
+    assert "**Ordem:** peso bruto" in section  # sem lift nos dados
 
 
 async def test_copias_identicas_numa_linha_logo_abaixo_do_cabecalho(fake_client):
@@ -383,3 +388,39 @@ async def test_sem_wikidata_mostra_travessao(fake_client):
     _route(fake_client)
     text = await _profile(fake_client)
     assert f"**ID:** `{ID}` · —" in text
+
+
+# ── ordem por associação (lift, GQL-1) ─────────────────────────────────────
+
+LIFTS = {"Q4294522": 14.58, "Q5419278": 68.58, "Q6041403": 23.25, "Q18242106": 24.44}
+
+
+def _related_lift(v):
+    rows = [{**r, "lift": LIFTS.get(r["canonicalId"]), "articleCount": 1} for r in RELATED]
+    if v["orderBy"] == "LIFT":
+        rows.append({**_rel("dgb_lei-14818", "Lei nº 14.818/2024", 64, "LAW"), "lift": 153.39})
+    return {"relatedEntities": rows}
+
+
+async def test_relacionadas_por_associacao_com_lift(fake_client):
+    _route(fake_client, RelatedEntities=_related_lift)
+    text = await _profile(fake_client, "Pé-de-Meia")
+    section = text.split("## Entidades relacionadas", 1)[1]
+    names = re.findall(r"^- \*\*(.+?)\*\*", section, flags=re.MULTILINE)
+    assert names[:5] == [
+        "Ministério da Educação (MEC)",
+        "Enem",
+        "Inep",
+        "Camilo Santana",
+        "Lei nº 14.818/2024",
+    ]
+    assert "- **Enem** (EVENT) · 306 artigos · 68,6× o esperado · `Q5419278`" in section
+    assert "**Ordem:** associação" in section
+
+
+async def test_summary_only_top3_por_associacao(fake_client):
+    _route(fake_client, RelatedEntities=_related_lift)
+    text = await _profile(fake_client, "Pé-de-Meia", summary_only=True)
+    assert "**Top relacionadas:** Ministério da Educação (MEC) (ORG), Enem (EVENT), Inep (ORG)" in (
+        text
+    )
