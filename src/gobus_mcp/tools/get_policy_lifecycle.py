@@ -222,24 +222,33 @@ async def _peak_articles(
     return ((data or {}).get("search") or {}).get("articles") or []
 
 
-def _follow_ups(entity_id: str, peak: MonthPoint, articles: list[dict]) -> list[FollowUp]:
-    """Perfil completo, coerência entre as agências no mês de pico e o artigo do pico."""
-    peak_end = _next_month(peak.month) - timedelta(days=1)
+def _follow_ups(
+    entity_id: str, peak: MonthPoint, articles: list[dict], *, today: date
+) -> list[FollowUp]:
+    """Perfil completo, coerência entre as agências no mês de pico e o artigo do pico.
+
+    A janela da coerência vai do 1º dia do pico até o último dia dele, limitada a D−1: com
+    o pico no mês corrente (parcial), o fim do mês está no futuro e a coerência recusaria
+    a chamada. No dia 1 desse mês não há dia fechado, e a coerência fica de fora."""
+    peak_end = min(_next_month(peak.month) - timedelta(days=1), today - timedelta(days=1))
     items: list[FollowUp] = [
         (
             tool_call("gobus_get_entity_profile", entity_name=entity_id),
             "série, órgãos e relacionadas",
         ),
-        (
-            tool_call(
-                "gobus_get_message_coherence",
-                entity_id=entity_id,
-                date_from=peak.month.isoformat(),
-                date_to=peak_end.isoformat(),
-            ),
-            "sintonia no pico",
-        ),
     ]
+    if peak_end >= peak.month:
+        items.append(
+            (
+                tool_call(
+                    "gobus_get_message_coherence",
+                    entity_id=entity_id,
+                    date_from=peak.month.isoformat(),
+                    date_to=peak_end.isoformat(),
+                ),
+                "sintonia no pico",
+            )
+        )
     first = next((a for a in articles if a.get("uniqueId")), None)
     if first is not None:
         items.append(
@@ -378,4 +387,6 @@ async def get_policy_lifecycle(
             agency = art.get("agencyName") or art.get("agency") or ""
             lines.append(f"- {md_link(title, art.get('url'))} — {agency} · {when}")
 
-    return with_follow_ups("\n".join(lines), _follow_ups(entity_id, peak, articles))
+    return with_follow_ups(
+        "\n".join(lines), _follow_ups(entity_id, peak, articles, today=today)
+    )

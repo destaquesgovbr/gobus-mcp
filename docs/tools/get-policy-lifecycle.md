@@ -62,4 +62,4 @@ Ciclo de vida comunicacional de uma política pública: série **mensal** de cob
 - **Artigos do pico:** `articles(filter: {entityCanonical, startDate, endDate})` no mês de pico; se nenhum artigo tiver a entidade marcada, busca pelo nome na mesma janela.
 - Use `gobus_resolve_entity(entity_type="POLICY")` para descobrir o nome canônico. `policyDetails` (domínio, população-alvo) é opcional.
 - Artigo sem URL `http(s)` sai com o título em texto puro (`md_link`).
-- **Para explorar:** o perfil completo, a coerência entre as agências no mês de pico (dentro do limite de 92 dias da tool) e o artigo do pico.
+- **Para explorar:** o perfil completo, a coerência entre as agências no mês de pico (dentro do limite de 92 dias da tool) e o artigo do pico. A janela da coerência termina no último dia do pico ou em D−1, o que vier antes: com o pico no mês corrente (parcial), o fim do mês ainda está no futuro. No dia 1 desse mês não há dia fechado, e a coerência sai do rodapé.
