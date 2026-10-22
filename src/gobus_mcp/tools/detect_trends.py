@@ -91,7 +91,7 @@ def _follow_ups(
         date_from=window.start.isoformat(),
         date_to=window.end.isoformat(),
     )
-    items.append((search, f"artigos de {themes[0]['themeLabel']} na janela"))
+    items.append((search, "artigos do tema na janela"))
     items.append((tool_call("gobus_forecast_trends"), "o tema segue em alta?"))
     return items
 

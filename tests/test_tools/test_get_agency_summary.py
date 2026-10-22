@@ -109,7 +109,7 @@ async def test_sem_ptbr_usa_o_ingles_e_avisa(fake_client):
 
     result = await _summary(fake_client)
 
-    assert "**Legibilidade (Flesch inglês (legado)):** 33.0 (difícil)" in result
+    assert "**Legibilidade (Flesch inglês, legado):** 33.0 (difícil)" in result
     assert "Flesch pt-BR indisponível" in result
 
 

@@ -136,7 +136,7 @@ async def test_sem_ptbr_mostra_o_ingles_identificado(fake_client):
 
     result = await get_article("x1", fake_client)
 
-    assert "Legibilidade (Flesch inglês (legado)): 30.0 (difícil)" in result
+    assert "Legibilidade (Flesch inglês, legado): 30.0 (difícil)" in result
 
 
 async def test_api_sem_ptbr_usa_a_query_antiga(fake_client):

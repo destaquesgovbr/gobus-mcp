@@ -44,7 +44,7 @@
           "key": "readability",
           "status": "ok",
           "since": null,
-          "message": "Legibilidade (Flesch): ok — Flesch inglês (legado): 93% dos artigos com valor (2370 de 2553)",
+          "message": "Legibilidade (Flesch): ok — Flesch inglês, legado: 93% dos artigos com valor (2370 de 2553)",
           "metric": {
             "coveredArticles": 2370,
             "totalArticles": 2553,
