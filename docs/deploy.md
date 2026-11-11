@@ -38,14 +38,15 @@ Além dessas, o servidor lê `PORT` (injetada pelo Cloud Run) para decidir o tra
 **Produção:** `https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app`
 **Projeto GCP:** `inspire-7-finep`
 
-### Transport em produção: HTTP stateless `/mcp` + compat `/sse`
+### Transport em produção: HTTP stateless `/mcp`
 
 O Cloud Run injeta `PORT=8080`, então o container sobe em **HTTP stateless** (veja [Arquitetura → Transport](arquitetura.md#transport)):
 
 | Endpoint | Spec | Uso |
 |----------|------|-----|
-| `/mcp` | Streamable HTTP 2025-03-26, stateless | Primário: Claude Desktop (conector), claude.ai e clientes atuais |
-| `/sse` + `/messages/` | SSE 2024-11-05 | Compatibilidade com clientes antigos; a sessão vive na instância que a abriu |
+| `/mcp` | Streamable HTTP 2025-03-26, stateless | Único endpoint: Claude Code (`--transport http`), Claude Desktop (conector), claude.ai e clientes atuais |
+
+O `/sse` + `/messages/` (SSE 2024-11-05) foi removido em novembro de 2026: o `GET /sse` segurava a instância aberta por até o `timeout` do serviço (3.600 s), e ela faturava o tempo todo. Cliente com `"type": "sse"` precisa migrar (ver [Início Rápido](quickstart.md)).
 
 ### CI/CD
 
@@ -93,16 +94,16 @@ EXPOSE 8080
 CMD ["python", "-m", "gobus_mcp"]
 ```
 
-O build falha se o `poetry.lock` estiver dessincronizado do `pyproject.toml`. O `fastmcp` está fixado em `>=3.4.2,<3.5` porque o `/sse` usa API privada do fastmcp.
+O build falha se o `poetry.lock` estiver dessincronizado do `pyproject.toml`. O `fastmcp` está fixado em `>=3.4.2,<3.5`; o pin vinha da API privada que o `/sse` (removido) usava, e relaxá-lo fica para um PR à parte.
 
-**Smoke local da imagem** (as três rotas):
+**Smoke local da imagem:**
 
 ```bash
 docker build -t gobus-mcp:local .
 docker run --rm -p 8080:8080 -e PORT=8080 \
   -e GOBUS_GRAPHQL_URL=https://destaquesgovbr-graphql-api-klvx64dufq-rj.a.run.app/graphql \
   gobus-mcp:local
-# /mcp: initialize (POST JSON-RPC) · /sse: devolve o endpoint de mensagens · /messages/: POST da sessão
+# POST /mcp com initialize (JSON-RPC) → 200 · GET /mcp → 405 · /sse → 404
 ```
 
 ## WIF (Workload Identity Federation)

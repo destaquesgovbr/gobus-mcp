@@ -10,13 +10,13 @@ Servidor MCP (Model Context Protocol) que expõe o acervo do Destaques Gov.BR �
 
 **Deploy:** Cloud Run (`destaquesgovbr-gobus-mcp`). Push em `main` com mudanças em `src/`, `Dockerfile`, `pyproject.toml`, `poetry.lock` ou nos workflows dispara o CI (`test.yaml`: lock, ruff, pytest, mkdocs) e, se verde, o build da imagem a partir do lock e o deploy. Env vars do serviço são geridas pelo Terraform (repo `infra/`).
 
-**Produção:** `https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app` — `/mcp` (HTTP stateless, primário) e `/sse` + `/messages/` (compatibilidade).
+**Produção:** `https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app/mcp` (Streamable HTTP stateless, o único endpoint HTTP; o `/sse` legado saiu em nov/2026).
 
 ## MCP no Claude Code
 
-O Claude Code CLI tem problemas com os endpoints HTTP remotos em chamadas de subagente (`/sse` perde a sessão entre chamadas → `-32602`; `/mcp` falhou na conexão). **Use o servidor local por stdio**, que não tem sessão a perder.
+**Produção (remoto):** `claude mcp add --transport http gobus https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app/mcp -s user` (no `~/.claude.json` vira `"type": "http"`). A URL vai **sem barra final** (com barra, o servidor responde 307 para `http://…/mcp`). Conectado assim em 11/11/2026; por ser stateless, não há sessão a perder entre chamadas de subagente (o `-32602` era do `/sse`).
 
-O repositório traz um `.mcp.json` com a entrada `gobus-local` (stdio, código deste clone):
+**Local por stdio** (código deste clone, para desenvolver ou validar): o repositório traz um `.mcp.json` com a entrada `gobus-local`:
 
 ```json
 {
@@ -33,11 +33,11 @@ O repositório traz um `.mcp.json` com a entrada `gobus-local` (stdio, código d
 ```
 
 - O `command` é relativo: abra o Claude Code na raiz do clone, com a `.venv` instalada (ver Comandos).
-- O workspace `/Users/nitai/dev/destaquesgovbr` tem o seu próprio `.mcp.json` (entrada `gobus`, caminho absoluto da venv). Os nomes diferentes evitam colisão.
+- O workspace `/Users/nitai/dev/destaquesgovbr` tem o seu próprio `.mcp.json` (entrada `gobus`, stdio com caminho absoluto da venv). Ela tem o mesmo nome do `gobus` remoto; entre escopos, o Claude Code usa local > projeto > user.
 - Para validar um worktree (ex.: G2/G3), crie uma entrada stdio separada (ex.: `gobus-g2`) com `PYTHONPATH=<worktree>/src`.
-- O `~/.claude.json` do usuário pode ainda apontar o "gobus" para `/sse`: ajuste manual, nunca editado por agentes.
+- O `~/.claude.json` do usuário é ajuste manual, nunca editado por agentes. Quem ainda tiver `"type": "sse"` em `.../sse` precisa trocar para o comando acima: o servidor não serve mais o `/sse`.
 
-**Claude Desktop / claude.ai:** conector remoto em `https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app/mcp`. O `/sse` fica só por compatibilidade.
+**Claude Desktop / claude.ai:** conector remoto em `https://destaquesgovbr-gobus-mcp-klvx64dufq-rj.a.run.app/mcp`.
 
 ## Comandos
 
@@ -85,7 +85,7 @@ python tests/fixtures/refresh_schema.py
 # Rodar localmente (stdio)
 GOBUS_GRAPHQL_URL=https://destaquesgovbr-graphql-api-klvx64dufq-rj.a.run.app/graphql python -m gobus_mcp
 
-# Rodar localmente em HTTP (/mcp, /sse, /messages/)
+# Rodar localmente em HTTP (/mcp)
 PORT=8000 GOBUS_GRAPHQL_URL=... python -m gobus_mcp
 ```
 
@@ -179,7 +179,7 @@ prompts/             # 4 prompts: monitor_agency, trace_entity, weekly_digest, d
 
 **Transport:** determinado em runtime pelo env var `PORT`:
 - `PORT` ausente → `stdio`
-- `PORT` presente (Cloud Run injeta 8080) → HTTP stateless em `0.0.0.0:PORT`; endpoints `/mcp` (primário) e `/sse` + `/messages/` (compat; API privada do fastmcp — por isso `fastmcp>=3.4.2,<3.5`)
+- `PORT` presente (Cloud Run injeta 8080) → HTTP stateless em `0.0.0.0:PORT`, só o `/mcp`: cada `POST` responde e fecha, `GET` dá 405 (nenhum stream longo segura a instância; `tests/test_server/test_http_routes.py`). O pin `fastmcp>=3.4.2,<3.5` vinha da API privada usada pelo `/sse` removido; relaxá-lo fica para um PR à parte
 
 ## Queries GraphQL
 

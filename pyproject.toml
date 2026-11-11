@@ -7,7 +7,7 @@ license = "AGPL-3.0-or-later"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-# <3.5: o server.py usa API privada do fastmcp (_mcp_server, _additional_http_routes) no /sse
+# <3.5: o pin vinha da API privada do fastmcp usada pelo /sse (removido); relaxá-lo fica para um PR à parte
 fastmcp = ">=3.4.2,<3.5"
 httpx = ">=0.28.1,<1"
 # >=2.11: ConfigDict(validate_by_name, serialize_by_alias) nos payloads

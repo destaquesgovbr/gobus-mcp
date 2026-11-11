@@ -22,7 +22,7 @@ flowchart LR
     API --> NEO
 ```
 
-O cliente conversa com o Gobus MCP via protocolo MCP (stdio localmente; em produção, HTTP stateless em `/mcp` mais `/sse` por compatibilidade). O Gobus MCP traduz cada chamada em uma query GraphQL e a `graphql-api` resolve contra os bancos de dados subjacentes.
+O cliente conversa com o Gobus MCP via protocolo MCP (stdio localmente; em produção, HTTP stateless em `/mcp`). O Gobus MCP traduz cada chamada em uma query GraphQL e a `graphql-api` resolve contra os bancos de dados subjacentes.
 
 ## Capacidades
 
