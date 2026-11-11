@@ -2,7 +2,6 @@ import logging
 from dataclasses import dataclass, field
 
 from fastmcp import FastMCP
-from fastmcp.server.http import Mount, Request, Response, SseServerTransport
 from fastmcp.tools import ToolResult
 
 from gobus_mcp.agency_activity import AgencyActivityService
@@ -45,29 +44,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP(name="Gobus", instructions=SERVER_INSTRUCTIONS)
-
-# ── Backward-compat SSE (spec 2024-11-05) ────────────────────────────────────
-# O endpoint primário é /mcp (stateless, spec 2025-03-26) sem expiração de sessão.
-# /sse + /messages ficam disponíveis para clientes que ainda usam o protocolo antigo.
-_sse = SseServerTransport("/messages/")
-
-
-@mcp.custom_route("/sse", methods=["GET"])
-async def _sse_compat(request: Request) -> Response:
-    async with _sse.connect_sse(request.scope, request.receive, request._send) as streams:
-        await mcp._mcp_server.run(
-            streams[0],
-            streams[1],
-            mcp._mcp_server.create_initialization_options(),
-        )
-    return Response()
-
-
-mcp._additional_http_routes.append(
-    Mount("/messages", app=_sse.handle_post_message)
-)  # Starlette redireciona /messages → /messages/ sem trailing slash
-
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 @dataclass
@@ -728,9 +704,9 @@ def main():
     logger.info("Iniciando Gobus MCP Server...")
     logger.info("GraphQL endpoint: %s", settings.graphql_url)
 
-    # Cloud Run injeta PORT=8080 → HTTP stateless em /mcp (spec 2025-03-26).
-    # /sse + /messages ficam disponíveis para backwards-compat (spec 2024-11-05).
-    # Sem PORT → stdio (Claude Desktop / desenvolvimento local).
+    # Cloud Run injeta PORT=8080 → HTTP stateless em /mcp (Streamable HTTP): cada POST
+    # responde e fecha; GET em /mcp dá 405, então nenhum cliente segura um stream aberto
+    # (o /sse legado, que segurava, saiu). Sem PORT → stdio (Claude Code / desenvolvimento).
     port = int(os.environ.get("PORT", 0))
 
     try:
@@ -738,10 +714,7 @@ def main():
             logger.info("Transport: stdio (modo local)")
             mcp.run()
         else:
-            logger.info(
-                "Transport: http stateless em 0.0.0.0:%d — /mcp (2025-03-26) + /sse (2024-11-05)",
-                port,
-            )
+            logger.info("Transport: http stateless em 0.0.0.0:%d — /mcp", port)
             middleware = http_middleware(settings.cors_origins)
             if middleware:
                 logger.warning("CORS de desenvolvimento ligado: %s", settings.cors_origins)
