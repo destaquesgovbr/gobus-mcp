@@ -74,12 +74,13 @@ O transport é escolhido em runtime conforme a variável `PORT`:
 | Condição | Transport | Uso |
 |----------|-----------|-----|
 | `PORT` ausente | `stdio` | Claude Desktop / Code local — o cliente sobe o processo e fala via stdin/stdout |
-| `PORT` presente (Cloud Run injeta `8080`) | HTTP stateless em `/mcp` + compat `/sse` | Produção em Cloud Run, escutando em `0.0.0.0:PORT` |
+| `PORT` presente (Cloud Run injeta `8080`) | HTTP stateless em `/mcp` | Produção em Cloud Run, escutando em `0.0.0.0:PORT` |
 
-### HTTP stateless `/mcp` + compat `/sse`
+### HTTP stateless `/mcp`
 
-- **`/mcp`** (Streamable HTTP, spec 2025-03-26) é o endpoint primário, em modo _stateless_: nenhuma sessão fica em memória entre requisições, então funciona atrás do balanceador do Cloud Run com qualquer número de instâncias.
-- **`/sse` + `/messages/`** (spec 2024-11-05) ficam por compatibilidade com clientes antigos. A sessão SSE vive na instância que a abriu; por isso, com mais de uma instância, prefira `/mcp`. O `server.py` monta essas rotas com API privada do fastmcp (`_mcp_server`, `_additional_http_routes`), por isso o `fastmcp` está fixado em `<3.5` e o smoke do Docker testa as três rotas.
+- **`/mcp`** (Streamable HTTP, spec 2025-03-26) é o único endpoint HTTP, em modo _stateless_: nenhuma sessão fica em memória entre requisições, então funciona atrás do balanceador do Cloud Run com qualquer número de instâncias.
+- Cada `POST` responde e fecha; um `GET` em `/mcp` dá 405. Nenhum cliente consegue segurar um stream aberto, o que manteria a instância do Cloud Run faturando até o `timeout` do serviço.
+- O endpoint legado **`/sse` + `/messages/`** (spec 2024-11-05) foi removido em novembro de 2026 justamente por isso: o `GET /sse` ficava aberto por até 3.600 s. `tests/test_server/test_http_routes.py` garante que só o `/mcp` existe. O `fastmcp` segue fixado em `>=3.4.2,<3.5` (o pin vinha da API privada que o `/sse` usava; relaxá-lo fica para depois).
 
 ## GraphQL-only
 
